@@ -1,19 +1,8 @@
-u"""
-Q2 — 多点往返运输与实体无人机调度
-==================================
-
-第一阶段: 公共基础模型检查与一致性验证.
-
-运行:
-    cd code
-    python Q2.py
-
-当前阶段不涉及优化, 仅验证数据完整性、物理模型一致性和电池充电模型.
-全部 PASS 后可进入第二阶段 (候选任务生成 & MILP 调度).
-"""
+u"""Q2 全流程入口：基础检查、候选生成（必要时）和时间窗联合优化。"""
 
 import sys
 from pathlib import Path
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 PROJECT = Path(__file__).resolve().parent
 sys.path.insert(0, str(PROJECT))
@@ -31,7 +20,25 @@ def main():
 
     print()
     if result["passed"]:
-        print("下一步: 候选多点运输任务生成器 (candidate_tasks)")
+        print("基础检查通过，进入候选任务与时间窗联合优化。")
+        data_dir = PROJECT / "data"
+        task_path = data_dir / "Q2_candidate_tasks.csv"
+        delivery_path = data_dir / "Q2_candidate_deliveries.csv"
+        if not task_path.exists() or not delivery_path.exists():
+            from src.physics import load_models
+            from src.q2.data_model import load_q2_data
+            from src.q2.candidate_generator import generate_candidate_pool
+
+            data = load_q2_data()
+            tasks, deliveries, summary = generate_candidate_pool(
+                data["boxes"], load_models(), max_stops=2
+            )
+            tasks.to_csv(task_path, index=False, encoding="utf-8-sig")
+            deliveries.to_csv(delivery_path, index=False, encoding="utf-8-sig")
+            summary.to_csv(data_dir / "Q2_candidate_summary.csv",
+                           index=False, encoding="utf-8-sig")
+        from src.q2.joint_scheduler import run_joint
+        run_joint()
     else:
         failing = [(name, detail) for name, ok, detail in result["checks"] if not ok]
         print("以下检查未通过:")

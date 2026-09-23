@@ -1,0 +1,4 @@
+﻿objective,candidate_count,time_option_count,n_sorties,energy_kWh,Cmax_s,hard_violations,solver_status
+N,1560,40956,18,62.56165362119746,29679.509499342308,0,Optimization terminated successfully. (HiGHS Status 7: Optimal)
+E,1560,40956,20,61.89981662911854,30279.509499342308,0,Optimization terminated successfully. (HiGHS Status 7: Optimal)
+T,1560,40956,23,72.22190771369607,12213.600023787336,0,Time limit reached. (HiGHS Status 13: Time limit reached)
