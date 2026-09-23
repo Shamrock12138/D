@@ -47,8 +47,12 @@ O01→Si→O01 直接往返，单服务区、不可跨服务区组批。
 步 4 - 策略对比  -> Q1_fixed_comparison.csv
   N/E/T-opt + Preference + Pareto-N/E/T↓ 共七策略 N_f, E, T 对比
 
-步 5 - ρ 敏感性  -> Q1_fixed_sensitivity.csv
-  ρ=10/15/20/25/30 时质量/能量受限区数、m_max 均值/最小/最大
+步 5 - ρ 敏感性  -> Q1_sensitivity_payload_summary.csv + Q1_sensitivity_payload_detail.csv
+                    + Q1_sensitivity_mixed_summary.csv + Q1_sensitivity_mixed_plan.csv
+  payload_summary: 每 (rho, type) 质量/能量受限区数 & m_max 均值/最小/最大
+  payload_detail:  每 (rho, type, service) 最大安全载荷明细
+  mixed_summary:   每 (rho, service, objective) N_f, E, T, A/B/C 架次
+  mixed_plan:      每 (rho, objective, service) 逐架次机型/箱号/能耗/时间方案
 
 步 6 - 混合机型组批  -> Q1_mixed_{N,E,T}_opt_plan.csv + Q1_mixed_objectives.csv
                        + Q1_mixed_comparison.csv + Q1_mixed_manifest.json
@@ -68,26 +72,24 @@ def load_cargo():
 # 步 1: 最大安全载荷
 # ═══════════════════════════════════════════════════════════════
 
-def compute_max_payloads_all():
-    u"""三种机型 × 15 服务区 — 能量约束下的最大安全质量载荷"""
-    models = load_models()
+def build_max_payload_table(models, verbose=False):
+    u"""给定 models dict, 计算 3 x 15 最大安全载荷 (纯函数, 不写文件)
 
-    print("=" * 70)
-    print("步 1：最大安全载荷（等效航程模型）")
-    print("=" * 70)
-
+    可被基准步1和敏感性分析复用. 返回 df_max.
+    """
     results = []
     for g, model in models.items():
         u = model.u
         E_avail = model.available_energy
-        print(f"\n机型 {g}:")
-        print(f"  M_g0={u['M_g0']}kg  Q_g={u['Q_g']}kg  V_g={u['V_g']}m^3")
-        print(f"  L_0={int(u['L_0'])}m  L_F={int(u['L_F'])}m  "
-              f"E_use={u['E_use']}kWh  ρ={u['ρ_g']}%  "
-              f"E_avail={E_avail:.4f}kWh")
-        print(f"  {'服务区':<8} {'距离(m)':>10} {'H_up(m)':>10} "
-              f"{'m_energy(kg)':>14} {'E_round':>10} {'绑定约束':>12}")
-        print(f"  {'-'*62}")
+        if verbose:
+            print(f"\n机型 {g}:")
+            print(f"  M_g0={u['M_g0']}kg  Q_g={u['Q_g']}kg  V_g={u['V_g']}m^3")
+            print(f"  L_0={int(u['L_0'])}m  L_F={int(u['L_F'])}m  "
+                  f"E_use={u['E_use']}kWh  ρ={u['ρ_g']}%  "
+                  f"E_avail={E_avail:.4f}kWh")
+            print(f"  {'服务区':<8} {'距离(m)':>10} {'H_up(m)':>10} "
+                  f"{'m_energy(kg)':>14} {'E_round':>10} {'绑定约束':>12}")
+            print(f"  {'-'*62}")
 
         for si in model.routes["distance"].columns:
             if not si.startswith("S"):
@@ -112,16 +114,41 @@ def compute_max_payloads_all():
                 "binding": binding,
             })
 
-            print(f"  {si:<8} {d:>10.0f} {H_up:>10.1f} "
-                  f"{m_max:>14.2f} {E_rt:>10.4f} {binding:>12}")
+            if verbose:
+                print(f"  {si:<8} {d:>10.0f} {H_up:>10.1f} "
+                      f"{m_max:>14.2f} {E_rt:>10.4f} {binding:>12}")
 
-    df_res = pd.DataFrame(results)
+    return pd.DataFrame(results)
+
+
+def compute_max_payloads_all():
+    u"""步1: 三种机型 × 15 服务区 — 能量约束下的最大安全质量载荷 (写CSV)"""
+    models = load_models()
+
+    print("=" * 70)
+    print("步 1：最大安全载荷（等效航程模型）")
+    print("=" * 70)
+
+    df_res = build_max_payload_table(models, verbose=True)
     df_res.to_csv(PROJECT / "data" / "Q1_fixed_max_payload.csv",
                   index=False, encoding="utf-8-sig")
     print("\n已保存: data/Q1_fixed_max_payload.csv")
     print("  m_energy: 能量约束下的最大安全质量载荷")
     print("  体积约束 V_g 在组批阶段作为装箱约束检查")
     return df_res, models
+
+
+def _build_models_with_rho(models, rho):
+    u"""基于基准 models, 用指定 ρ 重新构造三类物理模型
+
+    不修改传入的 models, 返回全新的 TransportPhysicsModel dict.
+    """
+    rho_models = {}
+    for g, base_model in models.items():
+        u_mod = base_model.u.copy()
+        u_mod["ρ_g"] = float(rho)
+        rho_models[g] = TransportPhysicsModel(u_mod, base_model.routes)
+    return rho_models
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -713,58 +740,124 @@ def compare_results(df_single_obj, df_baseline_plan, df_pareto_fr):
 # ═══════════════════════════════════════════════════════════════
 
 def sensitivity_analysis(models):
-    u"""返航安全余量 ρ 敏感性分析"""
+    u"""返航安全余量 ρ 敏感性分析 ── 载荷边界 + 混合机型组批双重分析
+
+    对每个 ρ ∈ {10,15,20,25,30}:
+      1. 用 rho_models 重新计算 3×15 最大安全载荷
+      2. 用 rho_df_max 重新生成候选批次 → 精确 DP 求 N/E/T-opt
+      3. 输出 4 个文件:
+         - Q1_sensitivity_payload_summary.csv  每 (rho, type) 统计
+         - Q1_sensitivity_payload_detail.csv   每 (rho, type, service) 明细
+         - Q1_sensitivity_mixed_summary.csv    每 (rho, service, obj) N/E/T
+         - Q1_sensitivity_mixed_plan.csv       每 (rho, obj, service) 逐架次方案
+    """
+    cargo_df = load_cargo()
+    rho_values = [10, 15, 20, 25, 30]
+    services = sorted(cargo_df["service"].unique())
+
+    payload_summary = []
+    payload_detail = []
+    mixed_summary = []
+    mixed_plans = []
+
     print("\n" + "=" * 70)
-    print("步 5：ρ 敏感性分析（等效航程模型）")
+    print("步 5：ρ 敏感性分析 — 载荷边界 + 混合机型组批")
     print("=" * 70)
 
-    service_areas = sorted(models["A"].routes["distance"].columns)
-    service_areas = [s for s in service_areas if s.startswith("S")]
-    rho_values = [10, 15, 20, 25, 30]
+    for rho in rho_values:
+        rho_models = _build_models_with_rho(models, rho)
+        df_max_rho = build_max_payload_table(rho_models)
 
-    all_sens = []
+        print(f"\n── ρ = {rho}% ──")
 
-    for g, base_model in models.items():
-        Q_g = float(base_model.u["Q_g"])
-        print(f"\n机型 {g}:")
-        print(f"  {'ρ(%)':<8} {'质量受限区':>8} {'能量受限区':>8} "
-              f"{'m_max均值':>12} {'m_max最小':>12}")
-
-        for rho in rho_values:
-            u_mod = base_model.u.copy()
-            u_mod["ρ_g"] = float(rho)
-
-            from src.physics import TransportPhysicsModel
-            m = TransportPhysicsModel(u_mod, base_model.routes)
-
-            m_vals = []
-            energy_bound = 0
-            mass_bound = 0
-            for si in service_areas:
-                m_e = m.max_safe_payload(si)
-                m_vals.append(m_e)
-                if m_e >= Q_g - 1e-6:
-                    mass_bound += 1
-                else:
-                    energy_bound += 1
-
-            print(f"  {rho:<8} {mass_bound:>10} {energy_bound:>10} "
-                  f"{np.mean(m_vals):>12.1f} {np.min(m_vals):>12.1f}")
-
-            all_sens.append({
-                "type": g, "rho": rho,
-                "mass_limited_areas": mass_bound,
-                "energy_limited_areas": energy_bound,
-                "m_max_mean": np.mean(m_vals),
-                "m_max_min": np.min(m_vals),
-                "m_max_max": np.max(m_vals),
+        for _, row in df_max_rho.iterrows():
+            payload_detail.append({
+                "rho": rho,
+                "type": row["type"],
+                "service": row["service"],
+                "distance": row["distance"],
+                "H_up_out": row["H_up_out"],
+                "Q_g": row["Q_g"],
+                "V_g": row["V_g"],
+                "m_energy": row["m_energy"],
+                "E_round_kWh": row["E_round_kWh"],
+                "E_avail_kWh": row["E_avail_kWh"],
+                "binding": row["binding"],
             })
 
-    df_sens = pd.DataFrame(all_sens)
-    df_sens.to_csv(PROJECT / "data" / "Q1_fixed_sensitivity.csv",
-                   index=False, encoding="utf-8-sig")
-    print("\n已保存: data/Q1_fixed_sensitivity.csv")
-    return df_sens
+        for g, base_model in models.items():
+            Q_g = float(base_model.u["Q_g"])
+            subset = df_max_rho[df_max_rho["type"] == g]
+            m_vals = subset["m_energy"].values
+            mass_bound = int(np.sum(m_vals >= Q_g - 1e-6))
+            energy_bound = len(m_vals) - mass_bound
+            payload_summary.append({
+                "rho": rho, "type": g,
+                "mass_limited_areas": mass_bound,
+                "energy_limited_areas": energy_bound,
+                "m_max_mean": round(float(np.mean(m_vals)), 4),
+                "m_max_min": round(float(np.min(m_vals)), 4),
+                "m_max_max": round(float(np.max(m_vals)), 4),
+            })
+
+        for service in services:
+            boxes, candidates = _mixed_candidates(
+                rho_models, df_max_rho, cargo_df, service
+            )
+            for target in ("N", "E", "T"):
+                solution = solve_mixed_partition(
+                    candidates, len(boxes), target
+                )
+                records = _mixed_plan(
+                    solution, boxes, candidates,
+                    rho_models, df_max_rho, service
+                )
+                for rec in records:
+                    rec["rho"] = rho
+                    rec["objective"] = f"{target}-opt"
+                mixed_plans.extend(records)
+
+                counts = Counter(r["type"] for r in records)
+                mixed_summary.append({
+                    "rho": rho,
+                    "service": service,
+                    "objective": f"{target}-opt",
+                    "total_boxes": len(boxes),
+                    "N_f": solution[1],
+                    "E_total_kWh": solution[0],
+                    "T_total_s": solution[2],
+                    "A_sorties": counts.get("A", 0),
+                    "B_sorties": counts.get("B", 0),
+                    "C_sorties": counts.get("C", 0),
+                })
+
+        msg = (
+            f"  N-opt: {sum(r['N_f'] for r in mixed_summary if r['rho']==rho and r['objective']=='N-opt')}, "
+            f"E-opt: {sum(r['E_total_kWh'] for r in mixed_summary if r['rho']==rho and r['objective']=='E-opt'):.3f}kWh, "
+            f"T-opt: {sum(r['T_total_s'] for r in mixed_summary if r['rho']==rho and r['objective']=='T-opt'):.0f}s"
+        )
+        print(msg)
+
+    pd.DataFrame(payload_summary).to_csv(
+        PROJECT / "data" / "Q1_sensitivity_payload_summary.csv",
+        index=False, encoding="utf-8-sig")
+    pd.DataFrame(payload_detail).to_csv(
+        PROJECT / "data" / "Q1_sensitivity_payload_detail.csv",
+        index=False, encoding="utf-8-sig")
+    pd.DataFrame(mixed_summary).to_csv(
+        PROJECT / "data" / "Q1_sensitivity_mixed_summary.csv",
+        index=False, encoding="utf-8-sig")
+    pd.DataFrame(mixed_plans).to_csv(
+        PROJECT / "data" / "Q1_sensitivity_mixed_plan.csv",
+        index=False, encoding="utf-8-sig")
+
+    print("\n已保存:")
+    print("  data/Q1_sensitivity_payload_summary.csv  — ρ × type 载荷统计")
+    print("  data/Q1_sensitivity_payload_detail.csv   — ρ × type × service 载荷明细")
+    print("  data/Q1_sensitivity_mixed_summary.csv    — ρ × obj 混合组批 N/E/T")
+    print("  data/Q1_sensitivity_mixed_plan.csv       — ρ × obj × service 逐架次方案")
+
+    return payload_summary, mixed_summary, mixed_plans
 
 
 # ═══════════════════════════════════════════════════════════════

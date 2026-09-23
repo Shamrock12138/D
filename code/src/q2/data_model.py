@@ -1,0 +1,136 @@
+u"""
+Q2 数据层
+=========
+
+将 Q1 的聚合物资需求展开为逐箱数据, 并加载实体无人机和电池清单。
+
+输出格式
+--------
+boxes_df  : 每行一个货箱, 含 box_id, service, cargo_type, mass, volume,
+            priority, first_batch, first_deadline, expected_time
+uavs_df   : 每行一架实体无人机, 含 UAV_id, type
+batteries_df : 每行一块实体电池, 含 battery_id, type, full_charge_time
+"""
+
+import pandas as pd
+from pathlib import Path
+
+PROJECT = Path(__file__).resolve().parent.parent.parent
+
+
+def load_boxes():
+    u"""将物资需求展开为逐箱数据。
+
+    物资需求.csv 每行: service, cargo_type, total_boxes, first_batch,
+    mass_per_box, volume_per_box, priority, first_deadline, expected_time
+
+    返回
+    ----
+    pd.DataFrame
+        box_id (B001-B080), service, cargo_type, mass (kg), volume (m^3),
+        priority, first_batch, first_deadline, expected_time
+    """
+    demand = pd.read_csv(PROJECT / "data" / "物资需求.csv")
+
+    rows = []
+    box_counter = 0
+
+    for _, row in demand.iterrows():
+        n_boxes = int(row["total_boxes"])
+        for _ in range(n_boxes):
+            box_counter += 1
+            rows.append({
+                "box_id": f"B{box_counter:03d}",
+                "service": row["service"],
+                "cargo_type": row["cargo_type"],
+                "mass": float(row["mass_per_box"]),
+                "volume": float(row["volume_per_box"]),
+                "priority": int(row.get("priority", 0)),
+                "first_batch": int(row.get("first_batch", 0)),
+                "first_deadline": (
+                    float(row["first_deadline"])
+                    if pd.notna(row.get("first_deadline"))
+                    else None
+                ),
+                "expected_time": (
+                    float(row["expected_time"])
+                    if pd.notna(row.get("expected_time"))
+                    else None
+                ),
+            })
+
+    df = pd.DataFrame(rows)
+
+    cargo_map = {"医疗物资": 12, "饮用水": 8, "应急食品": 6, "生活卫生用品": 4}
+    df["cargo_code"] = df["cargo_type"].map(cargo_map)
+    df["is_first_batch"] = df["first_batch"].astype(bool)
+
+    return df
+
+
+def load_uavs():
+    u"""加载实体无人机清单。
+
+    运输无人机_清单.csv: UAV_id, type, location
+
+    返回
+    ----
+    pd.DataFrame
+        UAV_id (U01-U08), type (A/B/C), location
+    """
+    return pd.read_csv(PROJECT / "data" / "运输无人机_清单.csv")
+
+
+def load_batteries():
+    u"""将共享电池规格展开为实体电池。
+
+    运输无人机_共享电池.csv: type, shared_battery_count, charge_time
+
+    返回
+    ----
+    pd.DataFrame
+        battery_id (BAT_A01, ...), type, full_charge_time (s)
+    """
+    battery_spec = pd.read_csv(PROJECT / "data" / "运输无人机_共享电池.csv")
+
+    rows = []
+    for _, row in battery_spec.iterrows():
+        typ = row["type"]
+        count = int(row["shared_battery_count"])
+        charge_time = int(row["charge_time"])
+        for i in range(count):
+            rows.append({
+                "battery_id": f"BAT_{typ}{i + 1:02d}",
+                "type": typ,
+                "full_charge_time": charge_time,
+            })
+
+    return pd.DataFrame(rows)
+
+
+def load_q2_data():
+    u"""一次性加载 Q2 全部基础数据。
+
+    返回
+    ----
+    dict
+        boxes     — 逐箱清单 (pd.DataFrame, 80行)
+        uavs      — 实体无人机 (pd.DataFrame, 8行)
+        batteries — 实体电池 (pd.DataFrame, 14块)
+    """
+    return {
+        "boxes": load_boxes(),
+        "uavs": load_uavs(),
+        "batteries": load_batteries(),
+    }
+
+
+if __name__ == "__main__":
+    data = load_q2_data()
+    print(f"货箱总数: {len(data['boxes'])}")
+    print(f"无人机数: {len(data['uavs'])}")
+    print(f"电池数:   {len(data['batteries'])}")
+    print()
+    print(data["boxes"].head(10).to_string(index=False))
+    print()
+    print(data["batteries"].to_string(index=False))
