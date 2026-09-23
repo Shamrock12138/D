@@ -109,11 +109,20 @@ def clean_uav_params():
     for col in ["P_k^cr", "P_k^up"]:
         df_types[col] = df_types[col].round(3)
 
-    cols_ordered = ["type", "name", "M_k", "V_k", "B_k",
+    df_types["M_g0"] = df_types["m_empty"]
+    df_types["Q_g"] = df_types["M_k"]
+    df_types["V_g"] = df_types["V_k"]
+    df_types["L_0"] = df_types["range_empty"]
+    df_types["L_F"] = df_types["range_full"]
+    df_types["E_use"] = df_types["B_k"]
+    df_types["ρ_g"] = df_types["ρ"]
+    df_types["η_up"] = df_types["eta_up"]
+
+    cols_ordered = ["type", "name",
+                    "M_g0", "Q_g", "V_g",
+                    "L_0", "L_F", "E_use",
+                    "ρ_g", "η_up",
                     "v_k^up", "v_k^cr", "v_k^down",
-                    "P_k^up", "P_k^cr",
-                    "m_empty", "range_empty", "range_full",
-                    "eta_up", "eta_down", "ρ",
                     "T_setup", "T_load", "T_handover", "T_handover_p"]
     df_types = df_types[cols_ordered]
 
