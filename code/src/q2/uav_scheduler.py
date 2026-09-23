@@ -1,0 +1,216 @@
+u"""
+Q2 实体无人机任务分配与时间调度
+====================================
+
+输入: 集合划分输出的任务列表 + 无人机清单
+输出: 每架 UAV 的任务甘特时间轴, Cmax
+
+Step 3 第一版: 固定任务集分配, 无电池充电约束。
+算法: LPT (最长处理时间优先) 贪心 + 可选 MILP 验证
+"""
+
+from collections import defaultdict
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+
+PROJECT = Path(__file__).resolve().parent.parent.parent
+
+
+def _load_uav_fleet(fleet_path=None):
+    u"""加载无人机清单。"""
+    if fleet_path is None:
+        fleet_path = PROJECT / "data" / "运输无人机_清单.csv"
+    df = pd.read_csv(fleet_path, encoding="utf-8-sig")
+    uavs = []
+    for _, row in df.iterrows():
+        uavs.append({
+            "uav_id": row["UAV_id"].strip(),
+            "uav_type": row["type"].strip(),
+        })
+    return uavs
+
+
+def _lpt_schedule(tasks, uavs_of_type):
+    u"""LPT: 每类机型内并行调度, 最小化 Cmax。
+
+    Returns
+    -------
+    schedule : list[dict]
+        [{task_id, uav_id, start_s, end_s, duration_s}, ...]
+    """
+    # 按持续时间降序
+    sorted_tasks = sorted(tasks, key=lambda t: t["duration_s"], reverse=True)
+
+    # 每架无人机当前空闲时间
+    uav_free = {u["uav_id"]: 0.0 for u in uavs_of_type}
+    schedule = []
+
+    for task in sorted_tasks:
+        # 找最早空闲的无人机
+        best_uav = min(uav_free, key=uav_free.get)
+        start = uav_free[best_uav]
+        end = start + task["duration_s"]
+
+        schedule.append({
+            "task_id": task["task_id"],
+            "uav_id": best_uav,
+            "uav_type": task["uav_type"],
+            "start_time_s": round(start, 1),
+            "end_time_s": round(end, 1),
+            "duration_s": task["duration_s"],
+            "n_stops": task["n_stops"],
+            "n_boxes": task["n_boxes"],
+            "visit_order": task["visit_order"],
+            "energy_kWh": task["energy_kWh"],
+        })
+        uav_free[best_uav] = end
+
+    return schedule
+
+
+def schedule_tasks(selected_df, uavs, objective_label=""):
+    u"""将选中任务分配到兼容无人机, 返回调度表。
+
+    Parameters
+    ----------
+    selected_df : pd.DataFrame
+        集合划分选中的任务 (含 task_id, uav_type, duration_s 等)
+    uavs : list[dict]
+        [{uav_id, uav_type}, ...]
+    objective_label : str
+
+    Returns
+    -------
+    schedule_df : pd.DataFrame
+    stats : dict
+    """
+    uav_by_type = defaultdict(list)
+    for u in uavs:
+        uav_by_type[u["uav_type"]].append(u)
+
+    tasks_by_type = defaultdict(list)
+    for _, row in selected_df.iterrows():
+        tasks_by_type[row["uav_type"]].append({
+            "task_id": row["task_id"],
+            "uav_type": row["uav_type"],
+            "duration_s": float(row["duration_s"]),
+            "n_stops": int(row["n_stops"]),
+            "n_boxes": int(row["n_boxes"]),
+            "visit_order": row["visit_order"],
+            "energy_kWh": float(row["energy_kWh"]),
+        })
+
+    all_schedule = []
+    for g_name, tasks in tasks_by_type.items():
+        uavs_g = uav_by_type.get(g_name, [])
+        if not uavs_g:
+            raise ValueError(f"机型 {g_name} 无可用无人机, 任务无法执行")
+        g_schedule = _lpt_schedule(tasks, uavs_g)
+        all_schedule.extend(g_schedule)
+
+    schedule_df = pd.DataFrame(all_schedule)
+    schedule_df = schedule_df.sort_values(
+        ["uav_id", "start_time_s"]
+    ).reset_index(drop=True)
+
+    cmax = schedule_df["end_time_s"].max() if len(schedule_df) > 0 else 0.0
+
+    n_used = schedule_df["uav_id"].nunique()
+    uav_summary = (
+        schedule_df.groupby("uav_id")
+        .agg(
+            uav_type=("uav_type", "first"),
+            n_tasks=("task_id", "count"),
+            total_energy=("energy_kWh", "sum"),
+            total_duration=("duration_s", "sum"),
+            finish_time=("end_time_s", "max"),
+        )
+        .reset_index()
+    )
+    uav_summary = uav_summary.sort_values("uav_id")
+
+    stats = {
+        "objective": objective_label,
+        "Cmax_s": round(cmax, 1),
+        "n_uav_used": n_used,
+        "n_tasks": len(schedule_df),
+        "uav_utilization": uav_summary,
+    }
+    return schedule_df, stats
+
+
+def print_schedule(stats, schedule_df):
+    u"""格式化打印调度结果。"""
+    print(f"\n  Cmax = {stats['Cmax_s']:.1f}s "
+          f"({stats['Cmax_s']/3600:.2f}h)")
+    print(f"  使用 {stats['n_uav_used']} 架无人机, "
+          f"{stats['n_tasks']} 个任务")
+
+    print(f"\n  {'UAV':<6} {'类型':<4} {'任务数':<6} "
+          f"{'能耗/kWh':<10} {'总时长/s':<10} {'完成时间/s'}")
+    print(f"  {'-'*50}")
+    for _, row in stats["uav_utilization"].iterrows():
+        print(f"  {row['uav_id']:<6} {row['uav_type']:<4} "
+              f"{int(row['n_tasks']):<6} "
+              f"{row['total_energy']:<10.4f} "
+              f"{row['total_duration']:<10.1f} "
+              f"{row['finish_time']:<.1f}")
+    print(f"\n  详细甘特:")
+    print(f"  {'任务ID':<10} {'UAV':<6} {'开始/s':<10} "
+          f"{'结束/s':<10} {'时长/s':<8}")
+    print(f"  {'-'*50}")
+    for _, row in schedule_df.iterrows():
+        bar = "=" * max(1, int(row["duration_s"] / 150))
+        print(f"  {row['task_id']:<10} {row['uav_id']:<6} "
+              f"{row['start_time_s']:<10.1f} "
+              f"{row['end_time_s']:<10.1f} "
+              f"{row['duration_s']:<8.1f} {bar}")
+
+
+def run_scheduler(tasks_path=None, fleet_path=None):
+    u"""主入口: 加载任务+无人机, 调度, 保存结果。"""
+    data_dir = PROJECT / "data"
+    tasks_path = tasks_path or data_dir / "Q2_selected_tasks.csv"
+    fleet_path = fleet_path or data_dir / "运输无人机_清单.csv"
+
+    selected_df = pd.read_csv(tasks_path, encoding="utf-8-sig")
+    uavs = _load_uav_fleet(fleet_path)
+
+    print(f"\n{'='*60}")
+    print("Q2 Step 3: 实体无人机任务分配与时间调度")
+    print(f"{'='*60}")
+    print(f"任务数: {len(selected_df)}  无人机数: {len(uavs)}")
+
+    # 按机型统计
+    for g_name in ["A", "B", "C"]:
+        n_uav = sum(1 for u in uavs if u["uav_type"] == g_name)
+        n_task = len(selected_df[selected_df["uav_type"] == g_name])
+        print(f"  {g_name}型: {n_uav}架无人机, {n_task}个任务")
+
+    schedule_df, stats = schedule_tasks(selected_df, uavs, "N-opt")
+    print_schedule(stats, schedule_df)
+
+    # 保存
+    out = data_dir / "Q2_uav_schedule.csv"
+    schedule_df.to_csv(out, index=False, encoding="utf-8-sig")
+    print(f"\n已保存: data/Q2_uav_schedule.csv ({len(schedule_df)} rows)")
+
+    summary_rows = [{
+        "task_count": stats["n_tasks"],
+        "uav_used": stats["n_uav_used"],
+        "Cmax_s": stats["Cmax_s"],
+        "Cmax_h": round(stats["Cmax_s"] / 3600, 2),
+    }]
+    pd.DataFrame(summary_rows).to_csv(
+        data_dir / "Q2_uav_schedule_summary.csv",
+        index=False, encoding="utf-8-sig"
+    )
+    print(f"已保存: data/Q2_uav_schedule_summary.csv")
+
+    return schedule_df, stats
+
+
+if __name__ == "__main__":
+    run_scheduler()
