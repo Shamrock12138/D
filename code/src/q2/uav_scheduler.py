@@ -33,47 +33,59 @@ def _load_uav_fleet(fleet_path=None):
 
 
 def _lpt_schedule(tasks, uavs_of_type):
-    u"""LPT: 每类机型内并行调度, 最小化 Cmax。
+    u"""Deadline-aware LPT 调度。
 
-    硬时限任务优先, 并尽量分配在 latest_start_s 之前。
-    其余任务按持续时间降序。
+    硬时限任务按 latest_start_s 升序 (最早截止优先) + duration 降序;
+    软任务按 duration 降序。
+    分配时硬时限任务优先选满足 start ≤ latest_start_s 的 UAV;
+    若无可行 UAV, 计入 infeasible。
 
     Returns
     -------
     schedule : list[dict]
-        [{task_id, uav_id, start_s, end_s, duration_s}, ...]
-    late_hard_tasks : list[str]
-        无法在 deadline 前完成的任务 ID 列表
+    infeasible_hard : list[dict]
+        [{task_id, latest_start_s, assigned_start_s, gap_s, reason}, ...]
     """
-    hard_first = [t for t in tasks if t["has_hard_deadline"]]
-    soft = [t for t in tasks if not t["has_hard_deadline"]]
-    hard_first.sort(key=lambda t: t["duration_s"], reverse=True)
-    soft.sort(key=lambda t: t["duration_s"], reverse=True)
-    sorted_tasks = hard_first + soft
+    hard_tasks = [t for t in tasks if t["has_hard_deadline"]]
+    soft_tasks = [t for t in tasks if not t["has_hard_deadline"]]
+
+    # 硬: 最早截止先, 同截止→时长降序
+    hard_tasks.sort(key=lambda t: (t["latest_start_s"], -t["duration_s"]))
+    # 软: 时长降序
+    soft_tasks.sort(key=lambda t: -t["duration_s"])
+
+    sorted_tasks = hard_tasks + soft_tasks
 
     uav_free = {u["uav_id"]: 0.0 for u in uavs_of_type}
     schedule = []
-    late_hard_tasks = []
+    infeasible_hard = []
 
     for task in sorted_tasks:
-        # 找最早空闲的无人机
         best_uav = min(uav_free, key=uav_free.get)
         start = uav_free[best_uav]
+        is_hard = bool(task["has_hard_deadline"])
+        latest = task.get("latest_start_s", float("inf"))
 
-        # 硬时限任务: 尝试在 latest_start_s 之前开始
-        if task["has_hard_deadline"] and task["latest_start_s"] < float("inf"):
-            deadline_start = task["latest_start_s"]
-            # 找能满足 deadline 且最早空闲的 UAV
+        if is_hard and latest < float("inf"):
             candidates = [
-                (uav_id, uav_free[uav_id])
-                for uav_id in uav_free
-                if uav_free[uav_id] <= deadline_start
+                (uid, uav_free[uid])
+                for uid in uav_free
+                if uav_free[uid] <= latest + 1e-6
             ]
             if candidates:
                 best_uav, start = min(candidates, key=lambda x: x[1])
             else:
-                # 所有 UAV 都忙过了 deadline, 选最早的 (仍然会超时)
-                late_hard_tasks.append(task["task_id"])
+                # 无可满足时间窗的 UAV → 计入不可行
+                infeasible_hard.append({
+                    "task_id": task["task_id"],
+                    "task_type": task["uav_type"],
+                    "n_uavs": len(uavs_of_type),
+                    "latest_start_s": latest,
+                    "assigned_start_s": round(start, 1),
+                    "gap_s": round(start - latest, 1),
+                    "reason": "all UAVs occupied past latest_start",
+                })
+                # 仍然分配, 但用最早空闲 UAV (best-effort)
 
         end = start + task["duration_s"]
 
@@ -92,7 +104,7 @@ def _lpt_schedule(tasks, uavs_of_type):
         })
         uav_free[best_uav] = end
 
-    return schedule, late_hard_tasks
+    return schedule, infeasible_hard
 
 
 def schedule_tasks(selected_df, uavs, objective_label="", deliveries_df=None):
@@ -117,9 +129,21 @@ def schedule_tasks(selected_df, uavs, objective_label="", deliveries_df=None):
     for u in uavs:
         uav_by_type[u["uav_type"]].append(u)
 
+    # ── 从 selected_df 直接读硬时限字段 (candidate_tasks.csv 已含) ──
+    has_col = "has_hard_deadline" in selected_df.columns
+    has_ls_col = "latest_start_s" in selected_df.columns
+
     hard_task_ids = set()
     task_latest_start = {}
-    if deliveries_df is not None:
+    if has_col and has_ls_col:
+        hard_mask = selected_df["has_hard_deadline"].astype(bool)
+        hard_task_ids = set(str(t) for t in selected_df.loc[hard_mask, "task_id"])
+        task_latest_start = dict(
+            zip(selected_df["task_id"].astype(str),
+                selected_df["latest_start_s"].astype(float))
+        )
+    elif deliveries_df is not None:
+        # 回退: 从 deliveries_df 计算 (兼容旧 candidate)
         hard_deliv = deliveries_df[deliveries_df["deadline_s"] < 1e9].copy()
         hard_task_ids = set(str(t) for t in hard_deliv["task_id"].unique())
         hard_deliv["max_start"] = hard_deliv["deadline_s"] - hard_deliv["delivery_offset_s"]
@@ -143,27 +167,33 @@ def schedule_tasks(selected_df, uavs, objective_label="", deliveries_df=None):
             "has_hard_deadline": is_hard,
             "latest_start_s": (
                 float(task_latest_start.get(tid, float("inf")))
-                if is_hard else float("inf")
             ),
         })
 
     all_schedule = []
-    total_late_hard = []
+    all_infeasible = []
     for g_name, tasks in tasks_by_type.items():
         uavs_g = uav_by_type.get(g_name, [])
         if not uavs_g:
             raise ValueError(f"机型 {g_name} 无可用无人机, 任务无法执行")
-        g_schedule, g_late = _lpt_schedule(tasks, uavs_g)
+        g_schedule, g_infeasible = _lpt_schedule(tasks, uavs_g)
         all_schedule.extend(g_schedule)
-        total_late_hard.extend(g_late)
+        all_infeasible.extend(g_infeasible)
 
     schedule_df = pd.DataFrame(all_schedule)
     schedule_df = schedule_df.sort_values(
         ["uav_id", "start_time_s"]
     ).reset_index(drop=True)
 
-    if total_late_hard:
-        print(f"  [WARNING] {len(total_late_hard)} 硬时限任务无法在 deadline 前开始: {total_late_hard}")
+    # ── 硬时限不可行报告 ──
+    if all_infeasible:
+        infeas_df = pd.DataFrame(all_infeasible)
+        print(f"\n  ⚠ 时间窗不可行任务: {len(infeas_df)}")
+        print(infeas_df[["task_id", "task_type", "latest_start_s",
+                         "assigned_start_s", "gap_s"]].to_string(index=False))
+    else:
+        infeas_df = pd.DataFrame()
+        print(f"\n  ✓ 所有硬时限任务时间窗可满足")
 
     cmax = schedule_df["end_time_s"].max() if len(schedule_df) > 0 else 0.0
 
@@ -187,7 +217,16 @@ def schedule_tasks(selected_df, uavs, objective_label="", deliveries_df=None):
         "n_uav_used": n_used,
         "n_tasks": len(schedule_df),
         "uav_utilization": uav_summary,
+        "n_infeasible_hard": len(infeas_df),
     }
+
+    # ── 保存不可行任务 ──
+    if len(infeas_df) > 0:
+        out_infeas = PROJECT / "data" / f"Q2_hard_infeasible_{objective_label}.csv"
+        infeas_df.to_csv(out_infeas, index=False, encoding="utf-8-sig")
+        print(f"  已保存: data/Q2_hard_infeasible_{objective_label}.csv")
+        stats["infeasible_file"] = str(out_infeas.name)
+
     return schedule_df, stats
 
 

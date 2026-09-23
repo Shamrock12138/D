@@ -159,6 +159,28 @@ def _deadline_violated(delivery_offsets, pool, sv, combo):
     return False
 
 
+def _hard_deadline_info(delivery_offsets, deadline_lookup, box_list):
+    u"""计算任务的硬时限信息。
+
+    Returns
+    -------
+    has_hard : bool
+        任务是否包含硬时限货箱 (医疗 / 首批)
+    latest_start_s : float
+        最晚启动时间 = min(deadline - offset), 无硬时限 → inf
+    """
+    latest = float("inf")
+    has = False
+    for bid in box_list:
+        dl = deadline_lookup.get(bid, float("inf"))
+        if dl >= 1e9:
+            continue
+        has = True
+        offset = delivery_offsets.get(bid, 0.0)
+        latest = min(latest, dl - offset)
+    return has, (round(latest, 1) if has else float("inf"))
+
+
 def _fmt(combo):
     u"""格式化 cargo pattern。"""
     parts = [
@@ -258,6 +280,9 @@ def generate_candidate_pool(boxes_df, models, max_stops=2):
 
                 tid_counter += 1
                 tid = f"R{tid_counter:06d}"
+                has_hard, latest_start = _hard_deadline_info(
+                    r["delivery_offsets"], deadline_lookup, delivery
+                )
                 task_rows.append({
                     "task_id": tid, "uav_type": g_name, "n_stops": 1,
                     "visit_order": sv, "cargo_pattern": _fmt(combo),
@@ -267,6 +292,8 @@ def generate_candidate_pool(boxes_df, models, max_stops=2):
                     "duration_s": r["duration_s"],
                     "end_SOC": round(r["end_soc"], 6),
                     "charge_time_s": 0.0,
+                    "has_hard_deadline": has_hard,
+                    "latest_start_s": latest_start,
                 })
                 for bid in delivery:
                     delivery_rows.append({
@@ -343,6 +370,10 @@ def generate_candidate_pool(boxes_df, models, max_stops=2):
 
                         tid_counter += 1
                         tid = f"R{tid_counter:06d}"
+                        all_boxes = da + db
+                        has_hard, latest_start = _hard_deadline_info(
+                            r["delivery_offsets"], deadline_lookup, all_boxes
+                        )
                         task_rows.append({
                             "task_id": tid, "uav_type": g_name, "n_stops": 2,
                             "visit_order": ">".join(visit),
@@ -357,6 +388,8 @@ def generate_candidate_pool(boxes_df, models, max_stops=2):
                             "duration_s": r["duration_s"],
                             "end_SOC": round(r["end_soc"], 6),
                             "charge_time_s": 0.0,
+                            "has_hard_deadline": has_hard,
+                            "latest_start_s": latest_start,
                         })
                         for bid in da + db:
                             delivery_rows.append({
@@ -409,6 +442,9 @@ def generate_candidate_pool(boxes_df, models, max_stops=2):
                 if r["feasible"]:
                     tid_counter += 1
                     tid = f"R{tid_counter:06d}"
+                    has_hard, latest_start = _hard_deadline_info(
+                        r["delivery_offsets"], deadline_lookup, sv_del
+                    )
                     task_rows.append({
                         "task_id": tid, "uav_type": g_name, "n_stops": 1,
                         "visit_order": sv_svc, "cargo_pattern": _fmt(tiny_combo),
@@ -418,6 +454,8 @@ def generate_candidate_pool(boxes_df, models, max_stops=2):
                         "duration_s": r["duration_s"],
                         "end_SOC": round(r["end_soc"], 6),
                         "charge_time_s": 0.0,
+                        "has_hard_deadline": has_hard,
+                        "latest_start_s": latest_start,
                     })
                     delivery_rows.append({
                         "task_id": tid,
