@@ -421,14 +421,30 @@ def generate_candidate_pool(boxes_df, models, max_stops=2):
     summary_df = pd.DataFrame(summary_rows)
     print("\n" + summary_df.to_string(index=False))
 
-    _validate_pool(tasks_df, models)
+    _validate_pool(tasks_df, deliveries_df, boxes_df, models)
     return tasks_df, deliveries_df, summary_df
 
 
-def _validate_pool(tasks_df, models):
+def _validate_pool(tasks_df, deliveries_df, boxes_df, models):
     u"""候选池内部一致性校验。"""
+    all_box_ids = set(boxes_df["box_id"])
     ok = True
+
+    # 货箱真实性
+    delivery_ids = set(deliveries_df["box_id"])
+    extra = delivery_ids - all_box_ids
+    if extra:
+        print(f"  FAIL: 候选引用了不存在的货箱: {sorted(extra)}")
+        ok = False
+
+    # 每任务内无重复货箱
+    for tid, group in deliveries_df.groupby("task_id"):
+        if len(group) != len(set(group["box_id"])):
+            print(f"  FAIL {tid}: 任务内货箱重复")
+            ok = False
+
     for _, task in tasks_df.iterrows():
+        tid = task["task_id"]
         g = task["uav_type"]
         model = models[g]
         Q_g = float(model.u["Q_g"])
@@ -436,24 +452,28 @@ def _validate_pool(tasks_df, models):
         E_avail = model.available_energy
 
         if task["total_mass_kg"] > Q_g + 1e-9:
-            print(f"  FAIL {task['task_id']}: mass {task['total_mass_kg']} > {Q_g}")
+            print(f"  FAIL {tid}: mass {task['total_mass_kg']} > {Q_g}")
             ok = False
         if task["total_volume_m3"] > V_g + 1e-9:
-            print(f"  FAIL {task['task_id']}: vol {task['total_volume_m3']} > {V_g}")
+            print(f"  FAIL {tid}: vol {task['total_volume_m3']} > {V_g}")
             ok = False
         if task["energy_kWh"] > E_avail + 1e-9:
-            print(f"  FAIL {task['task_id']}: energy {task['energy_kWh']} > {E_avail}")
+            print(f"  FAIL {tid}: energy {task['energy_kWh']} > {E_avail}")
             ok = False
 
         if task["n_stops"] >= 2:
             visit = task["visit_order"].split(">")
             if len(set(visit)) != len(visit):
-                print(f"  FAIL {task['task_id']}: visit repeat")
+                print(f"  FAIL {tid}: visit repeat")
+                ok = False
+            if len(visit) != task["n_stops"]:
+                print(f"  FAIL {tid}: visit len {len(visit)} != n_stops {task['n_stops']}")
                 ok = False
 
     if ok:
         print("[PASS] 所有 candidate 质量/体积/能量合法")
-    print("[PASS] 服务区无重复访问")
+        print("[PASS] 货箱真实存在且任务内无重复")
+        print("[PASS] 服务区无重复访问")
     return ok
 
 
@@ -469,10 +489,14 @@ if __name__ == "__main__":
     )
 
     out = PROJECT / "data"
+    print(f"\n准备保存: tasks={len(tasks_df)} deliveries={len(deliveries_df)}")
+    print(f"  → {out / 'Q2_candidate_tasks.csv'}")
     tasks_df.to_csv(out / "Q2_candidate_tasks.csv",
                     index=False, encoding="utf-8-sig")
+    print(f"  → {out / 'Q2_candidate_deliveries.csv'}")
     deliveries_df.to_csv(out / "Q2_candidate_deliveries.csv",
                          index=False, encoding="utf-8-sig")
+    print(f"  → {out / 'Q2_candidate_summary.csv'}")
     summary_df.to_csv(out / "Q2_candidate_summary.csv",
                       index=False, encoding="utf-8-sig")
     print(f"\n已保存: data/Q2_candidate_tasks.csv        ({len(tasks_df)} rows)")
