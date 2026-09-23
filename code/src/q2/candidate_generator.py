@@ -52,6 +52,10 @@ def _group_boxes(boxes_df):
                     float(ct_df["first_deadline"].iloc[0])
                     if pd.notna(ct_df["first_deadline"].iloc[0]) else None
                 ),
+                "expected_time": (
+                    float(ct_df["expected_time"].iloc[0])
+                    if pd.notna(ct_df["expected_time"].iloc[0]) else None
+                ),
             }
 
         pool[sv] = {
@@ -116,23 +120,42 @@ def _pick_boxes(combo, pool, sv, offset=0):
 
 
 def _deadline_violated(delivery_offsets, pool, sv, combo):
-    u"""首批箱送达时间 > deadline → True。"""
+    u"""检查组合是否违反硬时限约束。
+
+    两类硬时限:
+      1. 医疗物资 — 所有箱必须 offset <= deadline (或 expected_time)
+      2. 首批保障箱 — 前 first_required 个箱必须 offset <= first_deadline
+
+    违反任一 → True (剪枝该 candidate)
+    """
     cargo_info = pool[sv]["cargo"]
     for ct, n in combo.items():
         if n == 0 or ct not in cargo_info:
             continue
-        deadline = cargo_info[ct]["deadline"]
-        if deadline is None or cargo_info[ct]["first_required"] == 0:
+        ci = cargo_info[ct]
+
+        if ct == "医疗物资":
+            d = ci["deadline"] or ci.get("expected_time")
+            if d is None:
+                continue
+            offsets = [
+                delivery_offsets[bid]
+                for bid, bt in zip(pool[sv]["box_ids"], pool[sv]["box_types"])
+                if bt == ct and bid in delivery_offsets
+            ]
+            if any(t > d + 1e-6 for t in offsets):
+                return True
             continue
 
-        offsets = [
-            delivery_offsets[bid]
-            for bid, bt in zip(pool[sv]["box_ids"], pool[sv]["box_types"])
-            if bt == ct and bid in delivery_offsets
-        ]
+        if ci["first_required"] > 0 and ci["deadline"] is not None:
+            offsets = [
+                delivery_offsets[bid]
+                for bid, bt in zip(pool[sv]["box_ids"], pool[sv]["box_types"])
+                if bt == ct and bid in delivery_offsets
+            ]
+            if any(t > ci["deadline"] + 1e-6 for t in offsets):
+                return True
 
-        if any(t > deadline + 1e-6 for t in offsets):
-            return True
     return False
 
 

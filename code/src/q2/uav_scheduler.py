@@ -35,13 +35,15 @@ def _load_uav_fleet(fleet_path=None):
 def _lpt_schedule(tasks, uavs_of_type):
     u"""LPT: 每类机型内并行调度, 最小化 Cmax。
 
-    硬时限任务优先: 含首批箱/医疗物资的任务排在最前面, 减少调度延迟。
+    硬时限任务优先, 并尽量分配在 latest_start_s 之前。
     其余任务按持续时间降序。
 
     Returns
     -------
     schedule : list[dict]
         [{task_id, uav_id, start_s, end_s, duration_s}, ...]
+    late_hard_tasks : list[str]
+        无法在 deadline 前完成的任务 ID 列表
     """
     hard_first = [t for t in tasks if t["has_hard_deadline"]]
     soft = [t for t in tasks if not t["has_hard_deadline"]]
@@ -51,11 +53,28 @@ def _lpt_schedule(tasks, uavs_of_type):
 
     uav_free = {u["uav_id"]: 0.0 for u in uavs_of_type}
     schedule = []
+    late_hard_tasks = []
 
     for task in sorted_tasks:
         # 找最早空闲的无人机
         best_uav = min(uav_free, key=uav_free.get)
         start = uav_free[best_uav]
+
+        # 硬时限任务: 尝试在 latest_start_s 之前开始
+        if task["has_hard_deadline"] and task["latest_start_s"] < float("inf"):
+            deadline_start = task["latest_start_s"]
+            # 找能满足 deadline 且最早空闲的 UAV
+            candidates = [
+                (uav_id, uav_free[uav_id])
+                for uav_id in uav_free
+                if uav_free[uav_id] <= deadline_start
+            ]
+            if candidates:
+                best_uav, start = min(candidates, key=lambda x: x[1])
+            else:
+                # 所有 UAV 都忙过了 deadline, 选最早的 (仍然会超时)
+                late_hard_tasks.append(task["task_id"])
+
         end = start + task["duration_s"]
 
         schedule.append({
@@ -73,7 +92,7 @@ def _lpt_schedule(tasks, uavs_of_type):
         })
         uav_free[best_uav] = end
 
-    return schedule
+    return schedule, late_hard_tasks
 
 
 def schedule_tasks(selected_df, uavs, objective_label="", deliveries_df=None):
@@ -99,14 +118,19 @@ def schedule_tasks(selected_df, uavs, objective_label="", deliveries_df=None):
         uav_by_type[u["uav_type"]].append(u)
 
     hard_task_ids = set()
+    task_latest_start = {}
     if deliveries_df is not None:
-        hard_tids = deliveries_df[
-            deliveries_df["deadline_s"] < 1e9
-        ]["task_id"].unique()
-        hard_task_ids = set(str(t) for t in hard_tids)
+        hard_deliv = deliveries_df[deliveries_df["deadline_s"] < 1e9].copy()
+        hard_task_ids = set(str(t) for t in hard_deliv["task_id"].unique())
+        hard_deliv["max_start"] = hard_deliv["deadline_s"] - hard_deliv["delivery_offset_s"]
+        task_latest_start = (
+            hard_deliv.groupby("task_id")["max_start"].min().to_dict()
+        )
 
     tasks_by_type = defaultdict(list)
     for _, row in selected_df.iterrows():
+        tid = str(row["task_id"])
+        is_hard = tid in hard_task_ids
         tasks_by_type[row["uav_type"]].append({
             "task_id": row["task_id"],
             "uav_type": row["uav_type"],
@@ -116,21 +140,30 @@ def schedule_tasks(selected_df, uavs, objective_label="", deliveries_df=None):
             "visit_order": row["visit_order"],
             "energy_kWh": float(row["energy_kWh"]),
             "end_SOC": float(row.get("end_SOC", 0.2)),
-            "has_hard_deadline": str(row["task_id"]) in hard_task_ids,
+            "has_hard_deadline": is_hard,
+            "latest_start_s": (
+                float(task_latest_start.get(tid, float("inf")))
+                if is_hard else float("inf")
+            ),
         })
 
     all_schedule = []
+    total_late_hard = []
     for g_name, tasks in tasks_by_type.items():
         uavs_g = uav_by_type.get(g_name, [])
         if not uavs_g:
             raise ValueError(f"机型 {g_name} 无可用无人机, 任务无法执行")
-        g_schedule = _lpt_schedule(tasks, uavs_g)
+        g_schedule, g_late = _lpt_schedule(tasks, uavs_g)
         all_schedule.extend(g_schedule)
+        total_late_hard.extend(g_late)
 
     schedule_df = pd.DataFrame(all_schedule)
     schedule_df = schedule_df.sort_values(
         ["uav_id", "start_time_s"]
     ).reset_index(drop=True)
+
+    if total_late_hard:
+        print(f"  [WARNING] {len(total_late_hard)} 硬时限任务无法在 deadline 前开始: {total_late_hard}")
 
     cmax = schedule_df["end_time_s"].max() if len(schedule_df) > 0 else 0.0
 
