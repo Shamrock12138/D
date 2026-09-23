@@ -270,11 +270,18 @@ def run_all_objectives(tasks_path=None, deliveries_path=None):
                       index=False, encoding="utf-8-sig")
     print(f"\n已保存: data/Q2_set_partition_summary.csv")
 
-    # 保存 N-opt 的详细方案
-    selected = results["N"]["selected_tasks"]
-    selected.to_csv(data_dir / "Q2_selected_tasks.csv",
-                    index=False, encoding="utf-8-sig")
-    print(f"已保存: data/Q2_selected_tasks.csv ({len(selected)} rows)")
+    # 分别保存 N/E/T 三套方案
+    for obj in ["N", "E", "T"]:
+        selected = results[obj]["selected_tasks"]
+        fname = f"Q2_selected_tasks_{obj}.csv"
+        selected.to_csv(data_dir / fname, index=False, encoding="utf-8-sig")
+        print(f"已保存: data/{fname} ({len(selected)} rows)")
+
+    # 兼容旧文件名
+    results["N"]["selected_tasks"].to_csv(
+        data_dir / "Q2_selected_tasks.csv",
+        index=False, encoding="utf-8-sig"
+    )
 
     return results
 

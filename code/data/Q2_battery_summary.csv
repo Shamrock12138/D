@@ -1,0 +1,4 @@
+﻿objective,n_tasks,n_batteries_used,Cmax_uav_s,Cmax_with_charge_s,Cmax_with_charge_h,total_charge_s
+N,14,7,18083.8,18083.8,5.02,14981.7
+E,19,11,9904.3,9904.3,2.75,19504.8
+T,14,7,15015.3,15015.3,4.17,15070.8

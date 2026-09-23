@@ -64,6 +64,7 @@ def _lpt_schedule(tasks, uavs_of_type):
             "n_boxes": task["n_boxes"],
             "visit_order": task["visit_order"],
             "energy_kWh": task["energy_kWh"],
+            "end_SOC": task["end_SOC"],
         })
         uav_free[best_uav] = end
 
@@ -100,6 +101,7 @@ def schedule_tasks(selected_df, uavs, objective_label=""):
             "n_boxes": int(row["n_boxes"]),
             "visit_order": row["visit_order"],
             "energy_kWh": float(row["energy_kWh"]),
+            "end_SOC": float(row.get("end_SOC", 0.2)),
         })
 
     all_schedule = []
@@ -141,6 +143,18 @@ def schedule_tasks(selected_df, uavs, objective_label=""):
     return schedule_df, stats
 
 
+def validate_schedule(schedule_df):
+    u"""检查调度无时间冲突: 同一 UAV 的任务不重叠。"""
+    if schedule_df.empty:
+        return True
+    for uav, group in schedule_df.groupby("uav_id"):
+        group = group.sort_values("start_time_s")
+        for i in range(len(group) - 1):
+            if group.iloc[i]["end_time_s"] > group.iloc[i + 1]["start_time_s"] + 1e-9:
+                return False
+    return True
+
+
 def print_schedule(stats, schedule_df):
     u"""格式化打印调度结果。"""
     print(f"\n  Cmax = {stats['Cmax_s']:.1f}s "
@@ -169,47 +183,69 @@ def print_schedule(stats, schedule_df):
               f"{row['duration_s']:<8.1f} {bar}")
 
 
-def run_scheduler(tasks_path=None, fleet_path=None):
-    u"""主入口: 加载任务+无人机, 调度, 保存结果。"""
+def run_scheduler(tasks_dir=None, fleet_path=None):
+    u"""主入口: 对 N/E/T 三套集合划分结果分别调度。"""
     data_dir = PROJECT / "data"
-    tasks_path = tasks_path or data_dir / "Q2_selected_tasks.csv"
+    tasks_dir = Path(tasks_dir) if tasks_dir else data_dir
     fleet_path = fleet_path or data_dir / "运输无人机_清单.csv"
 
-    selected_df = pd.read_csv(tasks_path, encoding="utf-8-sig")
     uavs = _load_uav_fleet(fleet_path)
 
     print(f"\n{'='*60}")
     print("Q2 Step 3: 实体无人机任务分配与时间调度")
     print(f"{'='*60}")
-    print(f"任务数: {len(selected_df)}  无人机数: {len(uavs)}")
+    print(f"无人机数: {len(uavs)}")
 
-    # 按机型统计
-    for g_name in ["A", "B", "C"]:
-        n_uav = sum(1 for u in uavs if u["uav_type"] == g_name)
-        n_task = len(selected_df[selected_df["uav_type"] == g_name])
-        print(f"  {g_name}型: {n_uav}架无人机, {n_task}个任务")
+    all_summary = []
 
-    schedule_df, stats = schedule_tasks(selected_df, uavs, "N-opt")
-    print_schedule(stats, schedule_df)
+    for obj in ["N", "E", "T"]:
+        fname = tasks_dir / f"Q2_selected_tasks_{obj}.csv"
+        if not fname.exists():
+            fname = tasks_dir / "Q2_selected_tasks.csv"
 
-    # 保存
-    out = data_dir / "Q2_uav_schedule.csv"
-    schedule_df.to_csv(out, index=False, encoding="utf-8-sig")
-    print(f"\n已保存: data/Q2_uav_schedule.csv ({len(schedule_df)} rows)")
+        selected_df = pd.read_csv(fname, encoding="utf-8-sig")
 
-    summary_rows = [{
-        "task_count": stats["n_tasks"],
-        "uav_used": stats["n_uav_used"],
-        "Cmax_s": stats["Cmax_s"],
-        "Cmax_h": round(stats["Cmax_s"] / 3600, 2),
-    }]
-    pd.DataFrame(summary_rows).to_csv(
+        print(f"\n── {obj}-opt ──")
+        print(f"  任务数: {len(selected_df)}")
+        for g_name in ["A", "B", "C"]:
+            n_uav = sum(1 for u in uavs if u["uav_type"] == g_name)
+            n_task = len(selected_df[selected_df["uav_type"] == g_name])
+            print(f"  {g_name}型: {n_uav}架无人机, {n_task}个任务")
+
+        schedule_df, stats = schedule_tasks(selected_df, uavs, obj)
+
+        assert validate_schedule(schedule_df), \
+            f"{obj}-opt: UAV时间冲突!"
+
+        print_schedule(stats, schedule_df)
+
+        out = data_dir / f"Q2_uav_schedule_{obj}.csv"
+        schedule_df.to_csv(out, index=False, encoding="utf-8-sig")
+        print(f"  已保存: data/Q2_uav_schedule_{obj}.csv "
+              f"({len(schedule_df)} rows)")
+
+        all_summary.append({
+            "objective": obj,
+            "n_tasks": stats["n_tasks"],
+            "n_uav_used": stats["n_uav_used"],
+            "Cmax_s": stats["Cmax_s"],
+            "Cmax_h": round(stats["Cmax_s"] / 3600, 2),
+            "valid": True,
+        })
+
+    # 汇总
+    print(f"\n{'='*60}")
+    print("Q2 Step 3: 三目标调度对比")
+    print(f"{'='*60}")
+    summary_df = pd.DataFrame(all_summary)
+    print(f"\n{summary_df.to_string(index=False)}")
+    summary_df.to_csv(
         data_dir / "Q2_uav_schedule_summary.csv",
         index=False, encoding="utf-8-sig"
     )
-    print(f"已保存: data/Q2_uav_schedule_summary.csv")
+    print(f"\n已保存: data/Q2_uav_schedule_summary.csv")
 
-    return schedule_df, stats
+    return summary_df
 
 
 if __name__ == "__main__":
