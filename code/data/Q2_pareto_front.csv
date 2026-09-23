@@ -1,0 +1,4 @@
+﻿objective,N_sortie,E_total_kWh,Cmax_s,Cmax_h,F_delay_s,F_delay_h,n_late_boxes,n_boxes,on_time_rate,max_delay_s,is_pareto
+E,19,60.55,11581.9,3.22,144030.4,40.01,40,80,0.5,7981.9,True
+T,14,65.08,17007.8,4.72,362007.9,100.56,58,80,0.275,13407.8,True
+N,14,66.06,18428.7,5.12,455546.0,126.54,57,80,0.2875,14828.7,False
