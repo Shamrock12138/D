@@ -39,7 +39,7 @@ def _box_data(boxes_df):
     return lookup
 
 
-def evaluate_route(model, visit_order, deliveries, boxes_df=None):
+def evaluate_route(model, visit_order, deliveries, boxes_df=None, box_lookup=None):
     u"""评估一条多点往返路线的物理可行性、能耗和时间。
 
     Parameters
@@ -52,6 +52,8 @@ def evaluate_route(model, visit_order, deliveries, boxes_df=None):
         每个服务区投放的货箱编号列表, 如 {"S003":["B021","B022"], ...}
     boxes_df : pd.DataFrame, optional
         货箱数据 (load_boxes() 输出), 用于获取每箱 mass/volume/service
+    box_lookup : dict, optional
+        预构建的 box_id → {mass, volume, service} 字典, 优先于 boxes_df
 
     Returns
     -------
@@ -67,7 +69,8 @@ def evaluate_route(model, visit_order, deliveries, boxes_df=None):
         reason         — 不可行时的原因描述
     """
     u = model.u
-    box_lookup = _box_data(boxes_df) if boxes_df is not None else {}
+    if box_lookup is None:
+        box_lookup = _box_data(boxes_df) if boxes_df is not None else {}
 
     if len(visit_order) == 0:
         return {

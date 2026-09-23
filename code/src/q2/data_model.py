@@ -37,7 +37,8 @@ def load_boxes():
 
     for _, row in demand.iterrows():
         n_boxes = int(row["total_boxes"])
-        for _ in range(n_boxes):
+        first_required = int(row.get("first_batch", 0))
+        for local_idx in range(n_boxes):
             box_counter += 1
             rows.append({
                 "box_id": f"B{box_counter:03d}",
@@ -46,7 +47,8 @@ def load_boxes():
                 "mass": float(row["mass_per_box"]),
                 "volume": float(row["volume_per_box"]),
                 "priority": int(row.get("priority", 0)),
-                "first_batch": int(row.get("first_batch", 0)),
+                "first_batch_required": first_required,
+                "is_first_batch": local_idx < first_required,
                 "first_deadline": (
                     float(row["first_deadline"])
                     if pd.notna(row.get("first_deadline"))
@@ -63,7 +65,6 @@ def load_boxes():
 
     cargo_map = {"医疗物资": 12, "饮用水": 8, "应急食品": 6, "生活卫生用品": 4}
     df["cargo_code"] = df["cargo_type"].map(cargo_map)
-    df["is_first_batch"] = df["first_batch"].astype(bool)
 
     return df
 

@@ -62,14 +62,14 @@ def run_foundation_check(verbose=True):
     from .data_model import load_q2_data
     data = load_q2_data()
 
-    log("货箱总数", len(data["boxes"]) > 0, f"got {len(data['boxes'])}")
-    log("无人机数", len(data["uavs"]) > 0, f"got {len(data['uavs'])}")
-    log("电池数", len(data["batteries"]) > 0, f"got {len(data['batteries'])}")
+    log("货箱总数", len(data["boxes"]) == 80, f"got {len(data['boxes'])}")
+    log("无人机数", len(data["uavs"]) == 8, f"got {len(data['uavs'])}")
+    log("电池数", len(data["batteries"]) == 14, f"got {len(data['batteries'])}")
 
     uav_types = data["uavs"]["type"].value_counts()
-    for g in ["A", "B", "C"]:
-        log(f"{g}型无人机", g in uav_types.index,
-            f"count={uav_types.get(g, 0)}")
+    for g, expected in [("A", 4), ("B", 2), ("C", 2)]:
+        log(f"{g}型无人机", uav_types.get(g, 0) == expected,
+            f"count={uav_types.get(g, 0)} expected {expected}")
 
     bat_types = data["batteries"]["type"].value_counts()
     for g, expected in [("A", 6), ("B", 4), ("C", 4)]:
@@ -151,12 +151,16 @@ def run_foundation_check(verbose=True):
                 r2 = evaluate_route(m, [sv_a, sv_b],
                                     {sv_a: bid_a, sv_b: bid_b},
                                     boxes_df=boxes_df)
-                if r2["feasible"] and len(r2["legs"]) >= 4:
-                    p0, p1, p2, p3 = [lg["payload_kg"] for lg in r2["legs"]]
+                if r2["feasible"] and len(r2["legs"]) == 3:
+                    p0, p1, p2 = [lg["payload_kg"] for lg in r2["legs"]]
 
-                    descending = (p0 > p1 > p2 + TOL) and abs(p3) < TOL
+                    descending = (
+                        p0 > p1 + TOL
+                        and p1 > p2 + TOL
+                        and abs(p2) < TOL
+                    )
                     log("多点-载荷逐段下降", descending,
-                        f"payloads={[f'{p:.1f}' for p in (p0,p1,p2,p3)]}")
+                        f"payloads={[f'{p:.1f}' for p in (p0, p1, p2)]}")
 
                     log("多点-返航载荷=0", abs(r2["legs"][-1]["payload_kg"]) < TOL)
 
