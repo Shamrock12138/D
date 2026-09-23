@@ -441,11 +441,8 @@ def compare_results(df_baseline_plan, df_pareto_fr):
         T_bl=("time_s", "sum"),
     ).reset_index()
 
-    # ── 汇总 Pareto: 按 solution 提取三个代表点 ──
-    pq = df_pareto_fr.groupby(["type", "service", "N_f", "E_total", "T_total"]).agg(
-        total_E=("energy_kWh", "sum"),
-        total_T=("time_s", "sum"),
-    ).reset_index()
+    # ── Pareto: 直接去重提取 (N_f, E_total, T_total) 元组 ──
+    pq = df_pareto_fr[["type", "service", "N_f", "E_total", "T_total"]].drop_duplicates()
 
     comparison_rows = []
 
@@ -475,8 +472,8 @@ def compare_results(df_baseline_plan, df_pareto_fr):
                 continue
 
             idx_min_N = pq_svc["N_f"].idxmin()
-            idx_min_E = pq_svc["total_E"].idxmin()
-            idx_min_T = pq_svc["total_T"].idxmin()
+            idx_min_E = pq_svc["E_total"].idxmin()
+            idx_min_T = pq_svc["T_total"].idxmin()
 
             rep_points = [
                 ("Pareto-N↓", idx_min_N),
@@ -487,18 +484,18 @@ def compare_results(df_baseline_plan, df_pareto_fr):
             for label, idx in rep_points:
                 row = pq_svc.loc[idx]
                 dN = row["N_f"] - N_bl
-                dE = (row["total_E"] - E_bl) / E_bl * 100 if E_bl else 0
-                dT = (row["total_T"] - T_bl) / T_bl * 100 if T_bl else 0
+                dE = (row["E_total"] - E_bl) / E_bl * 100 if E_bl else 0
+                dT = (row["T_total"] - T_bl) / T_bl * 100 if T_bl else 0
                 print(f"  {'':<8} {label:>12} {row['N_f']:>5.0f} "
-                      f"{row['total_E']:>10.2f} {row['total_T']:>10.0f} "
+                      f"{row['E_total']:>10.2f} {row['T_total']:>10.0f} "
                       f"{dN:>+5.0f} {dE:>+7.1f}% {dT:>+7.1f}%")
 
                 comparison_rows.append({
                     "type": g, "service": service,
                     "strategy": label,
                     "N_f": row["N_f"],
-                    "E_kWh": row["total_E"],
-                    "T_s": row["total_T"],
+                    "E_kWh": row["E_total"],
+                    "T_s": row["T_total"],
                 })
 
     df_comp = pd.DataFrame(comparison_rows)

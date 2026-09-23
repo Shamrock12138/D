@@ -97,8 +97,13 @@ def solve_pareto_frontier(batches, box_count, energies, times,
 
     raw = []
 
+    large = n_batches > 5000
+    wvs = _WEIGHT_VECTORS
     tl_weighted = max(10, min(30, n_batches // 600))
-    for w_N, w_E, w_T in _WEIGHT_VECTORS:
+    if large:
+        wvs = [(1,0,0),(0,1,0),(0,0,1),(1,1,0),(1,0,1)]
+        tl_weighted = max(30, min(90, n_batches // 200))
+    for w_N, w_E, w_T in wvs:
         c_vec = w_N * ones + w_E * E_arr + w_T * T_arr
         sel = _solve_one(c_vec, A, bounds, integrality, time_limit=tl_weighted)
         if sel:
@@ -114,13 +119,14 @@ def solve_pareto_frontier(batches, box_count, energies, times,
 
     E_vals = [r[1] for r in raw]
     E_lo, E_hi = min(E_vals), max(E_vals)
+    tl_eps = min(tl_weighted, 30)
     if E_hi - E_lo > 1e-6:
         for E_lim in np.linspace(E_lo, E_hi, n_extra_E + 2)[1:-1]:
             sel = _solve_one(ones, A, bounds, integrality,
                              A_extra=E_arr.reshape(1, -1),
                              lb_extra=np.array([-np.inf]),
                              ub_extra=np.array([E_lim]),
-                             time_limit=10)
+                             time_limit=tl_eps)
             if sel:
                 raw.append((
                     len(sel),
@@ -137,7 +143,7 @@ def solve_pareto_frontier(batches, box_count, energies, times,
                              A_extra=T_arr.reshape(1, -1),
                              lb_extra=np.array([-np.inf]),
                              ub_extra=np.array([T_lim]),
-                             time_limit=10)
+                             time_limit=tl_eps)
             if sel:
                 raw.append((
                     len(sel),
