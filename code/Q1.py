@@ -1,7 +1,13 @@
 import sys
 from pathlib import Path as _Path
 sys.path.insert(0, str(_Path(__file__).resolve().parent))
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
+import hashlib
+import json
+import math
+from collections import Counter
+from functools import lru_cache
 import pandas as pd
 import numpy as np
 from pathlib import Path
@@ -24,27 +30,30 @@ O01→Si→O01 直接往返，单服务区、不可跨服务区组批。
   爬升能耗: E_up  = (M_g0+q)*g*H_up / (3.6e6*η_up)   [kWh]
   下降能耗: 0
 
-步 1 ─ 最大安全载荷
---------------------
-  m_max = max q  s.t.  E_round(q) ≤ (1-ρ_g)*E_use  ∧  q ≤ Q_g
-  (体积约束 V_g 在组批阶段检查)
+────────────────────────── 输出文件 ──────────────────────────
 
-步 2 ─ 三个单目标最优解
-------------------------
-  分别以 min N_f、min ΣE、min ΣT 为目标求 MILP，
-  得到三个极端点，展示三目标之间的权衡关系。
+步 1 - 最大安全载荷  -> Q1_fixed_max_payload.csv
+  每 (type, service): m_energy, E_round_kWh, 绑定约束（质量/能量）
 
-步 3 ─ Pareto 多目标协同优化 (MOS)
------------------------------------
-  加权法 + ε-约束生成非支配解集，分析完整权衡前沿。
+步 2 - 三个单目标最优解  -> Q1_fixed_single_objective.csv
+  min N_f / min ΣE / min ΣT, 每 (type, service, strategy): N_f, E, T
 
-步 4 ─ 策略对比
----------------
-  单目标极值 + N-优先偏好策略 + Pareto 前沿的全面对比
+偏好 - N-优先字典序  -> Q1_fixed_baseline_plan.csv + Q1_fixed_baseline_summary.csv
+  三阶段 MILP (N_f ≻ ΣE ≻ ΣT), plan=逐架次明细, summary=汇总
 
-步 5 ─ ρ 敏感性分析
---------------------
-  返航安全余量 ρ 对最大安全载荷的影响
+步 3 - Pareto MOS  -> Q1_fixed_pareto_frontier.csv
+  E-opt 支配时输出唯一点, 否则加权法+ε-约束生成非支配集
+
+步 4 - 策略对比  -> Q1_fixed_comparison.csv
+  N/E/T-opt + Preference + Pareto-N/E/T↓ 共七策略 N_f, E, T 对比
+
+步 5 - ρ 敏感性  -> Q1_fixed_sensitivity.csv
+  ρ=10/15/20/25/30 时质量/能量受限区数、m_max 均值/最小/最大
+
+步 6 - 混合机型组批  -> Q1_mixed_{N,E,T}_opt_plan.csv + Q1_mixed_objectives.csv
+                       + Q1_mixed_comparison.csv + Q1_mixed_manifest.json
+  每架次任选 A/B/C, 精确集合划分 DP 求 N/E/T 极值
+  plan=逐架次明细, objectives=汇总, comparison=混合vs固定, manifest=可复现
 """
 
 PROJECT = Path(__file__).resolve().parent
@@ -107,9 +116,9 @@ def compute_max_payloads_all():
                   f"{m_max:>14.2f} {E_rt:>10.4f} {binding:>12}")
 
     df_res = pd.DataFrame(results)
-    df_res.to_csv(PROJECT / "data" / "Q1_max_payload.csv",
+    df_res.to_csv(PROJECT / "data" / "Q1_fixed_max_payload.csv",
                   index=False, encoding="utf-8-sig")
-    print("\n已保存: data/Q1_max_payload.csv")
+    print("\n已保存: data/Q1_fixed_max_payload.csv")
     print("  m_energy: 能量约束下的最大安全质量载荷")
     print("  体积约束 V_g 在组批阶段作为装箱约束检查")
     return df_res, models
@@ -255,13 +264,13 @@ def run_single_objective(models):
       E-opt: min ΣE
       T-opt: min ΣT
 
-    输出: Q1_single_objective.csv (每个 service 的三组极值)
+    输出: Q1_fixed_single_objective.csv (每个 service 的三组极值)
     """
     print("\n" + "=" * 70)
     print("步 2：三个单目标最优解 (N-opt, E-opt, T-opt)")
     print("=" * 70)
 
-    df_max = pd.read_csv(PROJECT / "data" / "Q1_max_payload.csv")
+    df_max = pd.read_csv(PROJECT / "data" / "Q1_fixed_max_payload.csv")
     cargo_df = load_cargo()
     service_areas = sorted(cargo_df["service"].unique())
 
@@ -327,10 +336,10 @@ def run_single_objective(models):
                 })
 
     df_so = pd.DataFrame(all_records)
-    df_so.to_csv(PROJECT / "data" / "Q1_single_objective.csv",
+    df_so.to_csv(PROJECT / "data" / "Q1_fixed_single_objective.csv",
                  index=False, encoding="utf-8-sig")
 
-    print("\n已保存: data/Q1_single_objective.csv")
+    print("\n已保存: data/Q1_fixed_single_objective.csv")
     return df_so
 
 
@@ -410,7 +419,7 @@ def run_baseline(models):
     print("N-优先偏好策略 — 资源节约型组批 (N_f ≻ ΣE ≻ ΣT)")
     print("=" * 70)
 
-    df_max = pd.read_csv(PROJECT / "data" / "Q1_max_payload.csv")
+    df_max = pd.read_csv(PROJECT / "data" / "Q1_fixed_max_payload.csv")
     cargo_df = load_cargo()
     service_areas = sorted(cargo_df["service"].unique())
 
@@ -452,7 +461,7 @@ def run_baseline(models):
                 })
 
     df_batches = pd.DataFrame(all_records)
-    df_batches.to_csv(PROJECT / "data" / "Q1_baseline_plan.csv",
+    df_batches.to_csv(PROJECT / "data" / "Q1_fixed_baseline_plan.csv",
                       index=False, encoding="utf-8-sig")
 
     summary = df_batches.groupby(["type", "service"]).agg(
@@ -463,10 +472,10 @@ def run_baseline(models):
         total_energy=("energy_kWh", "sum"),
         total_time=("time_s", "sum"),
     ).reset_index()
-    summary.to_csv(PROJECT / "data" / "Q1_baseline_summary.csv",
+    summary.to_csv(PROJECT / "data" / "Q1_fixed_baseline_summary.csv",
                    index=False, encoding="utf-8-sig")
 
-    print("\n已保存: data/Q1_baseline_plan.csv, data/Q1_baseline_summary.csv")
+    print("\n已保存: data/Q1_fixed_baseline_plan.csv, data/Q1_fixed_baseline_summary.csv")
 
     overall = summary.groupby("type").agg(
         sorties=("sorties", "sum"),
@@ -486,17 +495,17 @@ def run_baseline(models):
 # 步 3: Pareto 多目标协同优化 (MOS)
 # ═══════════════════════════════════════════════════════════════
 
-def run_pareto(models):
+def run_pareto(models, df_single_obj):
     u"""步 3: Pareto 多目标协同优化策略 (MOS)
 
     对每个 (g, service) 生成 Pareto 前沿 (N_f, ΣE, ΣT) 的非支配解集,
-    保存所有前沿点到 Q1_pareto_frontier.csv.
+    保存所有前沿点到 Q1_fixed_pareto_frontier.csv.
     """
     print("\n" + "=" * 70)
     print("步 3：Pareto 多目标协同优化 (MOS)")
     print("=" * 70)
 
-    df_max = pd.read_csv(PROJECT / "data" / "Q1_max_payload.csv")
+    df_max = pd.read_csv(PROJECT / "data" / "Q1_fixed_max_payload.csv")
     cargo_df = load_cargo()
     service_areas = sorted(cargo_df["service"].unique())
 
@@ -517,9 +526,35 @@ def run_pareto(models):
                 print(f"  {service:<8} {n_boxes:>4} {'无解':>10}")
                 continue
 
-            frontier = solve_pareto_frontier(
-                feasible, n_boxes, energies, times,
-                n_extra_E=3, n_extra_T=3)
+            extremes = df_single_obj[
+                (df_single_obj["type"] == g)
+                & (df_single_obj["service"] == service)
+            ].set_index("strategy")
+            e_opt = extremes.loc["E-opt"]
+            n_opt = extremes.loc["N-opt"]
+            t_opt = extremes.loc["T-opt"]
+            if (int(e_opt["N_f"]) == int(n_opt["N_f"])
+                    and float(e_opt["T_total_s"]) <= float(t_opt["T_total_s"]) + 1e-6):
+                # E-opt 同时达到 N、T 极值时，它支配所有其他目标点。
+                fixed_candidates = {g: {}}
+                mask_to_batch = {}
+                for b_idx, batch in enumerate(feasible):
+                    mask = sum(1 << i for i in batch["indices"])
+                    mask_to_batch[mask] = b_idx
+                    fixed_candidates[g][mask] = {
+                        "E": energies[b_idx], "T": times[b_idx],
+                    }
+                exact = solve_mixed_partition(fixed_candidates, n_boxes, "E")
+                if not math.isclose(exact[0], float(e_opt["E_total_kWh"]), abs_tol=1e-6):
+                    raise AssertionError(f"{g}/{service}: Pareto 与能耗极值不一致")
+                frontier = [{
+                    "N": exact[1], "E": exact[0], "T": exact[2],
+                    "selected": [mask_to_batch[mask] for mask, _ in exact[3]],
+                }]
+            else:
+                frontier = solve_pareto_frontier(
+                    feasible, n_boxes, energies, times,
+                    n_extra_E=3, n_extra_T=3)
 
             if not frontier:
                 print(f"  {service:<8} {n_boxes:>4} {'未找到':>10}")
@@ -551,9 +586,9 @@ def run_pareto(models):
                     })
 
     df_fr = pd.DataFrame(all_frontier)
-    df_fr.to_csv(PROJECT / "data" / "Q1_pareto_frontier.csv",
+    df_fr.to_csv(PROJECT / "data" / "Q1_fixed_pareto_frontier.csv",
                  index=False, encoding="utf-8-sig")
-    print("\n已保存: data/Q1_pareto_frontier.csv")
+    print("\n已保存: data/Q1_fixed_pareto_frontier.csv")
     return df_fr
 
 
@@ -667,9 +702,9 @@ def compare_results(df_single_obj, df_baseline_plan, df_pareto_fr):
                 })
 
     df_comp = pd.DataFrame(comparison_rows)
-    df_comp.to_csv(PROJECT / "data" / "Q1_comparison.csv",
+    df_comp.to_csv(PROJECT / "data" / "Q1_fixed_comparison.csv",
                    index=False, encoding="utf-8-sig")
-    print("\n已保存: data/Q1_comparison.csv")
+    print("\n已保存: data/Q1_fixed_comparison.csv")
     return df_comp
 
 
@@ -726,15 +761,308 @@ def sensitivity_analysis(models):
             })
 
     df_sens = pd.DataFrame(all_sens)
-    df_sens.to_csv(PROJECT / "data" / "Q1_sensitivity.csv",
+    df_sens.to_csv(PROJECT / "data" / "Q1_fixed_sensitivity.csv",
                    index=False, encoding="utf-8-sig")
-    print("\n已保存: data/Q1_sensitivity.csv")
+    print("\n已保存: data/Q1_fixed_sensitivity.csv")
     return df_sens
+
+
+# ═══════════════════════════════════════════════════════════════
+# 混合机型组批: 每架次自由选择 A/B/C，精确单目标求解
+# ═══════════════════════════════════════════════════════════════
+
+def _mixed_boxes(cargo_df, service):
+    boxes = []
+    for _, row in cargo_df[cargo_df["service"] == service].iterrows():
+        for _ in range(int(row["total_boxes"])):
+            boxes.append({
+                "id": f"{service}-B{len(boxes) + 1:03d}",
+                "cargo_type": row["cargo_type"],
+            })
+    if not boxes or len(boxes) > 20:
+        raise ValueError(f"{service}: 精确混合组批要求 1 至 20 箱")
+    return boxes
+
+
+def _mixed_candidates(models, df_max, cargo_df, service):
+    """复用固定机型的候选生成与能耗/时间公式。"""
+    boxes = _mixed_boxes(cargo_df, service)
+    candidates = {g: {} for g in models}
+    for g, model in models.items():
+        batches, n_boxes, energies, times = _collect_service_batches(
+            model, df_max, cargo_df, service, g
+        )
+        if n_boxes != len(boxes):
+            raise AssertionError(f"{service}/{g}: 货箱展开顺序不一致")
+        for b_idx, batch in enumerate(batches):
+            energy = energies[b_idx]
+            if energy > model.available_energy + 1e-9:
+                continue
+            mask = sum(1 << i for i in batch["indices"])
+            candidates[g][mask] = {
+                "E": energy, "T": times[b_idx],
+                "mass": batch["mass"], "volume": batch["volume"],
+                "n_boxes": batch["n_boxes"],
+            }
+    return boxes, candidates
+
+
+def solve_mixed_partition(candidates, box_count, objective):
+    """精确集合划分 DP；目标分别为 N→E→T、E→N→T、T→E→N。"""
+    if objective not in ("N", "E", "T"):
+        raise ValueError(f"未知目标: {objective}")
+    full = (1 << box_count) - 1
+    best_batch = [None] * (full + 1)
+    for g in sorted(candidates):
+        for mask, metrics in candidates[g].items():
+            option = (g, metrics)
+            incumbent = best_batch[mask]
+            if objective == "T":
+                key = (metrics["T"], metrics["E"], g)
+                old_key = (
+                    incumbent[1]["T"], incumbent[1]["E"], incumbent[0]
+                ) if incumbent else None
+            else:
+                key = (metrics["E"], metrics["T"], g)
+                old_key = (
+                    incumbent[1]["E"], incumbent[1]["T"], incumbent[0]
+                ) if incumbent else None
+            if old_key is None or key < old_key:
+                best_batch[mask] = option
+
+    def score(result):
+        energy, sorties, duration = result[:3]
+        if objective == "N":
+            return (sorties, energy, duration)
+        if objective == "T":
+            return (duration, energy, sorties)
+        return (energy, sorties, duration)
+
+    @lru_cache(maxsize=None)
+    def solve(remaining):
+        if remaining == 0:
+            return (0.0, 0, 0.0, ())
+        first = remaining & -remaining
+        subset = remaining
+        best = None
+        while subset:
+            option = best_batch[subset]
+            if subset & first and option is not None:
+                g, metrics = option
+                tail = solve(remaining ^ subset)
+                candidate = (
+                    metrics["E"] + tail[0],
+                    1 + tail[1],
+                    metrics["T"] + tail[2],
+                    ((subset, g),) + tail[3],
+                )
+                if best is None or score(candidate) < score(best):
+                    best = candidate
+            subset = (subset - 1) & remaining
+        if best is None:
+            raise ValueError("混合机型组批无可行解")
+        return best
+
+    return solve(full)
+
+
+def _mixed_plan(solution, boxes, candidates, models, df_max, service):
+    covered = 0
+    rows = []
+    for sortie_no, (mask, g) in enumerate(solution[3], start=1):
+        if covered & mask:
+            raise AssertionError(f"{service}: 货箱重复配送")
+        covered |= mask
+        batch = candidates[g][mask]
+        model = models[g]
+        safe_mass = float(df_max.loc[
+            (df_max["type"] == g) & (df_max["service"] == service),
+            "m_energy",
+        ].iloc[0])
+        if (batch["mass"] > min(safe_mass, model.u["Q_g"]) + 1e-9
+                or batch["volume"] > model.u["V_g"] + 1e-9
+                or batch["E"] > model.available_energy + 1e-9):
+            raise AssertionError(f"{service}/{g}: 批次违反安全约束")
+        selected = [box for i, box in enumerate(boxes) if mask & (1 << i)]
+        breakdown = Counter(box["cargo_type"] for box in selected)
+        rows.append({
+            "service": service,
+            "sortie_id": f"{service}-{sortie_no:02d}",
+            "type": g,
+            "box_ids": "|".join(box["id"] for box in selected),
+            "cargo_counts": "|".join(
+                f"{name}:{count}" for name, count in sorted(breakdown.items())
+            ),
+            "n_boxes": batch["n_boxes"],
+            "mass_kg": batch["mass"],
+            "volume_m3": batch["volume"],
+            "energy_kWh": batch["E"],
+            "time_s": batch["T"],
+            "safe_payload_kg": safe_mass,
+            "available_energy_kWh": model.available_energy,
+        })
+    if covered != (1 << len(boxes)) - 1:
+        raise AssertionError(f"{service}: 货箱未全部配送")
+    if (not math.isclose(sum(r["energy_kWh"] for r in rows), solution[0], abs_tol=1e-8)
+            or not math.isclose(sum(r["time_s"] for r in rows), solution[2], abs_tol=1e-8)):
+        raise AssertionError(f"{service}: 方案指标与逐架次记录不一致")
+    return rows
+
+
+def run_mixed(models, df_max, df_fixed):
+    """三个混合机型单目标实验；文件统一写为 Q1_mixed_*。"""
+    print("\n" + "=" * 70)
+    print("混合机型组批：N-opt / E-opt / T-opt")
+    print("=" * 70)
+    cargo_df = load_cargo()
+    services = sorted(cargo_df["service"].unique())
+    fixed_e = df_fixed[df_fixed["strategy"] == "E-opt"]
+    fixed_lookup = fixed_e.set_index(["type", "service"])
+    objective_rows = []
+    comparison_rows = []
+    plans = {target: [] for target in ("N", "E", "T")}
+    totals = {target: {"N": 0, "E": 0.0, "T": 0.0, "boxes": 0,
+                       "types": Counter()} for target in plans}
+    fixed_totals = {g: {"N": 0, "E": 0.0, "T": 0.0} for g in models}
+
+    for service in services:
+        boxes, candidates = _mixed_candidates(models, df_max, cargo_df, service)
+        solutions = {
+            target: solve_mixed_partition(candidates, len(boxes), target)
+            for target in plans
+        }
+        for g in models:
+            row = fixed_lookup.loc[(g, service)]
+            fixed_totals[g]["N"] += int(row["N_f"])
+            fixed_totals[g]["E"] += float(row["E_total_kWh"])
+            fixed_totals[g]["T"] += float(row["T_total_s"])
+            comparison_rows.append({
+                "service": service, "strategy": f"fixed-{g}-E-opt",
+                "N_f": row["N_f"], "E_total_kWh": row["E_total_kWh"],
+                "T_total_s": row["T_total_s"],
+            })
+        for target, solution in solutions.items():
+            records = _mixed_plan(
+                solution, boxes, candidates, models, df_max, service
+            )
+            plans[target].extend(records)
+            counts = Counter(r["type"] for r in records)
+            total = totals[target]
+            total["N"] += solution[1]
+            total["E"] += solution[0]
+            total["T"] += solution[2]
+            total["boxes"] += len(boxes)
+            total["types"].update(counts)
+            objective_rows.append({
+                "service": service, "objective": f"{target}-opt",
+                "total_boxes": len(boxes), "N_f": solution[1],
+                "E_total_kWh": solution[0], "T_total_s": solution[2],
+                "A_sorties": counts["A"], "B_sorties": counts["B"],
+                "C_sorties": counts["C"],
+            })
+            comparison_rows.append({
+                "service": service, "strategy": f"mixed-{target}-opt",
+                "N_f": solution[1], "E_total_kWh": solution[0],
+                "T_total_s": solution[2],
+            })
+        if solutions["E"][0] > min(
+            float(fixed_lookup.loc[(g, service), "E_total_kWh"]) for g in models
+        ) + 1e-7:
+            raise AssertionError(f"{service}: 混合能耗结果高于固定机型最优")
+        print(
+            f"{service}: N*={solutions['N'][1]}, "
+            f"E*={solutions['E'][0]:.6f} kWh, "
+            f"T*={solutions['T'][2]:.3f} s"
+        )
+
+    for target, total in totals.items():
+        counts = total["types"]
+        objective_rows.append({
+            "service": "all", "objective": f"{target}-opt",
+            "total_boxes": total["boxes"], "N_f": total["N"],
+            "E_total_kWh": total["E"], "T_total_s": total["T"],
+            "A_sorties": counts["A"], "B_sorties": counts["B"],
+            "C_sorties": counts["C"],
+        })
+        comparison_rows.append({
+            "service": "all", "strategy": f"mixed-{target}-opt",
+            "N_f": total["N"], "E_total_kWh": total["E"],
+            "T_total_s": total["T"],
+        })
+    for g, total in fixed_totals.items():
+        comparison_rows.append({
+            "service": "all", "strategy": f"fixed-{g}-E-opt",
+            "N_f": total["N"], "E_total_kWh": total["E"],
+            "T_total_s": total["T"],
+        })
+    if totals["N"]["N"] > totals["E"]["N"] or totals["N"]["N"] > totals["T"]["N"]:
+        raise AssertionError("混合架次极值不一致")
+    if totals["E"]["E"] > totals["N"]["E"] + 1e-7 or totals["E"]["E"] > totals["T"]["E"] + 1e-7:
+        raise AssertionError("混合能耗极值不一致")
+    if totals["T"]["T"] > totals["N"]["T"] + 1e-7 or totals["T"]["T"] > totals["E"]["T"] + 1e-7:
+        raise AssertionError("混合时间极值不一致")
+
+    for target, rows in plans.items():
+        pd.DataFrame(rows).to_csv(
+            PROJECT / "data" / f"Q1_mixed_{target}_opt_plan.csv",
+            index=False, encoding="utf-8-sig",
+        )
+    pd.DataFrame(objective_rows).to_csv(
+        PROJECT / "data" / "Q1_mixed_objectives.csv",
+        index=False, encoding="utf-8-sig",
+    )
+    pd.DataFrame(comparison_rows).to_csv(
+        PROJECT / "data" / "Q1_mixed_comparison.csv",
+        index=False, encoding="utf-8-sig",
+    )
+    input_names = (
+        "物资需求.csv", "运输无人机_机型参数.csv",
+        "Q1_fixed_max_payload.csv", "Q1_fixed_single_objective.csv",
+        "distance_matrix.csv", "climb_height_matrix.csv", "descent_height_matrix.csv",
+    )
+    manifest = {
+        "run_command": "python code/Q1.py",
+        "solver": "exact subset dynamic programming; no random seed",
+        "objectives": {
+            "N-opt": "min N, then E, then cumulative T",
+            "E-opt": "min E, then N, then cumulative T",
+            "T-opt": "min cumulative T, then E, then N",
+        },
+        "scope": (
+            "O01-service-O01; indivisible boxes; A/B/C per sortie; "
+            "safe payload, volume and available energy enforced; "
+            "fleet scheduling, shared batteries and deadlines excluded"
+        ),
+        "python_version": sys.version.split()[0],
+        "input_sha256": {
+            f"data/{name}": hashlib.sha256(
+                (PROJECT / "data" / name).read_bytes()
+            ).hexdigest() for name in input_names
+        },
+    }
+    with (PROJECT / "data" / "Q1_mixed_manifest.json").open(
+        "w", encoding="utf-8"
+    ) as stream:
+        json.dump(manifest, stream, ensure_ascii=False, indent=2)
+        stream.write("\n")
+    for target, total in totals.items():
+        print(
+            f"混合 {target}-opt: N={total['N']}, E={total['E']:.9f} kWh, "
+            f"T={total['T']:.3f} s"
+        )
+    return pd.DataFrame(objective_rows)
 
 
 # ═══════════════════════════════════════════════════════════════
 # 主流程
 # ═══════════════════════════════════════════════════════════════
+
+def run_mixed_only():
+    """兼容旧混合实验入口；先生成安全载荷与固定 E-opt 对照。"""
+    df_max, models = compute_max_payloads_all()
+    df_so = run_single_objective(models)
+    return run_mixed(models, df_max, df_so)
+
 
 def main():
     t0 = time()
@@ -746,7 +1074,7 @@ def main():
     df_so = run_single_objective(models)
 
     # 步 3: Pareto 多目标协同优化 (MOS)
-    df_pq = run_pareto(models)
+    df_pq = run_pareto(models, df_so)
 
     # N-优先偏好策略 (参考方案, 依赖 Baseline)
     df_bl = run_baseline(models)
@@ -756,6 +1084,9 @@ def main():
 
     # 步 5: ρ 敏感性
     sensitivity_analysis(models)
+
+    # 步 6: 混合机型三个单目标
+    run_mixed(models, df_max, df_so)
 
     print(f"\n总用时: {time() - t0:.1f}s")
 
