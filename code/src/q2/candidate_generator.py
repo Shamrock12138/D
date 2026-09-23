@@ -158,6 +158,14 @@ def generate_candidate_pool(boxes_df, models, max_stops=2):
     g_names = sorted(models.keys())
     box_lookup = _box_data(boxes_df)
 
+    deadline_lookup = {}
+    for _, row in boxes_df.iterrows():
+        bid = row["box_id"]
+        if row["is_first_batch"] and pd.notna(row["first_deadline"]):
+            deadline_lookup[bid] = float(row["first_deadline"])
+        else:
+            deadline_lookup[bid] = float("inf")
+
     print("=" * 60)
     print(f"Q2 Step 1: Candidate Task Generation  (max_stops={max_stops})")
     print("=" * 60)
@@ -244,6 +252,7 @@ def generate_candidate_pool(boxes_df, models, max_stops=2):
                         "delivery_offset_s": round(
                             r["delivery_offsets"].get(bid, 0.0), 1
                         ),
+                        "deadline_s": deadline_lookup.get(bid, float("inf")),
                     })
     t1 = time.time()
     print(f"  耗时: {t1 - t0:.1f}s, 候选数: {tid_counter}")
@@ -333,6 +342,7 @@ def generate_candidate_pool(boxes_df, models, max_stops=2):
                                 "delivery_offset_s": round(
                                     r["delivery_offsets"].get(bid, 0.0), 1
                                 ),
+                                "deadline_s": deadline_lookup.get(bid, float("inf")),
                             })
             t_g1 = time.time()
             print(f"  机型 {g_name} 耗时: {t_g1 - t_g0:.1f}s")
@@ -392,6 +402,7 @@ def generate_candidate_pool(boxes_df, models, max_stops=2):
                         "delivery_offset_s": round(
                             r["delivery_offsets"].get(bid, 0.0), 1
                         ),
+                        "deadline_s": deadline_lookup.get(bid, float("inf")),
                     })
                     break
 

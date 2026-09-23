@@ -35,15 +35,20 @@ def _load_uav_fleet(fleet_path=None):
 def _lpt_schedule(tasks, uavs_of_type):
     u"""LPT: 每类机型内并行调度, 最小化 Cmax。
 
+    硬时限任务优先: 含首批箱/医疗物资的任务排在最前面, 减少调度延迟。
+    其余任务按持续时间降序。
+
     Returns
     -------
     schedule : list[dict]
         [{task_id, uav_id, start_s, end_s, duration_s}, ...]
     """
-    # 按持续时间降序
-    sorted_tasks = sorted(tasks, key=lambda t: t["duration_s"], reverse=True)
+    hard_first = [t for t in tasks if t["has_hard_deadline"]]
+    soft = [t for t in tasks if not t["has_hard_deadline"]]
+    hard_first.sort(key=lambda t: t["duration_s"], reverse=True)
+    soft.sort(key=lambda t: t["duration_s"], reverse=True)
+    sorted_tasks = hard_first + soft
 
-    # 每架无人机当前空闲时间
     uav_free = {u["uav_id"]: 0.0 for u in uavs_of_type}
     schedule = []
 
@@ -71,7 +76,7 @@ def _lpt_schedule(tasks, uavs_of_type):
     return schedule
 
 
-def schedule_tasks(selected_df, uavs, objective_label=""):
+def schedule_tasks(selected_df, uavs, objective_label="", deliveries_df=None):
     u"""将选中任务分配到兼容无人机, 返回调度表。
 
     Parameters
@@ -81,6 +86,8 @@ def schedule_tasks(selected_df, uavs, objective_label=""):
     uavs : list[dict]
         [{uav_id, uav_type}, ...]
     objective_label : str
+    deliveries_df : pd.DataFrame | None
+        候选任务-货箱映射, 含 deadline_s 列。用于标记硬时限任务。
 
     Returns
     -------
@@ -90,6 +97,13 @@ def schedule_tasks(selected_df, uavs, objective_label=""):
     uav_by_type = defaultdict(list)
     for u in uavs:
         uav_by_type[u["uav_type"]].append(u)
+
+    hard_task_ids = set()
+    if deliveries_df is not None:
+        hard_tids = deliveries_df[
+            deliveries_df["deadline_s"] < 1e9
+        ]["task_id"].unique()
+        hard_task_ids = set(str(t) for t in hard_tids)
 
     tasks_by_type = defaultdict(list)
     for _, row in selected_df.iterrows():
@@ -102,6 +116,7 @@ def schedule_tasks(selected_df, uavs, objective_label=""):
             "visit_order": row["visit_order"],
             "energy_kWh": float(row["energy_kWh"]),
             "end_SOC": float(row.get("end_SOC", 0.2)),
+            "has_hard_deadline": str(row["task_id"]) in hard_task_ids,
         })
 
     all_schedule = []
@@ -191,6 +206,11 @@ def run_scheduler(tasks_dir=None, fleet_path=None):
 
     uavs = _load_uav_fleet(fleet_path)
 
+    deliveries_path = data_dir / "Q2_candidate_deliveries.csv"
+    deliveries_df = None
+    if deliveries_path.exists():
+        deliveries_df = pd.read_csv(deliveries_path, encoding="utf-8-sig")
+
     print(f"\n{'='*60}")
     print("Q2 Step 3: 实体无人机任务分配与时间调度")
     print(f"{'='*60}")
@@ -212,7 +232,7 @@ def run_scheduler(tasks_dir=None, fleet_path=None):
             n_task = len(selected_df[selected_df["uav_type"] == g_name])
             print(f"  {g_name}型: {n_uav}架无人机, {n_task}个任务")
 
-        schedule_df, stats = schedule_tasks(selected_df, uavs, obj)
+        schedule_df, stats = schedule_tasks(selected_df, uavs, obj, deliveries_df)
 
         assert validate_schedule(schedule_df), \
             f"{obj}-opt: UAV时间冲突!"

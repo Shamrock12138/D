@@ -24,30 +24,62 @@ PROJECT = Path(__file__).resolve().parent.parent.parent
 
 
 def _build_incidence(tasks_df, deliveries_df, box_ids):
-    u"""构建货箱→任务关联矩阵 (稀疏 CSR)。
+    u"""构建货箱→任务关联矩阵 (稀疏 CSR), 硬时限箱仅由满足 deadline 的任务覆盖。
+
+    硬时限箱: 医疗物资 + 首批保障箱 (deadline_s 不为 inf)。
+    对这些箱, 仅保留 delivery_offset_s ≤ deadline_s 的任务-箱对。
 
     Returns
     -------
     A : csr_matrix  shape=(n_boxes, n_tasks)
+    n_hard : int  硬时限箱数量
     """
     box_to_idx = {bid: i for i, bid in enumerate(box_ids)}
     task_to_idx = {tid: j for j, tid in enumerate(tasks_df["task_id"])}
+
+    hard_boxes = set(
+        deliveries_df[deliveries_df["deadline_s"] < 1e9]["box_id"]
+    )
+    n_hard = len(hard_boxes)
 
     rows = []
     cols = []
     for _, row in deliveries_df.iterrows():
         tid = row["task_id"]
         bid = row["box_id"]
-        if tid in task_to_idx and bid in box_to_idx:
-            rows.append(box_to_idx[bid])
-            cols.append(task_to_idx[tid])
+        if tid not in task_to_idx or bid not in box_to_idx:
+            continue
+
+        if bid in hard_boxes:
+            offset = float(row.get("delivery_offset_s", 0))
+            deadline = float(row.get("deadline_s", float("inf")))
+            if offset > deadline + 1e-6:
+                continue
+
+        rows.append(box_to_idx[bid])
+        cols.append(task_to_idx[tid])
 
     data = np.ones(len(rows), dtype=np.int8)
     A = csr_matrix(
         (data, (rows, cols)),
         shape=(len(box_ids), len(tasks_df))
     )
-    return A
+    return A, n_hard
+
+
+def _build_incidence_no_deadline(tasks_df, deliveries_df, box_ids):
+    u"""构建不限制硬时限的关联矩阵 (降级用)。"""
+    box_to_idx = {bid: i for i, bid in enumerate(box_ids)}
+    task_to_idx = {tid: j for j, tid in enumerate(tasks_df["task_id"])}
+    rows, cols = [], []
+    for _, row in deliveries_df.iterrows():
+        tid, bid = row["task_id"], row["box_id"]
+        if tid in task_to_idx and bid in box_to_idx:
+            rows.append(box_to_idx[bid])
+            cols.append(task_to_idx[tid])
+    data = np.ones(len(rows), dtype=np.int8)
+    A = csr_matrix((data, (rows, cols)), shape=(len(box_ids), len(tasks_df)))
+    return A, 0
 
 
 def solve_set_partition(tasks_df, deliveries_df, objective="N"):
@@ -75,7 +107,19 @@ def solve_set_partition(tasks_df, deliveries_df, objective="N"):
     print(f"{'='*60}")
     print(f"货箱数: {n_boxes}  候选任务数: {n_tasks}")
 
-    A = _build_incidence(tasks_df, deliveries_df, box_ids)
+    A, n_hard = _build_incidence(tasks_df, deliveries_df, box_ids)
+    print(f"硬时限箱数: {n_hard}")
+
+    row_sums = np.array(A.sum(axis=1)).flatten()
+    isolated = np.where(row_sums == 0)[0]
+    if len(isolated) > 0:
+        isolated_ids = [box_ids[i] for i in isolated]
+        print(f"WARNING: {len(isolated)} 箱无可选任务: {isolated_ids}")
+        print("  尝试将这些箱降级为无硬时限约束...")
+        A2, _ = _build_incidence_no_deadline(tasks_df, deliveries_df, box_ids)
+        for i in isolated:
+            A[i] = A2[i]
+        n_hard -= len(isolated)
 
     if objective == "N":
         c = np.ones(n_tasks)
