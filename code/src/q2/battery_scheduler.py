@@ -2,23 +2,23 @@ u"""
 Q2 共享电池调度 (Shared Battery Scheduling)
 ===============================================
 
-输入: Q2_uav_schedule_{N,E,T}.csv + 电池参数
+输入: Q2_uav_schedule_{N,E,T}.csv + 电池参数 + 机型参数
 输出: 每任务 → 电池分配, 充电时间轴, 带电池约束的最终 Cmax
 
 约束:
   1. 每任务配一块同型电池
   2. 同电池任务不重叠 (含充电等待)
-  3. 两阶段充电: T_chg = f(SOC_end)
+  3. 两阶段充电: T_chg = f(SOC_end), 复用 battery.py
   4. UAV 与电池独立分配 (UAV 等电池就绪)
 
 算法: 对每架 UAV 的任务序列, 贪心分配最早可用电池。
 """
 
-from collections import defaultdict
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
+
+from .battery import charge_time_to_full, soc_after_task
 
 PROJECT = Path(__file__).resolve().parent.parent.parent
 
@@ -38,34 +38,44 @@ def _load_battery_params(battery_path=None):
     return params
 
 
-def _charge_time(soc_end, charge_time_full):
-    u"""两阶段充电时间 (线性近似)。
-
-    阶段一 (SOC ≤ 50%): 快充, 占 40% 时间
-    阶段二 (SOC > 50%): 慢充, 占 60% 时间
-    """
-    if soc_end >= 0.999:
-        return 0.0
-    if soc_end <= 0.5:
-        return charge_time_full * 0.4
-    # 线性: 0%→50% 用 40% 时间, 50%→100% 用 60% 时间
-    alpha = (1.0 - soc_end) / 0.5
-    return charge_time_full * 0.6 * alpha
+def _load_uav_energy_capacity(model_path=None):
+    u"""加载每机型的电池可用容量 E_use (kWh)。"""
+    if model_path is None:
+        model_path = PROJECT / "data" / "运输无人机_机型参数.csv"
+    df = pd.read_csv(model_path, encoding="utf-8-sig")
+    caps = {}
+    for _, row in df.iterrows():
+        caps[row["type"].strip()] = float(row["E_use"])
+    return caps
 
 
-def schedule_batteries(schedule_df, battery_params):
+def _calculate_soc(task, e_caps):
+    u"""从任务能耗和机型容量计算任务后 SOC。"""
+    e_kwh = float(task["energy_kWh"])
+    e_cap = e_caps.get(task["uav_type"], 1.0)
+    return soc_after_task(e_kwh, e_cap)
+
+
+def schedule_batteries(schedule_df, battery_params, e_caps):
     u"""为 UAV 调度表分配共享电池。
+
+    Parameters
+    ----------
+    schedule_df : pd.DataFrame
+        UAV 调度表 (含 task_id, uav_id, uav_type, start_time_s, 
+        end_time_s, duration_s, energy_kWh)
+    battery_params : dict
+        {type: {count, charge_time_full}}
+    e_caps : dict
+        {type: E_use_kWh}
 
     Returns
     -------
     battery_schedule : pd.DataFrame
-        增加 battery_id, charge_start_s, charge_end_s, battery_ready_s
     stats : dict
-        电池利用率等统计
     """
     g_names = list(battery_params.keys())
 
-    # 初始化电池池: {type: [battery_id → ready_time]}
     battery_pool = {}
     for g_name in g_names:
         n = battery_params[g_name]["count"]
@@ -73,9 +83,8 @@ def schedule_batteries(schedule_df, battery_params):
             bid = f"BAT_{g_name}{i+1:02d}"
             battery_pool.setdefault(g_name, {})[bid] = 0.0
 
-    # 按 UAV 分组处理
     all_rows = []
-    battery_timeline = []  # (battery_id, start, end, state, task_id)
+    battery_timeline = []
 
     for uav_id, uav_group in schedule_df.groupby("uav_id"):
         uav_group = uav_group.sort_values("start_time_s")
@@ -83,24 +92,20 @@ def schedule_batteries(schedule_df, battery_params):
 
         for _, task in uav_group.iterrows():
             t_start_original = float(task["start_time_s"])
-            t_end_original = float(task["end_time_s"])
-            soc_end = float(task.get("end_SOC", 0.2))
+            soc_end = _calculate_soc(task, e_caps)
             charge_full = battery_params[uav_type]["charge_time_full"]
-            t_charge = _charge_time(soc_end, charge_full)
+            t_charge = charge_time_to_full(soc_end, charge_full)
 
-            # 找最早可用的同型电池
             pool = battery_pool[uav_type]
             best_bid = min(pool, key=pool.get)
             battery_ready = pool[best_bid]
 
-            # 任务开始时间不能早于电池就绪
             t_start = max(t_start_original, battery_ready)
             t_end = t_start + float(task["duration_s"])
             t_charge_start = t_end
             t_charge_end = t_end + t_charge
             t_battery_ready = t_charge_end
 
-            # 更新电池就绪时间
             pool[best_bid] = t_battery_ready
 
             row = {
@@ -139,10 +144,8 @@ def schedule_batteries(schedule_df, battery_params):
 
     result_df = pd.DataFrame(all_rows)
 
-    # 计算新 Cmax
-    new_cmax = result_df["end_time_s"].max() if len(result_df) > 0 else 0.0
+    cmax_transport = result_df["end_time_s"].max() if len(result_df) > 0 else 0.0
 
-    # 电池统计
     batt_usage = (
         result_df.groupby("battery_id")
         .agg(
@@ -159,18 +162,37 @@ def schedule_batteries(schedule_df, battery_params):
     timeline_df = pd.DataFrame(battery_timeline)
 
     stats = {
-        "Cmax_with_battery_s": round(new_cmax, 1),
-        "Cmax_with_battery_h": round(new_cmax / 3600, 2),
+        "Cmax_transport_s": round(cmax_transport, 1),
+        "Cmax_transport_h": round(cmax_transport / 3600, 2),
         "battery_usage": batt_usage,
         "timeline": timeline_df,
     }
     return result_df, stats
 
 
+def validate_battery_timeline(timeline_df):
+    u"""检查同电池放电/充电事件无重叠。"""
+    if timeline_df.empty:
+        return True
+    ok = True
+    for bid, group in timeline_df.groupby("battery_id"):
+        group = group.sort_values("start_s")
+        for i in range(len(group) - 1):
+            if group.iloc[i]["end_s"] > group.iloc[i + 1]["start_s"] + 1e-9:
+                print(f"  FAIL: 电池 {bid} 事件重叠: "
+                      f"{group.iloc[i]['event']}→{group.iloc[i+1]['event']} "
+                      f"({group.iloc[i]['end_s']} > {group.iloc[i+1]['start_s']})")
+                ok = False
+    if ok:
+        print("  [PASS] 电池事件无冲突")
+    return ok
+
+
 def print_battery_schedule(stats, schedule_df):
-    u"""打印电池调度结果。"""
-    print(f"\n  Cmax (含充电等待) = {stats['Cmax_with_battery_s']:.1f}s "
-          f"({stats['Cmax_with_battery_h']:.2f}h)")
+    u"""格式化打印电池调度结果。"""
+    print(f"\n  Cmax_transport (含电池约束) = "
+          f"{stats['Cmax_transport_s']:.1f}s "
+          f"({stats['Cmax_transport_h']:.2f}h)")
 
     print(f"\n  电池使用:")
     print(f"  {'电池':<10} {'类型':<4} {'任务数':<6} "
@@ -185,13 +207,14 @@ def print_battery_schedule(stats, schedule_df):
 
     print(f"\n  任务-电池详情:")
     print(f"  {'任务ID':<10} {'UAV':<6} {'电池':<10} {'开始/s':<10} "
-          f"{'结束/s':<10} {'充电/s':<8} {'就绪/s':<10}")
-    print(f"  {'-'*66}")
+          f"{'结束/s':<10} {'SOC_end':<8} {'充电/s':<8} {'就绪/s':<10}")
+    print(f"  {'-'*72}")
     for _, row in schedule_df.iterrows():
         print(f"  {row['task_id']:<10} {row['uav_id']:<6} "
               f"{row['battery_id']:<10} "
               f"{row['start_time_s']:<10.1f} "
               f"{row['end_time_s']:<10.1f} "
+              f"{row['end_SOC']:<8.4f} "
               f"{row['charge_duration_s']:<8.1f} "
               f"{row['battery_ready_s']:<10.1f}")
 
@@ -201,6 +224,7 @@ def run_battery_scheduler(schedule_dir=None):
     data_dir = PROJECT / "data"
     schedule_dir = Path(schedule_dir) if schedule_dir else data_dir
     batt_params = _load_battery_params()
+    e_caps = _load_uav_energy_capacity()
 
     print(f"\n{'='*60}")
     print("Q2 Step 4: 共享电池调度")
@@ -208,6 +232,9 @@ def run_battery_scheduler(schedule_dir=None):
     print(f"电池池: A={batt_params['A']['count']}块 "
           f"B={batt_params['B']['count']}块 "
           f"C={batt_params['C']['count']}块")
+    print(f"机型容量: A={e_caps['A']}kWh "
+          f"B={e_caps['B']}kWh "
+          f"C={e_caps['C']}kWh")
 
     all_summary = []
 
@@ -218,22 +245,22 @@ def run_battery_scheduler(schedule_dir=None):
             continue
 
         schedule_df = pd.read_csv(fname, encoding="utf-8-sig")
-        if "end_SOC" not in schedule_df.columns:
-            schedule_df["end_SOC"] = 0.2
 
         print(f"\n── {obj}-opt ──")
         print(f"  UAV 调度任务数: {len(schedule_df)}")
 
-        battery_df, stats = schedule_batteries(schedule_df, batt_params)
+        battery_df, stats = schedule_batteries(schedule_df, batt_params, e_caps)
         print_battery_schedule(stats, battery_df)
+
+        timeline_df = stats["timeline"]
+        if not validate_battery_timeline(timeline_df):
+            print(f"  ⚠ {obj}-opt: 电池时间线存在冲突!")
 
         out = data_dir / f"Q2_battery_schedule_{obj}.csv"
         battery_df.to_csv(out, index=False, encoding="utf-8-sig")
         print(f"  已保存: data/Q2_battery_schedule_{obj}.csv "
               f"({len(battery_df)} rows)")
 
-        # 电池甘特
-        timeline_df = stats["timeline"]
         t_out = data_dir / f"Q2_battery_timeline_{obj}.csv"
         timeline_df.to_csv(t_out, index=False, encoding="utf-8-sig")
 
@@ -241,13 +268,11 @@ def run_battery_scheduler(schedule_dir=None):
             "objective": obj,
             "n_tasks": len(battery_df),
             "n_batteries_used": battery_df["battery_id"].nunique(),
-            "Cmax_uav_s": round(float(battery_df["end_time_s"].max()), 1),
-            "Cmax_with_charge_s": stats["Cmax_with_battery_s"],
-            "Cmax_with_charge_h": stats["Cmax_with_battery_h"],
+            "Cmax_transport_s": stats["Cmax_transport_s"],
+            "Cmax_transport_h": stats["Cmax_transport_h"],
             "total_charge_s": round(float(battery_df["charge_duration_s"].sum()), 1),
         })
 
-    # 汇总
     print(f"\n{'='*60}")
     print("Q2 Step 4: 电池调度对比")
     print(f"{'='*60}")
