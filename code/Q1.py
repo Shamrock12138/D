@@ -29,20 +29,20 @@ O01→Si→O01 直接往返，单服务区、不可跨服务区组批。
   m_max = max q  s.t.  E_round(q) ≤ (1-ρ_g)*E_use  ∧  q ≤ Q_g
   (体积约束 V_g 在组批阶段检查)
 
-步 2 ─ 组批优化 (两方案对比)
-----------------------------
-  Baseline (资源节约策略 MSS):
-    三阶段字典序 MILP:  N_f ≻ ΣE ≻ ΣT
+步 2 ─ 三个单目标最优解
+------------------------
+  分别以 min N_f、min ΣE、min ΣT 为目标求 MILP，
+  得到三个极端点，展示三目标之间的权衡关系。
 
-  Proposed (多目标协同 MOS):
-    Pareto 多目标 MILP (ε-约束 + 加权法)
-    目标:  min (N_f, ΣE, ΣT) → 非支配集
+步 3 ─ Pareto 多目标协同优化 (MOS)
+-----------------------------------
+  加权法 + ε-约束生成非支配解集，分析完整权衡前沿。
 
-步 3 ─ 结果对比
+步 4 ─ 策略对比
 ---------------
-  两方案在架次数、能耗、时间三个维度的对比分析
+  单目标极值 + N-优先偏好策略 + Pareto 前沿的全面对比
 
-步 4 ─ ρ 敏感性分析
+步 5 ─ ρ 敏感性分析
 --------------------
   返航安全余量 ρ 对最大安全载荷的影响
 """
@@ -190,7 +190,152 @@ def _collect_service_batches(model, df_max, cargo_df, service, g):
 
 
 # ═══════════════════════════════════════════════════════════════
-# 步 2(a): Baseline — 资源节约策略 (MSS)
+# 步 2: 三个单目标最优解
+# ═══════════════════════════════════════════════════════════════
+
+def _build_milp(batches, box_count):
+    u"""构建覆盖约束 MILP 的公共组件"""
+    n = len(batches)
+    A = np.zeros((box_count, n))
+    for b_idx, batch in enumerate(batches):
+        for j in batch["indices"]:
+            A[j, b_idx] = 1.0
+    con = LinearConstraint(A, np.ones(box_count), np.ones(box_count))
+    bounds = Bounds(np.zeros(n), np.ones(n))
+    integrality = np.ones(n, dtype=int)
+    return n, A, con, bounds, integrality
+
+
+def _run_milp(c_vec, con, bounds, integrality):
+    u"""求解单次 MILP, 返回 selected 索引列表或 None"""
+    res = milp(c=c_vec, constraints=con, bounds=bounds,
+               integrality=integrality, options={"disp": False})
+    if not res.success:
+        return None
+    return [b for b, x in enumerate(res.x) if x > 0.5]
+
+
+def solve_min_N(batches, box_count, energies, times):
+    u"""单目标: min N_f (最少架次数)"""
+    if len(batches) == 0:
+        return None
+    if len(batches) == 1:
+        return [0]
+    _, _, con, bounds, integrality = _build_milp(batches, box_count)
+    return _run_milp(np.ones(len(batches)), con, bounds, integrality)
+
+
+def solve_min_E(batches, box_count, energies, times):
+    u"""单目标: min ΣE (最低总能耗)"""
+    if len(batches) == 0:
+        return None
+    if len(batches) == 1:
+        return [0]
+    _, _, con, bounds, integrality = _build_milp(batches, box_count)
+    c = np.array([energies[b] for b in range(len(batches))])
+    return _run_milp(c, con, bounds, integrality)
+
+
+def solve_min_T(batches, box_count, energies, times):
+    u"""单目标: min ΣT (最短累计时间)"""
+    if len(batches) == 0:
+        return None
+    if len(batches) == 1:
+        return [0]
+    _, _, con, bounds, integrality = _build_milp(batches, box_count)
+    c = np.array([times[b] for b in range(len(batches))])
+    return _run_milp(c, con, bounds, integrality)
+
+
+def run_single_objective(models):
+    u"""步 2: 三个单目标最优解
+
+    对每个 (g, service) 分别求解:
+      N-opt: min N_f
+      E-opt: min ΣE
+      T-opt: min ΣT
+
+    输出: Q1_single_objective.csv (每个 service 的三组极值)
+    """
+    print("\n" + "=" * 70)
+    print("步 2：三个单目标最优解 (N-opt, E-opt, T-opt)")
+    print("=" * 70)
+
+    df_max = pd.read_csv(PROJECT / "data" / "Q1_max_payload.csv")
+    cargo_df = load_cargo()
+    service_areas = sorted(cargo_df["service"].unique())
+
+    solvers = {
+        "N-opt": (solve_min_N, "min N_f"),
+        "E-opt": (solve_min_E, "min ΣE"),
+        "T-opt": (solve_min_T, "min ΣT"),
+    }
+
+    all_records = []
+
+    for g, model in models.items():
+        u = model.u
+        print(f"\n机型 {g}:  Q_g={u['Q_g']}kg  V_g={u['V_g']}m^3")
+        header = (f"  {'服务区':<8} {'箱数':>4} "
+                  f"{'N-opt':>5} {'E(N)':>10} {'T(N)':>10}"
+                  f"{'E-opt':>5} {'E(E)':>10} {'T(E)':>10}"
+                  f"{'T-opt':>5} {'E(T)':>10} {'T(T)':>10}")
+        print(header)
+        print(f"  {'-'*90}")
+
+        for service in service_areas:
+            feasible, n_boxes, energies, times = _collect_service_batches(
+                model, df_max, cargo_df, service, g)
+
+            if len(feasible) == 0:
+                print(f"  {service:<8} {n_boxes:>4} {'无可行组合':>10}")
+                continue
+
+            results = {}
+            for strategy, (solver_fn, _) in solvers.items():
+                sel = solver_fn(feasible, n_boxes, energies, times)
+                if sel is None:
+                    results[strategy] = None
+                else:
+                    results[strategy] = {
+                        "N": len(sel),
+                        "E": sum(energies[b] for b in sel),
+                        "T": sum(times[b] for b in sel),
+                        "selected": sel,
+                    }
+
+            n_opt   = results.get("N-opt")
+            e_opt   = results.get("E-opt")
+            t_opt   = results.get("T-opt")
+
+            if None in (n_opt, e_opt, t_opt):
+                print(f"  {service:<8} {n_boxes:>4} {'MILP失败':>10}")
+                continue
+
+            print(f"  {service:<8} {n_boxes:>4} "
+                  f"{n_opt['N']:>5} {n_opt['E']:>10.2f} {n_opt['T']:>10.0f}"
+                  f"{e_opt['N']:>5} {e_opt['E']:>10.2f} {e_opt['T']:>10.0f}"
+                  f"{t_opt['N']:>5} {t_opt['E']:>10.2f} {t_opt['T']:>10.0f}")
+
+            for strategy, res in results.items():
+                all_records.append({
+                    "type": g, "service": service,
+                    "strategy": strategy,
+                    "N_f": res["N"],
+                    "E_total_kWh": res["E"],
+                    "T_total_s": res["T"],
+                })
+
+    df_so = pd.DataFrame(all_records)
+    df_so.to_csv(PROJECT / "data" / "Q1_single_objective.csv",
+                 index=False, encoding="utf-8-sig")
+
+    print("\n已保存: data/Q1_single_objective.csv")
+    return df_so
+
+
+# ═══════════════════════════════════════════════════════════════
+# 辅助: N-优先偏好策略 (MSS, 作为参考方案)
 # ═══════════════════════════════════════════════════════════════
 
 def solve_baseline_partition(batches, box_count, energies, times):
@@ -257,9 +402,12 @@ def solve_baseline_partition(batches, box_count, energies, times):
 
 
 def run_baseline(models):
-    u"""步 2(a): Baseline — 资源节约型组批策略 (最小架次优先)"""
+    u"""N-优先偏好策略 — 三阶段字典序 MILP: N_f ≻ ΣE ≻ ΣT
+
+    作为资源受限情况下的推荐策略参考。
+    """
     print("\n" + "=" * 70)
-    print("步 2(a)：Baseline — 资源节约策略 MSS (N_f ≻ E ≻ T)")
+    print("N-优先偏好策略 — 资源节约型组批 (N_f ≻ ΣE ≻ ΣT)")
     print("=" * 70)
 
     df_max = pd.read_csv(PROJECT / "data" / "Q1_max_payload.csv")
@@ -335,17 +483,17 @@ def run_baseline(models):
 
 
 # ═══════════════════════════════════════════════════════════════
-# 步 2(b): Proposed — Pareto 多目标协同优化 (MOS)
+# 步 3: Pareto 多目标协同优化 (MOS)
 # ═══════════════════════════════════════════════════════════════
 
 def run_pareto(models):
-    u"""步 2(b): Proposed — Pareto 多目标协同优化策略
+    u"""步 3: Pareto 多目标协同优化策略 (MOS)
 
     对每个 (g, service) 生成 Pareto 前沿 (N_f, ΣE, ΣT) 的非支配解集,
     保存所有前沿点到 Q1_pareto_frontier.csv.
     """
     print("\n" + "=" * 70)
-    print("步 2(b)：Proposed — Pareto 多目标优化 MOS")
+    print("步 3：Pareto 多目标协同优化 (MOS)")
     print("=" * 70)
 
     df_max = pd.read_csv(PROJECT / "data" / "Q1_max_payload.csv")
@@ -410,51 +558,50 @@ def run_pareto(models):
 
 
 # ═══════════════════════════════════════════════════════════════
-# 步 3: 两方案对比
+# 步 4: 策略对比
 # ═══════════════════════════════════════════════════════════════
 
-def _agg_service(df):
-    u"""按 (type, service) 汇总统, E, T"""
-    return df.groupby(["type", "service"]).agg(
-        N_f=("N_f", "first") if "N_f" in df.columns else ("n_boxes", "count"),
-        sorties=("n_boxes", "count") if "n_boxes" in df.columns else ("N_f", "first"),
-        E_total=("energy_kWh", "sum"),
-        T_total=("time_s", "sum"),
-    ).reset_index()
-
-
-def compare_results(df_baseline_plan, df_pareto_fr):
-    u"""步 3: Baseline vs Pareto 对比分析
+def compare_results(df_single_obj, df_baseline_plan, df_pareto_fr):
+    u"""步 4: 单目标极值 + N-优先偏好 + Pareto 全面对比
 
     对每个 (g, service):
-      - Baseline: 单一解
-      - Pareto: 展示前沿上三个代表性解 (min-N, min-E, min-T)
+      - N-opt / E-opt / T-opt: 三个单目标最优解, 互相展示交叉指标
+      - Preference:  N-优先字典序策略 (MSS)
+      - Pareto:  前沿上的三个代表点 (min-N, min-E, min-T)
     """
     print("\n" + "=" * 70)
-    print("步 3：Baseline (MSS) vs Proposed (MOS) 对比")
+    print("步 4：策略对比 — 单目标极值 vs N-优先 vs Pareto 前沿")
     print("=" * 70)
 
-    # ── 汇总 Baseline ──
+    # ── Baseline 汇总 ──
     bl_agg = df_baseline_plan.groupby(["type", "service"]).agg(
         N_bl=("n_boxes", "count"),
         E_bl=("energy_kWh", "sum"),
         T_bl=("time_s", "sum"),
     ).reset_index()
 
-    # ── Pareto: 直接去重提取 (N_f, E_total, T_total) 元组 ──
-    pq = df_pareto_fr[["type", "service", "N_f", "E_total", "T_total"]].drop_duplicates()
+    # ── Pareto 去重 ──
+    pq = df_pareto_fr[["type", "service", "N_f",
+                        "E_total", "T_total"]].drop_duplicates()
+
+    # ── 单目标: 索引为 (type, service, strategy) ──
+    so = df_single_obj.set_index(["type", "service", "strategy"])
 
     comparison_rows = []
 
     for g in ["A", "B", "C"]:
-        print(f"\n{'='*60}")
+        print(f"\n{'='*90}")
         print(f"机型 {g}")
-        print(f"{'='*60}")
-        print(f"  {'服务区':<8} {'方案':>12} {'N_f':>5} "
-              f"{'E(kWh)':>10} {'T(s)':>10} {'ΔN':>5} {'ΔE%':>8} {'ΔT%':>8}")
-        print(f"  {'-'*58}")
+        print(f"{'='*90}")
+        hdr = (f"  {'服务区':<8} {'策略':>12} "
+               f"{'N_f':>5} {'E(kWh)':>10} {'T(s)':>10}"
+               f"  {'vs Preference ΔN':>16} {'ΔE%':>8} {'ΔT%':>8}")
+        print(hdr)
+        print(f"  {'-'*85}")
 
-        for service in sorted(bl_agg["service"].unique()):
+        services = sorted(bl_agg["service"].unique())
+
+        for service in services:
             bl_row = bl_agg[(bl_agg["type"] == g)
                             & (bl_agg["service"] == service)]
             if bl_row.empty:
@@ -462,9 +609,35 @@ def compare_results(df_baseline_plan, df_pareto_fr):
             bl = bl_row.iloc[0]
             N_bl, E_bl, T_bl = bl["N_bl"], bl["E_bl"], bl["T_bl"]
 
-            # Baseline
-            print(f"  {service:<8} {'Baseline':>12} {N_bl:>5} "
+            # Preference (N-priority, 以 Baseline 为准)
+            print(f"  {service:<8} {'Preference':>12} {N_bl:>5.0f} "
                   f"{E_bl:>10.2f} {T_bl:>10.0f}")
+
+            comparison_rows.append({
+                "type": g, "service": service,
+                "strategy": "Preference",
+                "N_f": N_bl, "E_kWh": E_bl, "T_s": T_bl,
+            })
+
+            # 三个单目标极值
+            for strategy in ["N-opt", "E-opt", "T-opt"]:
+                try:
+                    row = so.loc[(g, service, strategy)]
+                except KeyError:
+                    continue
+                dN = row["N_f"] - N_bl
+                dE = (row["E_total_kWh"] - E_bl) / E_bl * 100 if E_bl else 0
+                dT = (row["T_total_s"] - T_bl) / T_bl * 100 if T_bl else 0
+                print(f"  {'':<8} {strategy:>12} {row['N_f']:>5.0f} "
+                      f"{row['E_total_kWh']:>10.2f} {row['T_total_s']:>10.0f}"
+                      f"  {dN:>+5.0f} {dE:>+7.1f}% {dT:>+7.1f}%")
+                comparison_rows.append({
+                    "type": g, "service": service,
+                    "strategy": strategy,
+                    "N_f": row["N_f"],
+                    "E_kWh": row["E_total_kWh"],
+                    "T_s": row["T_total_s"],
+                })
 
             # Pareto 三个代表点
             pq_svc = pq[(pq["type"] == g) & (pq["service"] == service)]
@@ -475,21 +648,16 @@ def compare_results(df_baseline_plan, df_pareto_fr):
             idx_min_E = pq_svc["E_total"].idxmin()
             idx_min_T = pq_svc["T_total"].idxmin()
 
-            rep_points = [
-                ("Pareto-N↓", idx_min_N),
-                ("Pareto-E↓", idx_min_E),
-                ("Pareto-T↓", idx_min_T),
-            ]
-
-            for label, idx in rep_points:
+            for label, idx in [("Pareto-N↓", idx_min_N),
+                                ("Pareto-E↓", idx_min_E),
+                                ("Pareto-T↓", idx_min_T)]:
                 row = pq_svc.loc[idx]
                 dN = row["N_f"] - N_bl
                 dE = (row["E_total"] - E_bl) / E_bl * 100 if E_bl else 0
                 dT = (row["T_total"] - T_bl) / T_bl * 100 if T_bl else 0
                 print(f"  {'':<8} {label:>12} {row['N_f']:>5.0f} "
-                      f"{row['E_total']:>10.2f} {row['T_total']:>10.0f} "
-                      f"{dN:>+5.0f} {dE:>+7.1f}% {dT:>+7.1f}%")
-
+                      f"{row['E_total']:>10.2f} {row['T_total']:>10.0f}"
+                      f"  {dN:>+5.0f} {dE:>+7.1f}% {dT:>+7.1f}%")
                 comparison_rows.append({
                     "type": g, "service": service,
                     "strategy": label,
@@ -506,13 +674,13 @@ def compare_results(df_baseline_plan, df_pareto_fr):
 
 
 # ═══════════════════════════════════════════════════════════════
-# 步 4: ρ 敏感性分析
+# 步 5: ρ 敏感性分析
 # ═══════════════════════════════════════════════════════════════
 
 def sensitivity_analysis(models):
     u"""返航安全余量 ρ 敏感性分析"""
     print("\n" + "=" * 70)
-    print("步 4：ρ 敏感性分析（等效航程模型）")
+    print("步 5：ρ 敏感性分析（等效航程模型）")
     print("=" * 70)
 
     service_areas = sorted(models["A"].routes["distance"].columns)
@@ -571,19 +739,22 @@ def sensitivity_analysis(models):
 def main():
     t0 = time()
 
-    # 步 1
+    # 步 1: 最大安全载荷
     df_max, models = compute_max_payloads_all()
 
-    # 步 2(a): Baseline
-    df_bl = run_baseline(models)
+    # 步 2: 三个单目标最优解 (N-opt, E-opt, T-opt)
+    df_so = run_single_objective(models)
 
-    # 步 2(b): Pareto
+    # 步 3: Pareto 多目标协同优化 (MOS)
     df_pq = run_pareto(models)
 
-    # 步 3: 对比
-    compare_results(df_bl, df_pq)
+    # N-优先偏好策略 (参考方案, 依赖 Baseline)
+    df_bl = run_baseline(models)
 
-    # 步 4: 敏感性
+    # 步 4: 策略对比
+    compare_results(df_so, df_bl, df_pq)
+
+    # 步 5: ρ 敏感性
     sensitivity_analysis(models)
 
     print(f"\n总用时: {time() - t0:.1f}s")
