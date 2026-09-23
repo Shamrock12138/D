@@ -37,3 +37,18 @@ class Q3Scenario:
     def to_list(self) -> List[dict]:
         """按架次列表格式导出，供后续轨迹与通信模块读取。"""
         return [flight.to_dict() for flight in self.flights]
+
+
+@dataclass(frozen=True)
+class TrajectoryPoint:
+    u"""绝对时间、经纬度和海拔组成的运输无人机轨迹采样点。"""
+
+    time: float  # 秒，沿用 Q2 的时间原点
+    x: float  # 经度，EPSG:4326，单位度
+    y: float  # 纬度，EPSG:4326，单位度
+    z: float  # 海拔高度，单位米
+    phase: str  # setup/climb/cruise/descend/handover
+    node: Optional[str] = None
+
+    def to_dict(self) -> dict:
+        return asdict(self)
