@@ -63,7 +63,7 @@ def check_deadlines(schedule_df, deliveries_df, boxes_df):
 
     box_info = boxes_df.set_index("box_id")[["service", "cargo_type"]].to_dict("index")
 
-    task_end = schedule_df.set_index("task_id")["end_time_s"].to_dict()
+    task_start_end = schedule_df.set_index("task_id")[["start_time_s", "end_time_s"]].to_dict("index")
 
     rows = []
     total_delay = 0.0
@@ -73,9 +73,12 @@ def check_deadlines(schedule_df, deliveries_df, boxes_df):
         bid = row["box_id"]
         tid = row["task_id"]
 
-        delivery_time = task_end.get(tid, None)
-        if delivery_time is None:
+        se = task_start_end.get(tid)
+        if se is None:
             continue
+
+        offset = float(row.get("delivery_offset_s", 0))
+        delivery_time = se["start_time_s"] + offset
 
         dl = deadlines.get(bid, float("inf"))
         delay = max(0.0, delivery_time - dl)

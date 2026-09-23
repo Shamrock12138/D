@@ -238,7 +238,13 @@ def generate_candidate_pool(boxes_df, models, max_stops=2):
                     "charge_time_s": 0.0,
                 })
                 for bid in delivery:
-                    delivery_rows.append({"task_id": tid, "box_id": bid})
+                    delivery_rows.append({
+                        "task_id": tid,
+                        "box_id": bid,
+                        "delivery_offset_s": round(
+                            r["delivery_offsets"].get(bid, 0.0), 1
+                        ),
+                    })
     t1 = time.time()
     print(f"  耗时: {t1 - t0:.1f}s, 候选数: {tid_counter}")
 
@@ -321,7 +327,13 @@ def generate_candidate_pool(boxes_df, models, max_stops=2):
                             "charge_time_s": 0.0,
                         })
                         for bid in da + db:
-                            delivery_rows.append({"task_id": tid, "box_id": bid})
+                            delivery_rows.append({
+                                "task_id": tid,
+                                "box_id": bid,
+                                "delivery_offset_s": round(
+                                    r["delivery_offsets"].get(bid, 0.0), 1
+                                ),
+                            })
             t_g1 = time.time()
             print(f"  机型 {g_name} 耗时: {t_g1 - t_g0:.1f}s")
         t1 = time.time()
@@ -374,7 +386,13 @@ def generate_candidate_pool(boxes_df, models, max_stops=2):
                         "end_SOC": round(r["end_soc"], 6),
                         "charge_time_s": 0.0,
                     })
-                    delivery_rows.append({"task_id": tid, "box_id": bid})
+                    delivery_rows.append({
+                        "task_id": tid,
+                        "box_id": bid,
+                        "delivery_offset_s": round(
+                            r["delivery_offsets"].get(bid, 0.0), 1
+                        ),
+                    })
                     break
 
         tasks_df = pd.DataFrame(task_rows)

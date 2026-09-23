@@ -89,6 +89,7 @@ def schedule_batteries(schedule_df, battery_params, e_caps):
     for uav_id, uav_group in schedule_df.groupby("uav_id"):
         uav_group = uav_group.sort_values("start_time_s")
         uav_type = uav_group.iloc[0]["uav_type"]
+        uav_free = 0.0
 
         for _, task in uav_group.iterrows():
             t_start_original = float(task["start_time_s"])
@@ -100,13 +101,14 @@ def schedule_batteries(schedule_df, battery_params, e_caps):
             best_bid = min(pool, key=pool.get)
             battery_ready = pool[best_bid]
 
-            t_start = max(t_start_original, battery_ready)
+            t_start = max(t_start_original, battery_ready, uav_free)
             t_end = t_start + float(task["duration_s"])
             t_charge_start = t_end
             t_charge_end = t_end + t_charge
             t_battery_ready = t_charge_end
 
             pool[best_bid] = t_battery_ready
+            uav_free = t_end
 
             row = {
                 "task_id": task["task_id"],
