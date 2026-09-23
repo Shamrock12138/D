@@ -17,6 +17,7 @@ from src.q3.trajectory_generator import (
     load_route_parameters,
     load_uav_parameters,
 )
+from src.q3.communication.checker import run_direct_check
 
 
 def main() -> None:
@@ -57,6 +58,13 @@ def main() -> None:
                 })
     print(f"轨迹总点数: {point_count}")
     print(f"轨迹文件: {trajectory_path.relative_to(PROJECT)}")
+    manifest = run_direct_check(trajectory_path=trajectory_path)
+    counts = manifest["counts"]
+    print(
+        f"直连通信检测: 可用 {counts['direct']}/{counts['points']}，"
+        f"不可用 {counts['points'] - counts['direct']}"
+    )
+    print("通信状态文件: data/communication_status.csv")
 
 
 if __name__ == "__main__":
