@@ -31,7 +31,8 @@ CANDIDATE_PATH = DATA / "relay_candidates.csv"
 COVERAGE_PATH = DATA / "relay_coverage_matrix.csv"
 SUMMARY_PATH = DATA / "relay_requirement_candidate_summary.csv"
 MANIFEST_PATH = DATA / "q3_relay_candidate_manifest.json"
-LINK_BATCH_SIZE = 128
+# DEM 视线检查已向量化；较大的批次显著减少百万级 uncertain pair 的 Python 调用开销。
+LINK_BATCH_SIZE = 2048
 
 
 def _read_requirements(path: Path) -> List[dict]:

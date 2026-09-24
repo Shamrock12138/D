@@ -6,18 +6,20 @@ import math
 import platform
 import sys
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from scipy.spatial import cKDTree
 
 from src.q3.communication.link_budget import EARTH_RADIUS_M, PARAMETER_PATH
 from src.q3.communication.relay_link import (
     RELAY_UAV_PATH, load_relay_link_parameters,
 )
 from src.q3.communication.terrain_block import DEM_PATH, DemTerrain
-from src.q3.relay.site_generator import generate_backhaul_sites
-from src.q3.relay_candidate import _coverage_radius_m, _fspl_array, _screen_access
+from src.q3.relay.site_generator import _project, generate_backhaul_sites
+from src.q3.relay_candidate import _coverage_radius_m, _fspl_array
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
@@ -76,62 +78,135 @@ def build_boundary_states(gaps: pd.DataFrame):
     return boundary, gaps
 
 
-def _guaranteed_coverage(states, sites, parameters, chunk_size=128):
-    u"""按最坏遮挡损耗计算保守 B_sp；返回 candidate×packed-state。"""
+def _actual_coverage(states, sites, parameters, terrain):
+    u"""按 FSPL 三分法和实际 DEM LOS 计算完整物理 B_sp。"""
     n_states = len(states)
     packed = np.zeros((len(sites), (n_states + 7) // 8), dtype=np.uint8)
-    state_lon = states.x.to_numpy(float)
-    state_lat = states.y.to_numpy(float)
-    state_z = states.z.to_numpy(float)
-    for first in range(0, len(sites), chunk_size):
-        chunk = sites.iloc[first:first + chunk_size]
-        lon = chunk.lon.to_numpy()[:, None]
-        lat = chunk.lat.to_numpy()[:, None]
-        z = chunk.absolute_height.to_numpy()[:, None]
-        phi1 = np.radians(lat)
-        phi2 = np.radians(state_lat)[None, :]
+    lon0, lat0 = float(states.x.mean()), float(states.y.mean())
+    tree = cKDTree(_project(sites.lon.to_numpy(), sites.lat.to_numpy(), lon0, lat0))
+    state_xy = _project(states.x.to_numpy(), states.y.to_numpy(), lon0, lat0)
+    radius = _coverage_radius_m(parameters.uav_relay_limit_db, parameters)
+    keys = states.apply(
+        lambda row: (round(float(row.x), 9), round(float(row.y), 9), round(float(row.z), 6)),
+        axis=1,
+    )
+    groups = defaultdict(list)
+    for index, key in enumerate(keys):
+        groups[key].append(index)
+    site_lon = sites.lon.to_numpy()
+    site_lat = sites.lat.to_numpy()
+    site_z = sites.absolute_height.to_numpy()
+    cell_codes = (
+        sites.dem_row.to_numpy(dtype=np.int64) * terrain.image.width
+        + sites.dem_col.to_numpy(dtype=np.int64)
+    )
+    def evaluate(item):
+        _, state_indices = item
+        first_state = state_indices[0]
+        local = np.asarray(tree.query_ball_point(state_xy[first_state], radius), dtype=int)
+        point = states.iloc[first_state]
+        phi1 = math.radians(float(point.y))
+        phi2 = np.radians(site_lat[local])
         dphi = phi2 - phi1
-        dlon = np.radians(state_lon)[None, :] - np.radians(lon)
-        hav = np.sin(dphi / 2) ** 2 + np.cos(phi1) * np.cos(phi2) * np.sin(dlon / 2) ** 2
-        horizontal = 2 * EARTH_RADIUS_M * np.arcsin(np.sqrt(np.clip(hav, 0, 1)))
-        distance = np.hypot(horizontal, state_z[None, :] - z)
-        margin = (
-            parameters.uav_relay_limit_db
-            - _fspl_array(distance, parameters.frequency_mhz)
-            - parameters.obstruction_loss_db
+        dlon = np.radians(site_lon[local] - float(point.x))
+        hav = np.sin(dphi / 2) ** 2 + math.cos(phi1) * np.cos(phi2) * np.sin(dlon / 2) ** 2
+        horizontal = 2 * EARTH_RADIUS_M * np.arcsin(np.sqrt(np.clip(hav, 0.0, 1.0)))
+        distance = np.hypot(horizontal, site_z[local] - float(point.z))
+        fspl = _fspl_array(distance, parameters.frequency_mhz)
+        possible = fspl <= parameters.uav_relay_limit_db
+        candidates = local[possible]
+        fspl = fspl[possible]
+        guaranteed = fspl + parameters.obstruction_loss_db <= parameters.uav_relay_limit_db
+        available = guaranteed.copy()
+        uncertain = np.flatnonzero(~guaranteed)
+        if len(uncertain):
+            uncertain_candidates = candidates[uncertain]
+            unique_cells, first = np.unique(
+                cell_codes[uncertain_candidates], return_index=True,
+            )
+            representative = uncertain_candidates[first]
+            required_height = _required_relay_heights(
+                float(point.x), float(point.y), float(point.z),
+                site_lon[representative], site_lat[representative], terrain,
+            )
+            threshold = dict(zip(unique_cells.tolist(), required_height.tolist()))
+            required = np.fromiter(
+                (threshold[code] for code in cell_codes[uncertain_candidates]),
+                dtype=float, count=len(uncertain_candidates),
+            )
+            available[uncertain] = site_z[uncertain_candidates] > required
+        selected = candidates[available]
+        counts = (
+            len(candidates), int(guaranteed.sum()), int((~guaranteed).sum()),
+            int((available & ~guaranteed).sum()), len(selected),
         )
-        packed[first:first + len(chunk)] = np.packbits(
-            margin >= 0, axis=1, bitorder="little"
+        return state_indices, selected, counts
+
+    stats = defaultdict(int)
+    with ThreadPoolExecutor(max_workers=6) as executor:
+      results = executor.map(evaluate, groups.items())
+      for order, (state_indices, selected, counts) in enumerate(results, 1):
+        multiplicity = len(state_indices)
+        for name, count in zip((
+            "access_pairs_possible", "access_pairs_guaranteed",
+            "access_pairs_dem_checked", "access_pairs_dem_available",
+            "access_pairs_final",
+        ), counts):
+            stats[name] += count * multiplicity
+        for state_index in state_indices:
+            packed[selected, state_index // 8] |= np.uint8(1 << (state_index % 8))
+        if order % 20 == 0:
+            print(f"  实际接入覆盖: {order}/{len(groups)} 唯一状态", flush=True)
+    stats["unique_state_geometries"] = len(groups)
+    return packed, dict(stats)
+
+
+def _required_relay_heights(start_lon, start_lat, start_z, end_lon, end_lat, terrain,
+                            batch_size=4096):
+    u"""返回各水平端点保持 DEM LOS 所需的最小绝对高度（同一采样口径）。"""
+    result = np.full(len(end_lon), -np.inf, dtype=float)
+    for first in range(0, len(end_lon), batch_size):
+        last = min(first + batch_size, len(end_lon))
+        lon2 = np.asarray(end_lon[first:last], dtype=float)
+        lat2 = np.asarray(end_lat[first:last], dtype=float)
+        phi1 = math.radians(start_lat)
+        phi2 = np.radians(lat2)
+        dphi = phi2 - phi1
+        dlon = np.radians(lon2 - start_lon)
+        hav = np.sin(dphi / 2) ** 2 + math.cos(phi1) * np.cos(phi2) * np.sin(dlon / 2) ** 2
+        horizontal = 2 * EARTH_RADIUS_M * np.arcsin(np.sqrt(np.clip(hav, 0.0, 1.0)))
+        n = np.maximum(1, np.ceil(horizontal / terrain.sample_step_m).astype(int))
+        max_sample = max(0, int(n.max(initial=1)) - 1)
+        if max_sample == 0:
+            continue
+        k = np.arange(1, max_sample + 1, dtype=float)[None, :]
+        valid = k < n[:, None]
+        ratio = k / n[:, None]
+        lon = start_lon + ratio * (lon2[:, None] - start_lon)
+        lat = start_lat + ratio * (lat2[:, None] - start_lat)
+        cols = np.floor((lon - terrain.origin_lon) / terrain.pixel_lon).astype(np.int32)
+        rows = np.floor((terrain.origin_lat - lat) / terrain.pixel_lat).astype(np.int32)
+        outside = valid & (
+            (cols < 0) | (cols >= terrain.image.width)
+            | (rows < 0) | (rows >= terrain.image.height)
         )
-        if first and first % (chunk_size * 40) == 0:
-            print(f"  保守接入覆盖: {first}/{len(sites)}", flush=True)
-    return packed
+        if outside.any():
+            raise ValueError("通信视线采样位置超出 DEM")
+        safe_rows = np.where(valid, rows, 0)
+        safe_cols = np.where(valid, cols, 0)
+        terrain_z = terrain.data[safe_rows, safe_cols]
+        needed = start_z + (terrain_z - start_z) / ratio
+        needed = np.where(valid, needed, -np.inf)
+        result[first:last] = np.max(needed, axis=1)
+    return result
 
 
 def _bit_column(packed, state_index):
     return ((packed[:, state_index // 8] >> (state_index % 8)) & 1).astype(bool)
 
 
-def _supplement_uncovered(states, sites, packed, parameters, terrain):
-    covered = np.zeros(len(states), dtype=bool)
-    for state_index in range(len(states)):
-        covered[state_index] = _bit_column(packed, state_index).any()
-    missing = np.flatnonzero(~covered)
-    for order, state_index in enumerate(missing, 1):
-        point = states.iloc[state_index]
-        indices, available, _, _ = _screen_access(
-            {"x": point.x, "y": point.y, "z": point.z},
-            sites.lon.to_numpy(), sites.lat.to_numpy(),
-            sites.absolute_height.to_numpy(), parameters, terrain,
-        )
-        for candidate in indices[np.flatnonzero(available)]:
-            packed[candidate, state_index // 8] |= np.uint8(1 << (state_index % 8))
-        if order % 20 == 0:
-            print(f"  未覆盖状态实际 LOS 补充: {order}/{len(missing)}", flush=True)
-    still_missing = [
-        i for i in range(len(states)) if not _bit_column(packed, i).any()
-    ]
-    return still_missing, len(missing)
+def _uncovered_states(packed, n_states):
+    return [index for index in range(n_states) if not _bit_column(packed, index).any()]
 
 
 def _signature_representatives(sites, packed):
@@ -240,10 +315,12 @@ def _gap_alternatives(sequence, packed, sites, states, parameters, max_style=5):
             horizontal,
             float(site.absolute_height) - covered_states.z.to_numpy(dtype=float),
         )
-        access_margins = (
-            parameters.uav_relay_limit_db
-            - _fspl_array(distance, parameters.frequency_mhz)
-            - parameters.obstruction_loss_db
+        clear_margins = parameters.uav_relay_limit_db - _fspl_array(
+            distance, parameters.frequency_mhz,
+        )
+        conservative_margins = clear_margins - parameters.obstruction_loss_db
+        access_margins = np.where(
+            conservative_margins >= 0.0, conservative_margins, clear_margins,
         )
         result.append({
             "candidate_index": candidate,
@@ -284,14 +361,11 @@ def run_step6():
         sites, site_stats = generate_backhaul_sites(states, terrain, parameters)
         print(
             f"回传筛选: {site_stats['raw_height_candidates']} → "
-            f"{site_stats['backhaul_available_candidates']} → "
-            f"{len(sites)} 代表站点",
+            f"{site_stats['backhaul_available_candidates']} 全部保留",
             flush=True,
         )
-        packed = _guaranteed_coverage(states, sites, parameters)
-        missing, fallback_count = _supplement_uncovered(
-            states, sites, packed, parameters, terrain,
-        )
+        packed, access_stats = _actual_coverage(states, sites, parameters, terrain)
+        missing = _uncovered_states(packed, len(states))
         if missing:
             details = states.iloc[missing][["state_id", "x", "y", "z"]]
             details.to_csv(DATA / "q3_step6_uncovered_states.csv", index=False, encoding="utf-8-sig")
@@ -313,7 +387,7 @@ def run_step6():
             if order % 100 == 0:
                 print(f"  gap alternatives: {order}/{len(signature_to_gaps)}", flush=True)
 
-        option_rows, summary_rows, used_candidates, pair_codes = [], [], set(), set()
+        option_rows, summary_rows, used_candidates = [], [], set()
         gap_lookup = gaps.set_index("gap_id")
         n_states = len(states)
         for sequence, gap_ids in signature_to_gaps.items():
@@ -323,11 +397,10 @@ def run_step6():
                 candidate = alternative["candidate_index"]
                 used_candidates.add(candidate)
                 mask = np.asarray([
-                    _bit_column(packed, state)[candidate] for state in sequence
+                    bool((packed[candidate, state // 8] >> (state % 8)) & 1)
+                    for state in sequence
                 ], dtype=bool)
                 union |= mask
-                for local_index in np.flatnonzero(mask):
-                    pair_codes.add(candidate * n_states + sequence[int(local_index)])
                 site = sites.iloc[candidate]
                 for gap_id in gap_ids:
                     option_rows.append({
@@ -362,28 +435,39 @@ def run_step6():
         site_lon = sites.lon.to_numpy()
         site_lat = sites.lat.to_numpy()
         site_z = sites.absolute_height.to_numpy()
-        for code in sorted(pair_codes):
-            candidate, state = divmod(code, n_states)
-            point = states.iloc[state]
-            phi1, phi2 = math.radians(point.y), math.radians(site_lat[candidate])
+        state_lon = states.x.to_numpy()
+        state_lat = states.y.to_numpy()
+        state_z = states.z.to_numpy()
+        state_ids = states.state_id.to_numpy()
+        for candidate in used_candidates:
+            mask = np.unpackbits(packed[candidate], bitorder="little")[:n_states].astype(bool)
+            covered = np.flatnonzero(mask)
+            if not len(covered):
+                continue
+            phi1 = np.radians(state_lat[covered])
+            phi2 = math.radians(site_lat[candidate])
             dphi = phi2 - phi1
-            dlon = math.radians(site_lon[candidate] - point.x)
-            hav = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlon / 2) ** 2
-            horizontal = 2 * EARTH_RADIUS_M * math.asin(min(1.0, math.sqrt(hav)))
-            distance = math.hypot(horizontal, site_z[candidate] - point.z)
-            access_margin = (
-                parameters.uav_relay_limit_db
-                - float(_fspl_array(np.asarray([distance]), parameters.frequency_mhz)[0])
-                - parameters.obstruction_loss_db
+            dlon = np.radians(site_lon[candidate] - state_lon[covered])
+            hav = np.sin(dphi / 2) ** 2 + np.cos(phi1) * math.cos(phi2) * np.sin(dlon / 2) ** 2
+            horizontal = 2 * EARTH_RADIUS_M * np.arcsin(np.minimum(1.0, np.sqrt(hav)))
+            distance = np.hypot(horizontal, site_z[candidate] - state_z[covered])
+            clear_margin = parameters.uav_relay_limit_db - _fspl_array(
+                distance, parameters.frequency_mhz,
+            )
+            conservative_margin = clear_margin - parameters.obstruction_loss_db
+            access_margins = np.where(
+                conservative_margin >= 0.0, conservative_margin, clear_margin,
             )
             backhaul_margin = float(sites.iloc[candidate].relay_g01_margin_db)
-            pairs.append({
-                "state_id": point.state_id,
-                "candidate_id": sites.iloc[candidate].candidate_id,
-                "access_margin_db": access_margin,
-                "relay_g01_margin_db": backhaul_margin,
-                "two_hop_margin_db": min(access_margin, backhaul_margin),
-            })
+            for local, state in enumerate(covered):
+                access_margin = float(access_margins[local])
+                pairs.append({
+                    "state_id": state_ids[state],
+                    "candidate_id": sites.iloc[candidate].candidate_id,
+                    "access_margin_db": access_margin,
+                    "relay_g01_margin_db": backhaul_margin,
+                    "two_hop_margin_db": min(access_margin, backhaul_margin),
+                })
     finally:
         terrain.close()
 
@@ -410,14 +494,14 @@ def run_step6():
         "runtime": {"python": platform.python_version(), "numpy": np.__version__, "pandas": pd.__version__},
         "coverage_definition": "B_sp=1 iff access and relay-G01 links are both available",
         "access_policy": (
-            "conservative guaranteed coverage uses FSPL + obstruction loss; states not covered "
-            "by that subset are supplemented by actual DEM LOS"
+            "FSPL>limit impossible; FSPL+obstruction<=limit guaranteed; every uncertain "
+            "pair is checked with actual DEM LOS"
         ),
         "gap_policy": "before + outage samples + after; alternatives retain contiguous sample ranges",
         "outage_states": len(outage), "boundary_states": len(boundary),
         "required_states": len(states), "unique_gap_signatures": len(signature_to_gaps),
         "site_generation": site_stats,
-        "fallback_states_checked_with_dem": fallback_count,
+        "access_coverage": access_stats,
         "coverage_signatures": signature_count,
         "final_relay_sites": len(final_sites),
         "state_relay_pairs": len(pair_frame),

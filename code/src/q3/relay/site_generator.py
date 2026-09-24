@@ -28,7 +28,10 @@ def generate_backhaul_sites(
     terrain: DemTerrain,
     parameters: RelayLinkParameters,
 ) -> Tuple[pd.DataFrame, dict]:
-    u"""4×4 DEM 粗网格×20m高度层，返回回传可用的代表站点。"""
+    u"""4×4 DEM 粗网格×20m高度层，返回全部回传可用站点。
+
+    高度层必须在计算 UAV↔Relay 实际覆盖后才能按覆盖签名压缩。
+    """
     pixel_step = parameters.grid_pixel_step
     rows = np.arange(pixel_step // 2, terrain.image.height, pixel_step, dtype=int)
     cols = np.arange(pixel_step // 2, terrain.image.width, pixel_step, dtype=int)
@@ -78,12 +81,6 @@ def generate_backhaul_sites(
         "absolute_height": raw_z[kept], "relay_g01_margin_db": margin[kept],
         "relay_g01_guaranteed": guaranteed[kept].astype(int),
     })
-    representative = set()
-    for _, group in sites.groupby(["dem_row", "dem_col"], sort=False):
-        representative.add(int(group.agl_height.idxmin()))
-        representative.add(int(group.relay_g01_margin_db.idxmax()))
-        representative.add(int(group.agl_height.idxmax()))
-    sites = sites.loc[sorted(representative)].copy()
     sites = sites.sort_values(["dem_row", "dem_col", "agl_height"]).reset_index(drop=True)
     sites.insert(0, "candidate_id", [f"RP{i:06d}" for i in range(1, len(sites) + 1)])
     dx = EARTH_RADIUS_M * math.cos(math.radians(base["y"])) * np.radians(sites.lon - base["x"])
@@ -93,7 +90,7 @@ def generate_backhaul_sites(
         "raw_spatial_sites": int(len(flat_r)),
         "raw_height_candidates": int(len(raw_z)),
         "backhaul_available_candidates": int(len(kept)),
-        "representative_candidates": int(len(sites)),
+        "retained_backhaul_candidates": int(len(sites)),
         "height_layers_m": heights.tolist(),
         "access_fspl_radius_m": radius,
     }
