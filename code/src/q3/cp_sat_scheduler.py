@@ -331,8 +331,8 @@ def _build_q3_model(problem):
 
         dispatch_int = math.floor(float(row["dispatch_offset_s"]))
         return_int = math.ceil(float(row["return_offset_s"]))
-        uav_occ_int = max(1, math.ceil(float(row["relay_uav_occupancy_s"])))
-        energy_occ_int = max(1, math.ceil(float(row["energy_component_occupancy_s"])))
+        uav_occ_int = max(1, return_int - dispatch_int)
+        energy_occ_int = max(1, return_int - dispatch_int)
         min_transport_start_int = max(0, math.ceil(float(row["min_transport_start_s"])))
 
         chosen = model.NewBoolVar(f"select_r_{opt_idx}")
@@ -515,8 +515,8 @@ def _decode_q3_resources(problem, solver, select_vars, start_vars, relay_select_
             "candidate_id": str(option["candidate_id"]), "relay_uav_id": relay_uav,
             "energy_component_id": energy_id, "dispatch_time_s": start,
             "arrival_time_s": start + float(option["arrival_offset_s"] - option["dispatch_offset_s"]),
-            "service_start_s": start + float(option["service_start_offset_s"] - option["dispatch_offset_s"]),
-            "service_end_s": start + float(option["service_end_offset_s"] - option["dispatch_offset_s"]),
+            "service_start_s": float(start - meta["dispatch_offset_int"]) + float(option["coverage_start_s"]),
+            "service_end_s": float(start - meta["dispatch_offset_int"]) + float(option["coverage_end_s"]),
             "return_time_s": relay_return, "uav_release_time_s": uav_end,
             "energy_release_time_s": energy_end,
             "relay_energy_kWh": float(option["relay_energy_kWh"]),
@@ -541,27 +541,6 @@ def _decode_q3_resources(problem, solver, select_vars, start_vars, relay_select_
         if str(row.task_id) in selected_start
     ]
     return transport_schedule, relay_schedule, pd.DataFrame(delivery_rows)
-
-    # Relay 解码
-    relay_rows = []
-    relay_uav_busy = {f"R0{i+1}": 0 for i in range(RELAY_UAV_CAPACITY)}
-    relay_energy_busy = {f"E0{i+1}": 0 for i in range(RELAY_ENERGY_CAPACITY)}
-
-    r_active = []
-    for i, chosen in enumerate(relay_select_vars := [
-        r_meta[j]["return_var"] for j in range(len(r_meta))
-    ]):
-        pass  # placeholder, will fix below...
-
-    # redo with proper scope
-    del relay_select_vars
-
-    for j, rm in enumerate(r_meta):
-        # We need to get solver values. The relay_select list was created during _build_q3_model
-        # We'll reconstruct the solver values through the metadata
-        pass
-
-    return transport_schedule, None, None
 
 
 def _solve_q3(model, joint_cmax, all_vars, time_limit_s=600, workers=8, random_seed=2026):
