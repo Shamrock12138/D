@@ -26,6 +26,12 @@ RELAY_UAV_XLSX = (
 RELAY_BATTERY_CSV = DATA / "中继无人机_共享电池.csv"
 SERVICE_AREA_CSV = DATA / "服务区数据.csv"
 
+DEM_TIF = (
+    Path(__file__).resolve().parents[4]
+    / "数据" / "镇龙乡地理空间数据" / "镇龙乡及周边地理数据"
+    / "数字高程模型数据（DEM）" / "镇龙乡及周边30米DEM.tif"
+)
+
 SITES_PATH = DATA / "q3_relay_sites.csv"
 GAP_OPTIONS_PATH = DATA / "q3_gap_relay_options.csv"
 GAPS_PATH = DATA / "q3_task_comm_gaps.csv"
@@ -219,8 +225,12 @@ def build_gap_job_options(
 ) -> pd.DataFrame:
     profile_map = profiles.set_index("candidate_id")
 
-    gap_info = gaps[["gap_id", "task_id", "tau_start", "tau_end"]].copy()
-    gap_info["service_duration_s"] = gap_info["tau_end"] - gap_info["tau_start"]
+    gap_info = gaps[
+        ["gap_id", "task_id", "tau_start", "tau_end", "coverage_start", "coverage_end"]
+    ].copy()
+    gap_info["service_duration_s"] = (
+        gap_info["coverage_end"] - gap_info["coverage_start"]
+    )
 
     options = gap_options[gap_options["full_cover"] == 1].copy()
     if len(options) != len(gap_options):
@@ -238,6 +248,8 @@ def build_gap_job_options(
             continue
         prof = profile_map.loc[cid]
 
+        cov_start = float(row["coverage_start"])
+        cov_end = float(row["coverage_end"])
         gap_duration_s = float(row["service_duration_s"])
         service_energy_kwh = params.service_power_kw * (params.link_time_s + gap_duration_s) / 3600.0
 
@@ -255,16 +267,13 @@ def build_gap_job_options(
         out_time_s = float(prof["outbound_time_s"])
         ret_time_s = float(prof["return_time_s"])
 
-        tau_start = float(row["tau_start"])
-        tau_end = float(row["tau_end"])
+        dispatch_offset_s = cov_start - lead_time_s
+        arrival_offset_s = cov_start - params.link_time_s
+        service_start_offset_s = cov_start
+        service_end_offset_s = cov_end
+        return_offset_s = cov_end + ret_time_s
 
-        dispatch_offset_s = tau_start - lead_time_s
-        arrival_offset_s = tau_start - params.link_time_s
-        service_start_offset_s = tau_start
-        service_end_offset_s = tau_end
-        return_offset_s = tau_end + ret_time_s
-
-        min_transport_start_s = max(0.0, lead_time_s - tau_start)
+        min_transport_start_s = max(0.0, lead_time_s - cov_start)
 
         uav_occupancy_s = lead_time_s + gap_duration_s + ret_time_s + params.turn_time_s
         bat_occupancy_s = lead_time_s + gap_duration_s + ret_time_s + charge_time_s
@@ -273,8 +282,10 @@ def build_gap_job_options(
             "gap_id": row["gap_id"],
             "task_id": row["task_id"],
             "candidate_id": cid,
-            "tau_start_s": tau_start,
-            "tau_end_s": tau_end,
+            "tau_start_s": float(row["tau_start"]),
+            "tau_end_s": float(row["tau_end"]),
+            "coverage_start_s": cov_start,
+            "coverage_end_s": cov_end,
             "service_duration_s": gap_duration_s,
             "dispatch_offset_s": dispatch_offset_s,
             "arrival_offset_s": arrival_offset_s,
@@ -467,6 +478,7 @@ def run_step7():
             "中继无人机数据.xlsx": _sha256(RELAY_UAV_XLSX),
             "中继无人机_共享电池.csv": _sha256(RELAY_BATTERY_CSV),
             "服务区数据.csv": _sha256(SERVICE_AREA_CSV),
+            "镇龙乡及周边30米DEM.tif": _sha256(DEM_TIF),
         },
         "outputs": {
             "q3_relay_operation_profiles.csv": _sha256(OUT_PROFILES_PATH),

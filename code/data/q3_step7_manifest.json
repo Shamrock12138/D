@@ -7,11 +7,12 @@
     "q3_task_comm_gaps.csv": "e21dc73721a1144c93bc060680e5e3cfa0814414f471142e96ae78d123ff8f20",
     "中继无人机数据.xlsx": "be52643ff29419233e6a141dca03a04160a8af551cab36d8c49b51bb836bea04",
     "中继无人机_共享电池.csv": "08946e69850472ff2f6d12e5cb223ed50d7f1cfa7f29c2fadd443c1f55a466c4",
-    "服务区数据.csv": "29f280f5907cf48ac0386d2bda7e278fe634bd541d4cb26fcd248272c0f55b2b"
+    "服务区数据.csv": "29f280f5907cf48ac0386d2bda7e278fe634bd541d4cb26fcd248272c0f55b2b",
+    "镇龙乡及周边30米DEM.tif": "741fe6de0b2bcaffd0f4007f574ee698d46197094f52cc954b532c4f90fc7c03"
   },
   "outputs": {
     "q3_relay_operation_profiles.csv": "3d1506eaba4092568dc4659c6617067603b61454faed0cd55809aaa19bfa6822",
-    "q3_relay_job_options.csv": "48cac1bfd225ed3723e3dcb40cdb496d6269f17d190229a6165f544fac76f577"
+    "q3_relay_job_options.csv": "b66d853e61fa60c54e042cb83366b61d48baa5bbba70b134a1680e9ca3220893"
   },
   "stats": {
     "relay_sites": 414,
@@ -21,7 +22,7 @@
     "energy_infeasible_removed": 0,
     "gaps_with_feasible_option": 5043,
     "gaps_without_feasible_option": 0,
-    "max_relay_job_energy_kWh": 0.8972102633092972,
-    "min_end_soc": 0.7196217927158446
+    "max_relay_job_energy_kWh": 0.9002658188648528,
+    "min_end_soc": 0.7186669316047335
   }
 }
