@@ -6,8 +6,8 @@ from ortools.sat.python import cp_model
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from src.q3.anchors import ENERGY_SCALE, _objective_expressions
-from src.q3.objectives import evaluate_objectives, soft_box_targets
+from src.q3.anchors import _build_objective_expression
+from src.q3.objectives import ENERGY_SCALE, F1_TIME_SCALE, evaluate_objectives, soft_box_targets
 
 
 def test_four_objectives_keep_hard_deadlines_out_of_f1():
@@ -35,15 +35,21 @@ def test_four_objectives_keep_hard_deadlines_out_of_f1():
     model.Add(relay_selected == 1)
     model.Add(start == 1)
     model.Add(cmax == 10)
-    expressions = _objective_expressions(model, problem, [selected], [start],
-                                          [relay_selected], cmax)
-    model.Minimize(expressions["F1_timeliness"])
+    f1 = _build_objective_expression("F1_timeliness", model, problem, [selected],
+                                     [start], [relay_selected], cmax)
+    f2 = _build_objective_expression("F2_joint_cmax_s", model, problem, [selected],
+                                     [start], [relay_selected], cmax)
+    f3 = _build_objective_expression("F3_total_energy_kWh", model, problem, [selected],
+                                     [start], [relay_selected], cmax)
+    f4 = _build_objective_expression("F4_total_sorties", model, problem, [selected],
+                                     [start], [relay_selected], cmax)
+    model.Minimize(f1)
     solver = cp_model.CpSolver()
     assert solver.Solve(model) == cp_model.OPTIMAL
-    assert solver.Value(expressions["F1_timeliness"]) == 12
-    assert solver.Value(expressions["F2_joint_cmax_s"]) == 10
-    assert solver.Value(expressions["F3_total_energy_kWh"]) == int(1.75 * ENERGY_SCALE)
-    assert solver.Value(expressions["F4_total_sorties"]) == 2
+    assert solver.Value(f1) == 12 * F1_TIME_SCALE
+    assert solver.Value(f2) == 10
+    assert solver.Value(f3) == int(1.75 * ENERGY_SCALE)
+    assert solver.Value(f4) == 2
 
     transport = pd.DataFrame([{"end_time_s": 10, "energy_kWh": 1.25}])
     relay = pd.DataFrame([{"return_time_s": 9, "relay_energy_kWh": 0.5}])
@@ -53,3 +59,39 @@ def test_four_objectives_keep_hard_deadlines_out_of_f1():
     ])
     metrics = evaluate_objectives(problem, transport, relay, delivery)
     assert tuple(metrics.values()) == (12.0, 10.0, 1.75, 2)
+
+
+def test_f1_distinguishes_tenth_second_delivery_offsets():
+    boxes = pd.DataFrame([{"box_id": "B001", "expected_time": 100.0, "priority": 4}])
+    problem = {
+        "boxes": boxes, "deadlines": {"B001": float("inf")}, "horizon_s": 200,
+        "tasks": pd.DataFrame([
+            {"task_id": "A", "energy_kWh": 1.0},
+            {"task_id": "B", "energy_kWh": 1.0},
+        ]),
+        "relay": pd.DataFrame(columns=["relay_energy_kWh"]),
+        "deliveries": pd.DataFrame([
+            {"task_id": "A", "box_id": "B001", "delivery_offset_s": 100.1},
+            {"task_id": "B", "box_id": "B001", "delivery_offset_s": 100.9},
+        ]),
+    }
+    model = cp_model.CpModel()
+    choices = [model.NewBoolVar("A"), model.NewBoolVar("B")]
+    starts = [model.NewIntVar(0, 0, "start_A"), model.NewIntVar(0, 0, "start_B")]
+    cmax = model.NewIntVar(0, 0, "cmax")
+    model.AddExactlyOne(choices)
+    f1 = _build_objective_expression("F1_timeliness", model, problem, choices,
+                                     starts, [], cmax)
+    model.Minimize(f1)
+    solver = cp_model.CpSolver()
+    assert solver.Solve(model) == cp_model.OPTIMAL
+    assert solver.Value(choices[0]) == 1
+    assert solver.Value(choices[1]) == 0
+    assert solver.Value(f1) == 4
+    for objective in ("F2_joint_cmax_s", "F3_total_energy_kWh", "F4_total_sorties"):
+        other = cp_model.CpModel()
+        x = [other.NewBoolVar("a"), other.NewBoolVar("b")]
+        s = [other.NewIntVar(0, 0, "sa"), other.NewIntVar(0, 0, "sb")]
+        c = other.NewIntVar(0, 0, "c")
+        _build_objective_expression(objective, other, problem, x, s, [], c)
+        assert not any(v.name.startswith("soft_late_") for v in other.Proto().variables)

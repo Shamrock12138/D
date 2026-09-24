@@ -9,6 +9,23 @@ import math
 
 
 OBJECTIVE_NAMES = ("F1_timeliness", "F2_joint_cmax_s", "F3_total_energy_kWh", "F4_total_sorties")
+F1_TIME_SCALE = 10
+ENERGY_SCALE = 1_000_000
+Q3_MULTI_OBJECTIVE_TIER = "all"
+
+
+def time_units(seconds):
+    """Represent a time exactly on Q3's 0.1-second objective grid."""
+    scaled = float(seconds) * F1_TIME_SCALE
+    value = round(scaled)
+    if not math.isclose(scaled, value, rel_tol=0.0, abs_tol=1e-7):
+        raise ValueError(f"Time is not on the 0.1-second grid: {seconds}")
+    return int(value)
+
+
+def energy_units(kwh):
+    """Round one sortie's energy to the shared micro-kWh objective grid."""
+    return int(round(float(kwh) * ENERGY_SCALE))
 
 
 def soft_box_targets(boxes, deadlines):
@@ -19,8 +36,8 @@ def soft_box_targets(boxes, deadlines):
         if math.isfinite(deadlines[box_id]) or math.isnan(float(row.expected_time)):
             continue
         weight = float(row.priority)
-        if weight < 0:
-            raise ValueError(f"Negative priority weight for {box_id}")
+        if weight < 0 or not weight.is_integer():
+            raise ValueError(f"Priority weight must be a nonnegative integer for {box_id}")
         targets[box_id] = (float(row.expected_time), weight)
     return targets
 
@@ -32,14 +49,19 @@ def evaluate_objectives(problem, transport, relay, delivery):
     missing = set(targets) - set(delivered.index.astype(str))
     if missing:
         raise ValueError(f"Missing soft-deadline deliveries: {sorted(missing)[:10]}")
-    f1 = sum(
-        weight * max(0.0, float(delivered.loc[box_id, "delivery_time_s"]) - expected)
+    f1_units = sum(
+        int(weight) * max(
+            0, time_units(delivered.loc[box_id, "delivery_time_s"]) - time_units(expected)
+        )
         for box_id, (expected, weight) in targets.items()
     )
     relay_cmax = float(relay["return_time_s"].max()) if len(relay) else 0.0
     return {
-        "F1_timeliness": f1,
+        "F1_timeliness": f1_units / F1_TIME_SCALE,
         "F2_joint_cmax_s": max(float(transport["end_time_s"].max()), relay_cmax),
-        "F3_total_energy_kWh": float(transport["energy_kWh"].sum() + relay["relay_energy_kWh"].sum()),
+        "F3_total_energy_kWh": (
+            sum(energy_units(value) for value in transport["energy_kWh"])
+            + sum(energy_units(value) for value in relay["relay_energy_kWh"])
+        ) / ENERGY_SCALE,
         "F4_total_sorties": int(len(transport) + len(relay)),
     }

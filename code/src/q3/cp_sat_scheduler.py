@@ -416,7 +416,10 @@ def _build_q3_model(problem):
     )
 
     relay_cmax = model.NewIntVar(0, horizon_s, "relay_cmax")
-    model.AddMaxEquality(relay_cmax, relay_return_ends)
+    if relay_return_ends:
+        model.AddMaxEquality(relay_cmax, relay_return_ends)
+    else:
+        model.Add(relay_cmax == 0)
 
     # ── 3. 联合 Cmax ──
     joint_cmax = model.NewIntVar(0, horizon_s, "joint_cmax")
@@ -554,15 +557,18 @@ def _decode_q3_resources(problem, solver, select_vars, start_vars, relay_select_
     return transport_schedule, relay_schedule, pd.DataFrame(delivery_rows)
 
 
-def _solve_q3(model, joint_cmax, all_vars, time_limit_s=600, workers=8, random_seed=2026):
+def _solve_q3(model, joint_cmax, all_vars, time_limit_s=600, workers=8,
+              random_seed=2026, feasibility_only=False):
     u"""求解 Q3 CP-SAT 模型。"""
-    model.Minimize(joint_cmax)
+    if not feasibility_only:
+        model.Minimize(joint_cmax)
 
     solver = cp_model.CpSolver()
     solver.parameters.max_time_in_seconds = float(time_limit_s)
     solver.parameters.num_search_workers = max(1, int(workers))
     solver.parameters.random_seed = int(random_seed)
     solver.parameters.relative_gap_limit = 0.0
+    solver.parameters.stop_after_first_solution = bool(feasibility_only)
 
     status = solver.Solve(model)
     return solver, status
@@ -643,11 +649,35 @@ def _nonoverlap(frame, resource_col, start_col, end_col):
     return True
 
 
-def solve_q3_joint(tier="tier1", time_limit_s=600, workers=8, random_seed=2026):
-    problem = prepare_q3_problem(tier=tier)
+def _add_joint_hint(model, problem, select, starts, relay_select, relay_starts, hint):
+    transport_starts = dict(zip(hint["transport"]["task_id"].astype(str),
+                                hint["transport"]["start_time_s"].astype(int)))
+    relay_dispatch = {
+        (str(row.gap_id), str(row.task_id), str(row.candidate_id)): int(row.dispatch_time_s)
+        for row in hint["relay"].itertuples(index=False)
+    }
+    for i, row in problem["tasks"].iterrows():
+        tid = str(row.task_id)
+        model.AddHint(select[i], int(tid in transport_starts))
+        model.AddHint(starts[i], transport_starts.get(tid, 0))
+    for i, row in problem["relay"].iterrows():
+        key = (str(row.gap_id), str(row.task_id), str(row.candidate_id))
+        model.AddHint(relay_select[i], int(key in relay_dispatch))
+        model.AddHint(relay_starts[i], relay_dispatch.get(key, 0))
+
+
+def solve_q3_joint(tier="tier1", time_limit_s=600, workers=8, random_seed=2026,
+                   problem=None, feasibility_only=False, hint=None):
+    if problem is None:
+        problem = prepare_q3_problem(tier=tier)
     built = _build_q3_model(problem)
     model, select, starts, relay_select, relay_starts, transport_cmax, relay_cmax, joint_cmax, metadata = built
-    solver, status = _solve_q3(model, joint_cmax, select + starts + relay_select, time_limit_s, workers, random_seed)
+    if hint is not None:
+        _add_joint_hint(model, problem, select, starts, relay_select, relay_starts, hint)
+    solver, status = _solve_q3(
+        model, joint_cmax, select + starts + relay_select, time_limit_s,
+        workers, random_seed, feasibility_only=feasibility_only,
+    )
     if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
         return {"status": solver.StatusName(status), "tier": tier, "wall_time_s": solver.WallTime()}
     transport, relay, delivery = _decode_q3_resources(
@@ -664,6 +694,7 @@ def solve_q3_joint(tier="tier1", time_limit_s=600, workers=8, random_seed=2026):
         "relay_cmax_s": int(solver.Value(relay_cmax)),
         "joint_cmax_s": int(solver.Value(joint_cmax)), "validation": validation,
         "candidate_count": len(problem["tasks"]), "relay_option_count": len(problem["relay"]),
+        "solve_mode": "feasibility" if feasibility_only else "min_joint_cmax",
     }
 
 
@@ -688,11 +719,34 @@ def write_step8_outputs(result):
         stream.write("\n")
 
 
-def run_step8(time_limit_s=600, workers=8):
-    for tier in ("tier1", "tier2", "all"):
-        result = solve_q3_joint(tier=tier, time_limit_s=time_limit_s, workers=workers)
-        print(f"Step8 {tier}: {result['status']}")
-        if result["status"] in ("OPTIMAL", "FEASIBLE"):
-            write_step8_outputs(result)
-            return result
-    raise RuntimeError("Q3 joint model infeasible with all relay options")
+def run_step8(time_limit_s=600, workers=8, bootstrap_time_limit_s=120):
+    from src.q3.bootstrap import find_bootstrap
+
+    bootstrap, full_problem = find_bootstrap(
+        time_limit_s=bootstrap_time_limit_s, workers=workers
+    )
+    if bootstrap["status"] not in ("OPTIMAL", "FEASIBLE"):
+        print(f"Step8 bootstrap stopped without a solution: {bootstrap['status']}")
+        return bootstrap
+
+    # Save the independently validated first solution before the larger solve.
+    bootstrap["optimization_status"] = "NOT_RUN"
+    write_step8_outputs(bootstrap)
+    result = solve_q3_joint(
+        tier="tier1", time_limit_s=time_limit_s, workers=workers,
+        problem=full_problem, hint=bootstrap,
+    )
+    print(f"Step8 full tier1 with bootstrap hint: {result['status']}")
+    if result["status"] in ("OPTIMAL", "FEASIBLE"):
+        result["bootstrap_source"] = bootstrap["bootstrap_source"]
+        if "bootstrap_k" in bootstrap:
+            result["bootstrap_k"] = bootstrap["bootstrap_k"]
+        result["bootstrap_attempts"] = bootstrap["bootstrap_attempts"]
+        result["optimization_status"] = result["status"]
+        write_step8_outputs(result)
+        return result
+    if result["status"] == "INFEASIBLE":
+        raise AssertionError("Full tier1 model rejected a validated bootstrap solution")
+    bootstrap["optimization_status"] = result["status"]
+    write_step8_outputs(bootstrap)
+    return bootstrap

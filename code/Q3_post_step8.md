@@ -2,8 +2,10 @@
 
 当前仓库尚无 `code/data/q3_joint_*` 和 `q3_step8_manifest.json`，因此不能宣称 Step 8.5 已通过，也不能填写 Anchor 数值。下列命令在 Step 8 输出齐全后执行。
 
+Step 8 的当前入口 `python code/Q3_step8.py` 使用运输任务选择 Master 和固定任务集合的联合调度子问题。Master 从全部 Q3 运输候选中重新选任务，子问题同时安排运输开始时间、运输 UAV/电池、中继选点、中继 UAV/能源组件。仅当完整 relay 选项子问题证明不可行，才提取并排除已证明的冲突任务子集；`UNKNOWN` 仅作未决搜索记录。默认 `--min-transport-tasks 20` 是寻找首解的启发式搜索范围，不是 Q3 的硬性下界，可设为 0。搜索过程写入 `code/data/q3_step8_decomposition_manifest.json`。达到任务集合次数上限而未找到首解时状态为 `UNKNOWN`。
+
 1. Step 8.5：运行 `python code/Q3_step8_accept.py`。检查求解状态、80 箱唯一覆盖、硬时限、四类资源无冲突、每个选中 gap 的中继、能耗与 SOC、联合 Cmax、输入哈希及逐箱送达时间。全部通过后，原样保存到 `code/data/q3_step8_frozen/`，并生成 `acceptance.json`。冻结目录中如已有不同内容，程序会拒绝覆盖。
-2. Step 9/9.1：运行 `python code/Q3_step9_anchors.py`。四次求解均使用同一个运输—中继联合 CP-SAT 可行域，分别最小化 F1～F4。结果写入 `code/data/q3_anchors/`；未找到可行解时停止，不生成理想点。每个 Anchor 都重新经过 Q3 校验。
+2. Step 9/9.1：运行 `python code/Q3_step9_anchors.py`。四次求解固定使用全部中继 option（`Q3_MULTI_OBJECTIVE_TIER = "all"`），与 Step 8 首次找到可行解时所用的 tier 无关；Step 8 冻结解只作求解提示。分别最小化 F1～F4，结果写入 `code/data/q3_anchors/`；未找到可行解时停止，不生成理想点。每个 Anchor 都重新经过 Q3 校验。
 3. Step 10：读取四个 Anchor 的方案与目标值，建立四维权重和归一化范围，再进行联合 MOEA/D + CP-SAT 搜索。若 Anchor 仅为 `FEASIBLE`，其最小值只是当前最优已知值，不能在论文中称为已证明的理想点。Pareto 结果逐一使用联合校验器复核。
 4. Step 11：仅对候选 Pareto 方案的实际运输任务和中继站点重新生成 1 s 通信状态，并加密 direct/relay 切换边界；记录所有未覆盖时段。发现问题时只调整相关最终方案，再复核资源与时限。
 5. Step 12：保留四个 Anchor 和 Pareto 权衡表，选一份折中方案，输出运输、中继、逐箱配送、四类资源、通信保障和四目标指标。
@@ -16,4 +18,4 @@
 - F3：全部选中运输任务与中继任务的能耗之和，单位 kWh。
 - F4：运输架次与中继架次之和。
 
-Anchor 求解器对 F1 使用保守的整数秒送达偏移，对 F3 使用向上取整的微 kWh 系数；输出表中四目标均按原始浮点数据和实际调度时间重新计算。`OPTIMAL` 状态只证明对应整数模型在所用候选池内最优。
+Anchor 求解器与结果表共用量化口径：F1 使用 0.1 s 时间网格，F3 将每架次能耗四舍五入到 1 微 kWh 后求和。当前 15,373 行配送偏移均精确落在 0.1 s 网格上；若未来数据超出该精度，目标构造会报错，要求先明确新精度。F2/F3/F4 求解时不创建 F1 延误变量。`OPTIMAL` 状态只证明这些量化目标在全部当前候选任务与中继选项构成的整数模型内最优。

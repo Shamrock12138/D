@@ -1,0 +1,162 @@
+{
+  "status": "SEARCHING",
+  "attempts": [
+    {
+      "iteration": 1,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.2700768,
+        "surrogate_cost": 92083216
+      },
+      "task_ids": [
+        "R000115",
+        "R000129",
+        "R000144",
+        "R000158",
+        "R000174",
+        "R000181",
+        "R000185",
+        "R000186",
+        "R000192",
+        "R000197",
+        "R000198",
+        "R000203",
+        "R000204",
+        "R000210",
+        "R000215",
+        "R000217",
+        "R000222",
+        "R000225",
+        "R000228",
+        "R000229",
+        "R000231",
+        "R000235",
+        "R000236",
+        "R000238",
+        "R000248",
+        "R000249",
+        "R000250",
+        "R000252",
+        "R000262",
+        "R000269",
+        "R000278",
+        "R000326",
+        "R000463",
+        "R000516",
+        "R000575",
+        "R000587",
+        "R000618",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.012215700000000001,
+          "transport_candidates": 40,
+          "relay_options": 81
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.033936,
+          "transport_candidates": 40,
+          "relay_options": 265
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000231",
+        "R000248",
+        "R000250",
+        "R000252",
+        "R000262"
+      ]
+    },
+    {
+      "iteration": 2,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.34112190000000003,
+        "surrogate_cost": 92083242
+      },
+      "task_ids": [
+        "R000115",
+        "R000129",
+        "R000144",
+        "R000158",
+        "R000175",
+        "R000185",
+        "R000186",
+        "R000192",
+        "R000197",
+        "R000198",
+        "R000203",
+        "R000204",
+        "R000210",
+        "R000215",
+        "R000217",
+        "R000222",
+        "R000225",
+        "R000228",
+        "R000229",
+        "R000231",
+        "R000235",
+        "R000236",
+        "R000238",
+        "R000248",
+        "R000249",
+        "R000250",
+        "R000252",
+        "R000257",
+        "R000260",
+        "R000269",
+        "R000278",
+        "R000326",
+        "R000463",
+        "R000516",
+        "R000575",
+        "R000603",
+        "R000618",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.012347100000000001,
+          "transport_candidates": 40,
+          "relay_options": 80
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0382056,
+          "transport_candidates": 40,
+          "relay_options": 260
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000248",
+        "R000250",
+        "R000252",
+        "R000257",
+        "R000260"
+      ]
+    }
+  ],
+  "proven_infeasible_task_sets": 2,
+  "deferred_unknown_task_sets": 0,
+  "input_sha256": {
+    "q3_candidate_tasks.csv": "b23c4ffbd549f5a52284328075502202fff0417009eff72dea12169ded7bbc3e",
+    "q3_candidate_deliveries.csv": "c3e776e0dc84bff51e548251101d60724a55b920a64898f9f2abaac7a38e8067",
+    "q3_task_comm_gaps.csv": "e21dc73721a1144c93bc060680e5e3cfa0814414f471142e96ae78d123ff8f20",
+    "q3_relay_job_options.csv": "b66d853e61fa60c54e042cb83366b61d48baa5bbba70b134a1680e9ca3220893"
+  },
+  "master_min_transport_tasks_search_heuristic": 40
+}

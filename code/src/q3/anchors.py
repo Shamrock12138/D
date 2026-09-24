@@ -2,9 +2,6 @@
 
 import hashlib
 import json
-import math
-from pathlib import Path
-
 import pandas as pd
 from ortools.sat.python import cp_model
 
@@ -12,16 +9,28 @@ from src.q3.cp_sat_scheduler import (
     DATA, _build_q3_model, _decode_q3_resources, prepare_q3_problem,
     validate_q3_solution,
 )
-from src.q3.objectives import OBJECTIVE_NAMES, evaluate_objectives, soft_box_targets
+from src.q3.objectives import (
+    ENERGY_SCALE, F1_TIME_SCALE, OBJECTIVE_NAMES, Q3_MULTI_OBJECTIVE_TIER,
+    energy_units, evaluate_objectives, soft_box_targets, time_units,
+)
 from src.q3.step8_acceptance import accept_step8
 
 
-ENERGY_SCALE = 1_000_000  # integer micro-kWh; exact kWh is reported after decoding
-
-
-def _objective_expressions(model, problem, select, starts, relay_select, joint_cmax):
+def _build_objective_expression(objective, model, problem, select, starts,
+                                relay_select, joint_cmax):
+    if objective == "F2_joint_cmax_s":
+        return joint_cmax
+    if objective == "F4_total_sorties":
+        return sum(select) + sum(relay_select)
+    if objective == "F3_total_energy_kWh":
+        transport_energy = [energy_units(v) for v in problem["tasks"]["energy_kWh"]]
+        relay_energy = [energy_units(v) for v in problem["relay"]["relay_energy_kWh"]]
+        return sum(v * select[i] for i, v in enumerate(transport_energy)) + sum(
+            v * relay_select[i] for i, v in enumerate(relay_energy)
+        )
+    if objective != "F1_timeliness":
+        raise ValueError(f"Unknown Q3 objective: {objective}")
     tasks = problem["tasks"]
-    relay = problem["relay"]
     task_index = {str(task_id): i for i, task_id in enumerate(tasks["task_id"].astype(str))}
     targets = soft_box_targets(problem["boxes"], problem["deadlines"])
     tardiness_terms = []
@@ -30,23 +39,15 @@ def _objective_expressions(model, problem, select, starts, relay_select, joint_c
         if box_id not in targets:
             continue
         expected, weight = targets[box_id]
-        if not float(weight).is_integer():
-            raise ValueError("F1 priority weights must be integers for CP-SAT")
         i = task_index[str(row.task_id)]
-        lateness = model.NewIntVar(0, problem["horizon_s"], f"soft_late_{box_id}_{i}")
-        conservative_offset = math.ceil(float(row.delivery_offset_s))
-        model.Add(lateness >= starts[i] + conservative_offset - math.floor(expected)).OnlyEnforceIf(select[i])
+        lateness = model.NewIntVar(0, problem["horizon_s"] * F1_TIME_SCALE,
+                                   f"soft_late_{box_id}_{i}")
+        offset_units = time_units(row.delivery_offset_s)
+        expected_units = time_units(expected)
+        model.Add(lateness >= F1_TIME_SCALE * starts[i] + offset_units - expected_units).OnlyEnforceIf(select[i])
         model.Add(lateness == 0).OnlyEnforceIf(select[i].Not())
         tardiness_terms.append(int(weight) * lateness)
-    transport_energy = [math.ceil(float(v) * ENERGY_SCALE) for v in tasks["energy_kWh"]]
-    relay_energy = [math.ceil(float(v) * ENERGY_SCALE) for v in relay["relay_energy_kWh"]]
-    return {
-        "F1_timeliness": sum(tardiness_terms),
-        "F2_joint_cmax_s": joint_cmax,
-        "F3_total_energy_kWh": sum(v * select[i] for i, v in enumerate(transport_energy))
-        + sum(v * relay_select[i] for i, v in enumerate(relay_energy)),
-        "F4_total_sorties": sum(select) + sum(relay_select),
-    }
+    return sum(tardiness_terms)
 
 
 def solve_anchor(problem, objective, time_limit_s=600, workers=8, random_seed=2026,
@@ -55,8 +56,10 @@ def solve_anchor(problem, objective, time_limit_s=600, workers=8, random_seed=20
         raise ValueError(f"Unknown Q3 objective: {objective}")
     built = _build_q3_model(problem)
     model, select, starts, relay_select, relay_starts, transport_cmax, relay_cmax, joint_cmax, metadata = built
-    expressions = _objective_expressions(model, problem, select, starts, relay_select, joint_cmax)
-    model.Minimize(expressions[objective])
+    expression = _build_objective_expression(
+        objective, model, problem, select, starts, relay_select, joint_cmax
+    )
+    model.Minimize(expression)
     if baseline is not None:
         transport_start = dict(zip(baseline["transport"]["task_id"].astype(str),
                                    baseline["transport"]["start_time_s"].astype(int)))
@@ -88,7 +91,13 @@ def solve_anchor(problem, objective, time_limit_s=600, workers=8, random_seed=20
     if not validation["all_pass"]:
         raise AssertionError(f"Anchor {objective} failed Q3 validation: {validation['checks']}")
     record.update(evaluate_objectives(problem, transport, relay, delivery))
-    record["solver_objective_integer"] = int(solver.Value(expressions[objective]))
+    solver_objective_integer = int(solver.Value(expression))
+    record["solver_objective_integer"] = solver_objective_integer
+    objective_scale = F1_TIME_SCALE if objective == "F1_timeliness" else (
+        ENERGY_SCALE if objective == "F3_total_energy_kWh" else 1
+    )
+    if abs(record[objective] - solver_objective_integer / objective_scale) > 1e-7:
+        raise AssertionError(f"Anchor {objective} solver/report objective mismatch")
     record["validation"] = validation
     record["transport"] = transport
     record["relay"] = relay
@@ -103,9 +112,8 @@ def run_anchors(time_limit_s=600, workers=8, random_seed=2026):
         "transport": pd.read_csv(frozen / "q3_joint_transport_schedule.csv", encoding="utf-8-sig"),
         "relay": pd.read_csv(frozen / "q3_joint_relay_schedule.csv", encoding="utf-8-sig"),
     }
-    step8_manifest = json.loads((frozen / "q3_step8_manifest.json").read_text(encoding="utf-8"))
-    problem = prepare_q3_problem(tier=step8_manifest["tier"])
-    problem["tier"] = step8_manifest["tier"]
+    problem = prepare_q3_problem(tier=Q3_MULTI_OBJECTIVE_TIER)
+    problem["tier"] = Q3_MULTI_OBJECTIVE_TIER
     output = DATA / "q3_anchors"
     output.mkdir(exist_ok=True)
     rows = []
@@ -131,6 +139,8 @@ def run_anchors(time_limit_s=600, workers=8, random_seed=2026):
         },
         "ideal_point_incumbent": ideal,
         "ideal_point_proven_optimal": bool((table["status"] == "OPTIMAL").all()),
+        "F1_time_scale": F1_TIME_SCALE,
+        "F3_energy_scale": ENERGY_SCALE,
         "anchor_time_limit_s_each": time_limit_s,
         "random_seed": random_seed,
         "tier": problem["tier"],
