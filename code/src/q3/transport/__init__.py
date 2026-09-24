@@ -6,10 +6,13 @@ u"""Q3 运输候选任务模板与相对轨迹模块。
 
 from .candidate_loader import TransportTaskTemplate, load_candidate_tasks
 from .relative_trajectory import RelativeTrajectory, generate_relative_trajectories
+from .candidate_filter import filter_candidates, save_outputs
 
 __all__ = [
     "TransportTaskTemplate",
     "load_candidate_tasks",
     "RelativeTrajectory",
     "generate_relative_trajectories",
+    "filter_candidates",
+    "save_outputs",
 ]

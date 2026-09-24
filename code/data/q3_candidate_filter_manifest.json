@@ -1,0 +1,30 @@
+{
+  "step": "Q3 Step4: 通信感知候选运输任务筛选",
+  "n_original": 71595,
+  "n_selected": 4779,
+  "top_k_per_dim": 8,
+  "dimensions": [
+    "energy_kWh (min)",
+    "duration_s (min)",
+    "latest_start_s (max, finite only)",
+    "outage_time_s (min)",
+    "outage_ratio (min)",
+    "gap_count (min)"
+  ],
+  "seeds": "Q2 N-opt + E-opt + T-opt 全部架次",
+  "box_coverage": "PASS",
+  "uav_distribution": {
+    "A": 1100,
+    "B": 1323,
+    "C": 2356
+  },
+  "direct_vs_relay": {
+    "direct_only": 652,
+    "needs_relay": 4127
+  },
+  "input_sha256": {
+    "q3_transport_comm_summary.csv": "d09225f9da40a6ae880b962da9119f39784d78ca02bcf110c9725d26a0046d7c",
+    "Q2_candidate_tasks.csv": "83d5bd8848720e21ae09db79be1339b0093d95946cfd9379942ec301930cb8d6",
+    "Q2_candidate_deliveries.csv": "2efe9c9520f0ab63b3091568e050223b8bb7cbfbe3c74ce9a39fa99397c4059d"
+  }
+}

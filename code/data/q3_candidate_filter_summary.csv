@@ -1,0 +1,22 @@
+﻿metric,value
+n_original,71595
+n_selected,4779
+n_box_uav_groups,203
+n_from_dimensions,4778
+n_seed_total,36
+n_seed_added,1
+uav_type_A,1100
+uav_type_B,1323
+uav_type_C,2356
+single_stop,673
+double_stop,4106
+direct_only,652
+needs_relay,4127
+box_coverage,PASS
+missing_boxes,[]
+box_uav_coverage,PASS
+lost_box_uav_groups,[]
+seed_N,PASS
+seed_E,PASS
+seed_T,PASS
+dim_counts,"{'E': 1519, 'T': 1519, 'S': 1512, 'C_outage_time': 1519, 'C_outage_ratio': 1519, 'C_gap_count': 1519}"
