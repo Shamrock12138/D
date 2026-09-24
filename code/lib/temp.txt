@@ -1,1946 +1,1472 @@
-可以。按照你给出的统一主线，我建议 Q2 不再做成“MOEA/D 单独选任务 + CP-SAT 只排时间”，而是做成一个更标准、也更符合你 Q2/Q3/Q4 统一叙事的：
+重新按**题目原文 + 你当前 GitHub 仓库的 Q2/Q3 代码结构**看一遍后，我建议第三问不要做成“Q2 结果固定以后，再补几个中继无人机”的后处理，也不要直接把全部运输候选、中继候选一次性塞进 CP-SAT。
 
-$$
-\boxed{\text{外层 MOEA/D 多目标搜索}+\text{内层 CP-SAT 精确局部重优化}}
-$$
+### 最适合 Q3 的方案是：
 
-我重新读取的是你当前 `main`，HEAD 为 `28d81fc...`。当前 Q2 正式主线仍然是 `code/Q2.py → src/q2/cp_sat_scheduler.py`，MOEA/D 尚未实现。
+> **通信物理层预计算 + MOEA/D 外层多目标搜索 + 小规模 CP-SAT 联合修复/精调 + 中继服务块调度**
 
-其中现有 CP-SAT 已经把“任务选择、开始时刻、无人机容量、共享电池+充电占用、硬时限”联合起来，这一层应该保留，而不是推倒重写。
-
----
-
-# 一、Q2 最终算法架构就定成这个
-
-建议论文和代码都统一成：
-
-```text
-Q2_candidate_tasks.csv
-Q2_candidate_deliveries.csv
-        ↓
-候选任务预筛选
-71595 → 当前约 2615
-        ↓
-现有 CP-SAT 求 N/E/T 三个基准解
-        ↓
-N-opt / E-opt / T-opt
-作为 MOEA/D 初始锚点
-        ↓
-生成 MOEA/D 权重向量
-λ=(λN, λE, λT)
-        ↓
-维护一组运输方案骨架
-        ↓
-父代选择
-        ↓
-共同任务保留 + 局部任务释放
-        ↓
-形成“自由货箱区域 U”
-        ↓
-从候选池提取局部候选任务 KU
-        ↓
-┌──────────────────────────┐
-│      内层 CP-SAT          │
-│                          │
-│ 决定：                    │
-│  具体选择哪些运输任务 xk   │
-│  每个任务开始时间 sk       │
-│  UAV并发约束              │
-│  电池及充电占用约束         │
-│  硬时限约束                │
-│                          │
-│ 按 λ 求当前分解子问题       │
-└──────────────────────────┘
-        ↓
-得到精确可行运输调度
-        ↓
-计算
-(N, E, Cmax)
-        ↓
-MOEA/D 邻域更新
-        ↓
-External Pareto Archive
-        ↓
-最终 Pareto 解集
-        ↓
-对非支配解长时间 CP-SAT 精修
-```
-
-这样你之前那张统一表就完全成立：
-
-| 问题 | MOEA/D             | CP-SAT             |
-| -- | ------------------ | ------------------ |
-| Q2 | 搜索运输方案及 $N/E/T$ 权衡 | 具体任务选择、UAV、电池、开始时刻 |
-| Q3 | 搜索运输+通信方案及目标权衡     | 运输、中继、资源、时间联合调度    |
-| Q4 | 搜索任务分区             | 各分区内部资源配置与调度       |
-
----
-
-# 二、Q2 的目标就用三个，不要再加旧的延迟目标
-
-当前正式 CP-SAT 已经把：
-
-* 首批保障物资截止时间；
-* 医疗物资期望送达时间；
-
-作为**硬约束**。
-
-因此新的 MOEA/D 就优化：
+也就是：
 
 $$
 \boxed{
-\min
-F=
-\left(
-f_1,f_2,f_3
-\right)
-=
-\left(
-N,E,C_{\max}
-\right)
+\text{MOEA/D}
++
+\text{局部 CP-SAT}
++
+\text{中继服务块/区间调度}
 }
 $$
 
-其中：
+Q2 的 **MOEA/D + CP-SAT 框架可以继承**，但 Q3 的 CP-SAT 必须换一种使用方式：**不能让 CP-SAT 面对全部 4779 个运输候选和 7 万多个中继备选关系，而应该只对 MOEA/D 当前选出的约 20 多个运输任务做联合排程。**
 
-### 目标 1：运输架次
-
-$$
-f_1=N=\sum_{k\in K}x_k
-$$
-
-### 目标 2：运输总能耗
-
-$$
-f_2=E=\sum_{k\in K}E_kx_k
-$$
-
-### 目标 3：总完成时间
-
-$$
-f_3=C_{\max}
-$$
-
-deadline 不再作为第四个目标：
-
-$$
-F_{\text{delay}}
-$$
-
-因为：
-
-$$
-\boxed{F_{\text{delay}}=0}
-$$
-
-应当是所有可行解必须满足的条件。
-
-这一点要和旧的 `src/q2/multi_objective.py` 区分开。
-
-旧文件实际上使用过另一套 deadline 逻辑，所以旧的：
-
-* `Q2_objectives.csv`
-* `Q2_pareto_front.csv`
-* `Q2_final_pareto.csv`
-
-都不要作为新的 MOEA/D 输入。
+题目明确要求第三问联合决定“货箱组批与访问顺序、运输无人机及共享电池、各架次开始时刻，以及中继无人机的悬停位置、飞行海拔、服务时段和能源组件”，所以固定 Q2 方案再补通信只能作为 baseline，不是最终 Q3。
 
 ---
 
-# 三、先修一个当前代码里的 seed 口径问题
+# 一、先给结论：Q3 到底是什么问题
 
-这是我检查仓库后认为你实现 MOEA/D 前必须先改的地方。
+第三问不是：
 
-当前正式 CP-SAT 输出的是：
+$$
+\text{Q2运输调度}+\text{中继选址}
+$$
+
+而是一个真正的：
+
+$$
+\boxed{
+\text{通信约束下的异构运输—中继协同多目标调度问题}
+}
+$$
+
+存在四层耦合：
+
+$$
+\text{货箱组批/路线}
+\rightarrow
+\text{运输开始时间}
+\rightarrow
+\text{通信缺口的绝对时间}
+\rightarrow
+\text{中继位置、服务时间和资源安排}
+$$
+
+关键在第三层。
+
+假设某运输任务 $r$ 的相对通信断连区间是
+
+$$
+[\tau_{rg}^{s},\tau_{rg}^{e}]
+$$
+
+运输架次实际开始时刻为 $s_r$，那么中继实际需要工作的时间就是
+
+$$
+[s_r+\tau_{rg}^{s},\ s_r+\tau_{rg}^{e}].
+$$
+
+所以**改变运输架次开始时间，会直接改变中继无人机之间是否冲突、能否共享同一个中继架次、是否来得及提前到位**。
+
+这就是为什么 Q3 不能简单地：
+
+> 先完整求完 Q2 → 时间全部固定 → 再求 relay。
+
+那会失掉大量协同优化空间。
+
+---
+
+# 二、你现在 Q3 的前半部分其实已经搭得很好
+
+我重新检查了你仓库目前的 Q3。
+
+现在实际上已经完成了很有价值的物理预计算层。
+
+当前结构大致是：
 
 ```text
-Q2_joint_selected_N.csv
-Q2_joint_selected_E.csv
-Q2_joint_selected_T.csv
+Q2 candidate tasks
+        ↓
+Q3 Step3
+运输任务完整通信状态
+        ↓
+Q3 Step4
+通信感知候选任务压缩
+        ↓
+Q3 Step5
+通信 gap 模板化
+        ↓
+Q3 Step6
+中继候选位置 + 两跳覆盖矩阵
 ```
 
-但是 `cp_sat_scheduler.py::_candidate_subset()` 里面目前读取的还是：
+目前仓库中的结果显示：
 
-```python
-Q2_selected_tasks_N.csv
-Q2_selected_tasks_E.csv
-Q2_selected_tasks_T.csv
-```
+* Q2 原运输候选任务：**71,595**
+* 其中需要中继的任务：**63,261**
+* Step4 筛选后：**4,779**
+* 其中直连完成：**652**
+* 需要中继：**4,127**
+* 通信 gap：**5,043**
+* 唯一 outage state：**12,792**
+* 最终优化用中继位置：约 **2,149**
+* state-relay 可行覆盖对：约 **275,077**
+* gap-relay alternatives：约 **76,805**
 
-这三个属于旧流程。
-
-建议统一改成：
-
-```python
-for objective in ("N", "E", "T"):
-    path = DATA / f"Q2_joint_selected_{objective}.csv"
-```
-
-如果想兼容第一次运行，就：
-
-```python
-for objective in ("N", "E", "T"):
-    paths = [
-        DATA / f"Q2_joint_selected_{objective}.csv",
-        DATA / f"Q2_selected_tasks_{objective}.csv",
-    ]
-
-    for path in paths:
-        if path.exists():
-            ...
-            break
-```
-
-但是 MOEA/D 初始化时：
+所以现在最不应该做的事情就是建立类似：
 
 $$
-\boxed{\text{只认 joint 版本}}
+x_{rpt}
 $$
 
-比较干净。
+这种“运输任务 × 中继位置 × 时间”的全局变量。
+
+规模会直接爆炸。
 
 ---
 
-# 四、现有三个 CP-SAT 解正好作为 MOEA/D 锚点
+# 三、现在旧 `Q3.py` 应该降级为 Baseline
 
-你当前 `Q2_joint_summary.csv` 是：
+你现在的：
 
-| 基准    |    $N$ |  $E$ / kWh | $C_{\max}$ | 状态       |
-| ----- | -----: | ---------: | ---------: | -------- |
-| N-opt | **20** |     64.212 |     9562 s | OPTIMAL  |
-| E-opt |     21 | **62.238** |     9177 s | OPTIMAL  |
-| T-opt |     24 |     67.370 | **7721 s** | FEASIBLE |
+```text
+code/Q3.py
+```
 
-所以初始化的时候直接：
+做的是：
+
+```text
+读取一个 Q2 解
+→ 生成轨迹
+→ 检查 G01
+→ 找通信缺口
+→ 找中继候选点
+```
+
+这个逻辑本身没有错。
+
+但是它解决的是：
 
 $$
-S^N,\qquad S^E,\qquad S^T
+\boxed{
+\text{给定 Q2 运输方案后，判断怎样补通信}
+}
 $$
 
-三个种子。
-
-这非常有价值。
-
-尤其：
+不是：
 
 $$
-N^*=20
+\boxed{
+\text{运输任务与中继任务联合优化}
+}
+$$
+
+因此我建议以后改成：
+
+```text
+Q3_baseline.py
+```
+
+或者保留代码不动，但论文里明确作为：
+
+> “Q2 最优运输方案直接叠加通信保障的基准方案”
+
+真正的 `Q3.py` 则重新作为：
+
+```text
+候选库
+→ 通信库
+→ 中继作业库
+→ MOEA/D
+→ 小规模联合 CP-SAT
+→ Pareto 解
+→ 最终验证
+```
+
+---
+
+# 四、目前 Q3 最大的一个建模问题：Step6 的 boundary 处理偏保守
+
+这是我这次重新看代码后比较建议你优先修改的一点。
+
+你当前 `coverage_library.py` 对一个通信 gap 构造的是：
+
+```text
+before direct state
++
+outage states
++
+after direct state
+```
+
+然后判断一个中继候选位置是否可以 full-cover 整个序列。
+
+但是按照题意：
+
+> 只有固定网关直连不可用时，才需要中继；直连可用时可以直接与 G01 通信。
+
+所以假设：
+
+```text
+t0：G01 可用
+t1：G01 不可用
+t2：G01 不可用
+...
+tn：G01 不可用
+tn+1：G01 可用
+```
+
+真正要求中继覆盖的应该是：
+
+$$
+t_1,\ldots,t_n
+$$
+
+而不是强迫中继也必须覆盖：
+
+$$
+t_0,\quad t_{n+1}.
+$$
+
+当前处理事实上增加了一个没有明确写在题目中的“交接保护区”。
+
+这会导致部分本来：
+
+> 一个中继位置能够完整覆盖 outage
+
+的 gap，被误判为：
+
+> 必须两个中继位置切换。
+
+我检查当前已提交的 `q3_gap_relay_summary.csv`，**5043 个 gap 中有 365 个没有 single-site full-cover alternative**。
+
+所以这里应该先改。
+
+### 建议新的口径
+
+正式约束：
+
+$$
+\boxed{
+\text{relay 必须覆盖所有 direct=0 状态}
+}
+$$
+
+before / after 状态：
+
+* 保留；
+* 用于最终连续性验证；
+* 不作为 relay 强制覆盖状态。
+
+如果你想考虑通信切换鲁棒性，可以额外做：
+
+$$
+\pm 5s,\quad \pm10s
+$$
+
+保护时间的敏感性分析，而不要默认写死。
+
+---
+
+# 五、Step6 以后真正缺少的是“中继作业模型”
+
+你现在有的是：
+
+$$
+\boxed{\text{中继通信位置可行性}}
+$$
+
+但 Q3 最终需要的是：
+
+$$
+\boxed{\text{中继无人机作业可行性}}
+$$
+
+这是完全不同的两层。
+
+例如现在知道：
+
+> RP003421 可以覆盖 G00123。
+
+还远远不够。
+
+还必须计算这个中继点：
+
+* R01 从 O01 飞过去需要多久；
+* 准备时间；
+* 建链时间；
+* 去程飞行能耗；
+* 服务过程中悬停能耗；
+* 通信模块能耗；
+* 返航时间；
+* 返航能耗；
+* SOC；
+* 返航安全余量；
+* 电池充电时间；
+* 下一个中继架次什么时候可以再用。
+
+题目明确要求中继无人机往返、悬停通信以及能源组件均参与能量和周转计算。
+
+你现在中继参数是：
+
+```text
+中继无人机 R：2 架
+能源组件：6 组
+可用能量：3.2 kWh
+返航下限：20%
+准备时间：180 s
+建链：30 s
+周转：300 s
+悬停功率：1.05 kW
+通信附加功率：0.05 kW
+最大悬停 AGL：300 m
+```
+
+因此单个中继架次的任务能耗必须满足：
+
+$$
+E_b^R
+=
+E_{p}^{fly,out}
++
+E_{p}^{fly,back}
++
+(P_h+P_c)T_b^{service}
+$$
+
+并满足：
+
+$$
+E_b^R
+\le
+(1-\rho_R)E_R^{use}.
+$$
+
+在现有数据下就是：
+
+$$
+E_b^R\le0.8\times3.2.
+$$
+
+---
+
+# 六、建议增加 Step7：中继位置的“作业属性库”
+
+目前 `q3_relay_sites.csv` 更多是通信属性，例如：
+
+```text
+lon
+lat
+AGL
+absolute height
+G01 margin
+```
+
+下一步建议给每个中继位置 $p$ 增加：
+
+$$
+T_p^{out},\quad
+T_p^{back}
+$$
+
+$$
+E_p^{out},\quad
+E_p^{back}
+$$
+
+以及：
+
+$$
+L_p
+=
+T^{prep}
++
+T_p^{out}
++
+T^{link}.
+$$
+
+其中 $L_p$ 是：
+
+> 如果运输无人机在时刻 $t$ 开始需要中继，那么中继无人机最迟必须在 $t-L_p$ 时启动任务。
+
+特别重要的是：
+
+$$
+t-L_p\ge0.
+$$
+
+这意味着某些 Q2 中很早出发的运输任务，在 Q3 中可能必须延迟，因为 relay 根本来不及预置到位。
+
+这正是 Q3 和 Q2 最核心的差别之一。
+
+---
+
+# 七、而且 Step6 当前压缩中继位置的方法还应该改一下
+
+当前 `coverage_library.py` 在相同 coverage signature 内主要按照：
+
+* 距 O01 水平距离；
+* AGL 高度；
+* G01 margin；
+
+做 Pareto 压缩。
+
+这里作为通信筛选没有问题。
+
+但是一旦进入 Q3 联合优化，最好先算：
+
+$$
+E_p^{fly}
 $$
 
 和
 
 $$
-E^*=62.2382
+T_p^{fly}
 $$
 
-当前在缩减候选池范围内已经被 CP-SAT 证明最优。
+再压缩。
 
-而：
-
-$$
-C_{\max}=7721
-$$
-
-目前只能叫：
-
-> 当前已知最好的 T-opt 可行解
-
-因为 T 阶段仍是 `FEASIBLE`。
-
----
-
-# 五、MOEA/D 个体怎么编码：这是整个实现最关键的地方
-
-不要搞一个：
+因为：
 
 $$
-x\in\{0,1\}^{2615}
+\text{水平距离较近}
 $$
 
-然后直接交叉变异。
+并不严格等价于：
 
-那样大量个体都会：
+$$
+\text{实际飞行能耗更小}.
+$$
 
-* 某箱没送；
-* 某箱送两次；
-* deadline 不可行；
-* UAV 并发超限；
-* 电池超限。
+山区 DEM 下可能存在：
 
-## 推荐表示
+* 路径最高地形不同；
+* 爬升高度不同；
+* 实际飞行能耗不同。
 
-每个 MOEA/D 个体保存：
+所以新的 Pareto 指标更适合用：
 
 $$
 \boxed{
-X=
-\left(
-S,\mathbf s,F
-\right)
+E_p^{fly},\
+T_p^{lead},\
+h_p,\
+M_p^{link}
 }
 $$
 
-其中：
-
-### 1. $S$
-
-当前 CP-SAT 输出的一套运输任务集合：
+而不是只用：
 
 $$
-S=\{k_1,k_2,\ldots,k_m\}
-$$
-
-例如：
-
-```python
-task_ids = frozenset([
-    "R000234",
-    "R000241",
-    "R000490",
-    ...
-])
-```
-
-### 2. $\mathbf s$
-
-这些任务当前的开始时刻，用来给下一次 CP-SAT `AddHint()`。
-
-### 3. $F$
-
-目标向量：
-
-```python
-objectives = (
-    n_sorties,
-    energy_kwh,
-    cmax_s,
-)
-```
-
-但是注意：
-
-> **$S$ 只是 MOEA/D 当前维护的运输方案骨架，不是下一代必须原封不动采用的最终任务。**
-
-下一步 CP-SAT 可以局部改变 $S$。
-
-这样就符合你要求的：
-
-$$
-\boxed{
-\text{MOEA/D管方案搜索}
-+
-\text{CP-SAT管具体任务选择}
-}
+d_p^{horizontal},h_p,M_p.
 $$
 
 ---
 
-# 六、交叉不要普通 one-point crossover
+# 八、Step4 也建议重新做一次“第二阶段候选筛选”
 
-这里建议设计成非常适合你问题的：
-
-$$
-\boxed{\text{Consensus + Destroy + CP-SAT Repair}}
-$$
-
-这比普通 GA 交叉合理很多。
-
-假设两个父代：
-
-$$
-S^{(1)},S^{(2)}
-$$
-
-首先求共同任务：
-
-$$
-S^{common}
-=
-S^{(1)}\cap S^{(2)}
-$$
-
-父代都选择的任务优先保留。
-
-例如：
+你目前 Step4 的筛选维度包括：
 
 ```text
-Parent 1:
-A B C D E F G H
-
-Parent 2:
-A B C X Y F G Z
+运输能耗
+运输时间
+latest_start
+outage_time
+outage_ratio
+gap_count
 ```
 
-共同部分：
+这已经比单纯 Q2 筛选好很多。
+
+但存在一个问题：
+
+$$
+\text{outage 短}
+\neq
+\text{中继代价低}.
+$$
+
+例如两个运输方案：
+
+### 方案 A
 
 ```text
-A B C F G
+outage = 300 s
 ```
 
-这些任务先固定。
+但只能由距离 O01 很远、需要飞很高的中继点覆盖。
 
----
-
-# 七、释放“父代有分歧”的货箱
-
-不同任务：
-
-$$
-D=
-S^{(1)}
-\triangle
-S^{(2)}
-$$
-
-然后找到这些任务涉及的所有货箱：
-
-$$
-U
-=
-\bigcup_{k\in D}B_k
-$$
-
-比如：
+### 方案 B
 
 ```text
-D E H
-X Y Z
+outage = 500 s
 ```
 
-一共涉及：
-
-```text
-B003
-B004
-B016
-B027
-B041
-B055
-B056
-```
-
-这些箱全部释放。
-
-于是：
-
-$$
-\boxed{
-\text{MOEA/D决定哪里需要重新搜索}
-}
-$$
-
-而不是直接决定怎么修。
-
----
-
-# 八、再加入 mutation
-
-如果只释放父代差异部分，很容易越来越保守。
-
-所以再从共同任务里随机释放：
-
-$$
-d=1\sim3
-$$
-
-个任务。
-
-例如：
-
-```python
-destroy_rate = 0.10 ~ 0.20
-```
-
-也就是约：
-
-$$
-2\sim4
-$$
-
-个架次。
-
-于是：
-
-```text
-父代差异区域
-+
-随机 Destroy 区域
-=
-本轮自由区域 U
-```
-
----
-
-# 九、从 2615 个任务里构造局部候选集
-
-设已经固定的任务集合：
-
-$$
-S^{fix}
-$$
-
-它们覆盖的箱不能再次被其他任务覆盖。
-
-自由货箱集合：
-
-$$
-U=B\setminus B(S^{fix})
-$$
-
-局部候选任务只保留：
-
-$$
-\boxed{
-K_U=
-\{k:B_k\subseteq U\}
-}
-$$
-
-非常重要。
-
-不是：
-
-$$
-B_k\cap U\neq\varnothing
-$$
-
-而必须：
-
-$$
-B_k\subseteq U
-$$
-
-否则新任务可能同时运输一个已经被固定任务运输的箱，导致重复覆盖。
-
----
-
-# 十、这时才调用内层 CP-SAT
-
-构造：
-
-$$
-K^{inner}
-=
-S^{fix}\cup K_U
-$$
-
-通常不会再有 2615 个任务。
-
-例如可能只剩：
-
-$$
-80\sim400
-$$
-
-个。
-
-CP-SAT 在这里重新决定：
-
-$$
-x_k\in\{0,1\}
-$$
-
-对于固定任务：
-
-$$
-x_k=1,
-\qquad k\in S^{fix}
-$$
-
-对于自由候选：
-
-$$
-x_k\in\{0,1\},
-\qquad k\in K_U
-$$
-
----
-
-# 十一、货箱覆盖约束直接复用你现在的
-
-你现有 CP-SAT 已经正确使用：
-
-```python
-model.AddExactlyOne(covering)
-```
-
-对应：
-
-$$
-\boxed{
-\sum_{k\in K}
-a_{bk}x_k=1
-\qquad
-\forall b
-}
-$$
-
-这一部分完全不要换。
-
----
-
-# 十二、开始时刻继续交给 CP-SAT
-
-定义：
-
-$$
-s_k
-$$
-
-你当前已经是整数秒：
-
-```python
-start = model.NewIntVar(...)
-```
-
-继续保持。
-
-硬时限：
-
-$$
-s_k+\delta_{kb}
-\le D_b
-$$
-
-继续复用现在：
-
-```python
-model.Add(
-    start + offset <= deadline
-).OnlyEnforceIf(chosen)
-```
-
----
-
-# 十三、无人机和电池约束也完全复用现有模型
-
-当前设计其实很适合 MOEA/D 内层。
-
-运输无人机：
-
-$$
-\operatorname{Cumulative}
-\left(
-I_k^{flight},1,N_g^{UAV}
-\right)
-$$
-
-代码继续：
-
-```python
-model.AddCumulative(
-    flight_intervals[typ],
-    [1] * len(flight_intervals[typ]),
-    len(uav_ids[typ]),
-)
-```
-
-电池：
-
-$$
-\operatorname{Cumulative}
-\left(
-I_k^{battery},1,N_g^{battery}
-\right)
-$$
-
-电池占用区间仍然是：
-
-$$
-[
-s_k,
-s_k+T_k^{flight}+T_k^{charge}
-)
-$$
-
-这一层不用因为 MOEA/D 改任何物理逻辑。
-
----
-
-# 十四、最大的修改：CP-SAT 不再只有 N/E/T 字典序目标
-
-你现在：
-
-```python
-stage_map = {
-    "N": ...,
-    "E": ...,
-    "T": ...,
-}
-```
-
-新的 MOEA/D 内层要支持：
-
-$$
-\lambda=
-(\lambda_N,\lambda_E,\lambda_T)
-$$
-
-建议使用 **augmented Tchebycheff**。
-
-MOEA/D 标量子问题：
-
-$$
-g(X|\lambda,z^*)
-=
-\max_{i}
-\left\{
-\lambda_i
-\frac{f_i(X)-z_i^*}{r_i}
-\right\}
-+
-\rho
-\sum_i
-\lambda_i
-\frac{f_i(X)-z_i^*}{r_i}
-$$
-
-其中：
-
-$$
-\rho=0.01
-$$
-
-即可。
-
-相比简单：
-
-$$
-\lambda_NN+\lambda_EE+\lambda_TC_{\max}
-$$
-
-Tchebycheff 更适合生成非凸 Pareto 前沿。
-
----
-
-# 十五、CP-SAT 里怎么实现 Tchebycheff
-
-因为 CP-SAT 只能处理整数。
-
-你已经有：
-
-```python
-ENERGY_SCALE = 10000
-```
-
-所以：
-
-$$
-E^{int}=10000E
-$$
-
-定义：
-
-```python
-n_sorties
-energy_units
-cmax
-```
-
-再定义：
-
-```python
-g = model.NewIntVar(0, BIG_M, "tcheby")
-```
-
-设尺度：
-
-$$
-r_N,\quad r_E,\quad r_T
-$$
-
-根据三个 anchor 初始化。
-
-然后整数化系数：
-
-```python
-cN = round(SCALE * lambda_N / rN)
-cE = round(SCALE * lambda_E / rE)
-cT = round(SCALE * lambda_T / rT)
-```
-
-加入：
-
-```python
-model.Add(
-    g >= cN * (n_sorties - zN)
-)
-
-model.Add(
-    g >= cE * (energy_units - zE)
-)
-
-model.Add(
-    g >= cT * (cmax - zT)
-)
-```
+却能由 O01 附近一个低高度中继点覆盖。
 
 最终：
 
-```python
-model.Minimize(
-    BIG_WEIGHT * g
-    + cN * (n_sorties - zN)
-    + cE * (energy_units - zE)
-    + cT * (cmax - zT)
-)
+$$
+E^R_B<E^R_A
+$$
+
+完全可能。
+
+所以 Step6 做完以后建议增加：
+
+## Step6.5：通信作业代价反向筛选
+
+给每个 transport task $r$ 计算：
+
+$$
+LB_r^{relay-energy}
+$$
+
+$$
+LB_r^{relay-sorties}
+$$
+
+$$
+LB_r^{relay-leadtime}
+$$
+
+以及：
+
+$$
+LB_r^{joint-energy}
+=
+E_r^T+LB_r^R.
+$$
+
+然后第二次筛选。
+
+这样筛的才是：
+
+$$
+\boxed{\text{真正适合 Q3 的运输候选}}
+$$
+
+而不是“通信断连比较少的 Q2 候选”。
+
+---
+
+# 九、还有一个值得立刻改的小地方：保留整个 Q2 Pareto 集
+
+你现在 Step4 里显式保护的是：
+
+```text
+Q2 N-opt
+Q2 E-opt
+Q2 T-opt
 ```
 
-这就是真正的：
+三个 anchor 的任务。
+
+但是你目前 Q2 MOEA/D 已经得到了一整条 Pareto 前沿，当前仓库的 `Q2_moead_pareto.csv` 中有几十个非支配解。
+
+因此 Q3 候选筛选时建议保留：
 
 $$
-\boxed{\text{MOEA/D 子问题}\rightarrow\text{CP-SAT 精确求解}}
+\boxed{
+\bigcup_{\pi\in\mathcal P_{Q2}}
+R(\pi)
+}
 $$
+
+即：
+
+> **Q2 整个 Pareto 档案出现过的任务全部强制保留。**
+
+因为 Q3 最优解非常可能来自：
+
+> Q2 中并非 N/E/T 三个极值点、但通信代价更好的某个中间方案。
+
+这几乎没有多少额外代价，但可以降低误删优质候选的风险。
 
 ---
 
-# 十六、尺度不能直接用原值
+# 十、真正进入联合优化以后，不应该让 MOEA/D 直接编码 4779 个二进制变量
 
-因为当前大约：
-
-$$
-N\approx20
-$$
+我建议继续沿用你 Q2 已经写好的：
 
 $$
-E\approx62\sim67
+\boxed{
+\text{Consensus + Destroy + Repair}
+}
 $$
 
-$$
-C_{\max}\approx7700\sim9600
-$$
+结构。
 
-不归一化的话：
+一个 Q3 个体不要编码：
 
-$$
-C_{\max}
-$$
+```text
+4779维0/1
++
+2149个relay位置
++
+全部时间
+```
 
-必然把其他目标淹没。
+而是编码：
 
-可以先根据当前 anchor 建立：
+```text
+运输任务集合
++
+运输任务顺序/开始时间hint
+```
 
-$$
-r_N
-=
-24-20
-=
-4
-$$
-
-$$
-r_E
-\approx
-67.370-62.238
-=
-5.132
-$$
-
-时间可以先：
+比如一个个体：
 
 $$
-r_T
-=
-9562-7721
-=
-1841
+X=
+\{
+R_{12},R_{84},R_{137},\ldots
+\}.
 $$
 
-为了避免范围太窄，建议设最小尺度：
+父代交叉仍然：
 
-$$
-r_N\ge4
-$$
+```text
+Parent A
+Parent B
+   ↓
+共同任务保留
+   ↓
+差异区域释放货箱
+   ↓
+destroy 1~k 个任务
+   ↓
+小范围 CP-SAT repair
+```
 
-$$
-r_E\ge5\text{ kWh}
-$$
+这个和你的 Q2 完全可以共用。
 
-$$
-r_T\ge1800\text{ s}
-$$
+### relay 不建议直接成为 MOEA/D 基因
 
-后面根据 Pareto archive 动态更新 nadir。
+relay 最好由 decoder / CP-SAT 根据当前运输计划自动求。
+
+否则染色体维度和可行性修复都会非常麻烦。
 
 ---
 
-# 十七、MOEA/D 权重数量不用很大
+# 十一、CP-SAT 最合适的位置不是全局，而是“当前选中任务的小模型”
 
-三个目标。
+这也是我现在对 Q3 最明确的建议。
 
-采用 simplex lattice：
-
-$$
-\lambda_N+\lambda_E+\lambda_T=1
-$$
-
-先设：
+假设 MOEA/D 某一个体最终只选择：
 
 $$
-H=8
+20\sim25
 $$
 
-得到：
+个运输架次。
+
+那么 CP-SAT 实际面对的就只是：
+
+```text
+20~25 个运输 interval
++
+这些任务产生的通信 gaps
++
+少量相关 relay 位置
++
+2 架 relay UAV
++
+6 个 relay battery
+```
+
+这个规模就非常适合 CP-SAT。
+
+所以结构应该是：
 
 $$
-\binom{H+3-1}{3-1}
+\boxed{
+\text{MOEA/D负责“选什么”}
+}
+$$
+
+$$
+\boxed{
+\text{CP-SAT负责“什么时候执行、资源怎么排”}
+}
+$$
+
+而不是：
+
+$$
+\boxed{
+\text{让 CP-SAT 同时从4779个任务中决定所有东西}
+}
+$$
+
+这和你 Q2 目前的瓶颈分析是一致的。
+
+---
+
+# 十二、中继调度最好使用“Relay Service Block”，而不是一 gap 一架次
+
+这是 Q3 最值得做成创新点的地方。
+
+假设某个中继位置 $p$ 可以覆盖：
+
+```text
+运输任务 A：1200~1500 s
+运输任务 B：1350~1700 s
+运输任务 C：1650~1900 s
+```
+
+完全没必要安排三个 relay sortie。
+
+一个中继无人机可以：
+
+```text
+提前飞到 p
+1200 s 建立服务
+一直悬停到 1900 s
+再返航
+```
+
+形成一个：
+
+$$
+\boxed{\text{Relay Service Block}}
+$$
+
+即：
+
+$$
+B=(p,t_B^s,t_B^e,\mathcal G_B).
+$$
+
+这里：
+
+* $p$：悬停点；
+* $t_B^s$：开始服务；
+* $t_B^e$：结束服务；
+* $\mathcal G_B$：该架次覆盖的所有通信 gap。
+
+对应能耗：
+
+$$
+E_B^R
 =
-\binom{10}{2}
-=
-45
+E_p^{out}
++
+E_p^{back}
++
+(P_h+P_c)(t_B^e-t_B^s).
 $$
 
-组权重。
+这样才能真正优化：
+
+$$
+\boxed{\text{中继架次数}}
+$$
+
+否则如果“一个 gap 算一个中继架次”，会严重高估资源和能耗。
+
+---
+
+# 十三、一架中继能否同时服务多个运输无人机？
+
+题目只规定：
+
+> 每架运输无人机在任一时刻只能由 G01 或一架中继无人机提供通信保障。
+
+题目没有给：
+
+* 中继并发用户数上限；
+* 信道带宽容量；
+* 最大同时接入架数。
+
+因此比较自然的建模假设是：
+
+$$
+\boxed{
+\text{同一中继 UAV 在链路条件满足时可以同时服务多架运输 UAV}
+}
+$$
+
+论文中应明确写成假设。
+
+这样 relay service block 就可以一次保障多架运输机。
+
+如果你强制：
+
+$$
+1\text{ relay}:1\text{ transport}
+$$
+
+反而是在自行添加题目没有给出的容量限制。
+
+---
+
+# 十四、365 个需要站点切换的 gap 怎么处理
+
+我不建议现在马上把“中继飞行过程中切位置”塞进模型。
+
+先按三层处理。
+
+### 第一层：改正 boundary 规则
+
+先只要求真正 outage 状态必须覆盖。
+
+365 很可能会明显下降。
+
+### 第二层：局部细化中继网格
+
+现在是：
+
+```text
+4×4 DEM 像元
++
+20 m 高度间隔
+```
+
+对于没有 single-site full cover 的 gap，在附近做：
+
+```text
+1×1 或 2×2 DEM
++
+5 m / 10 m 高度
+```
+
+局部搜索。
+
+这是典型：
+
+$$
+\boxed{\text{粗网格全局搜索 + 局部细化}}
+$$
+
+不应该为了几十/几百个特殊 gap 把整个 DEM 都变细。
+
+### 第三层：仍无法单点覆盖才允许中继切换
 
 例如：
 
 $$
-(1,0,0)
+p_1\rightarrow p_2.
 $$
 
-$$
-(0,1,0)
-$$
-
-$$
-(0,0,1)
-$$
-
-$$
-(0.5,0.25,0.25)
-$$
-
-$$
-(0.25,0.5,0.25)
-$$
-
-等等。
-
-所以：
-
-$$
-\boxed{\text{population size}=45}
-$$
-
-已经够你 Q2 第一版。
-
-没必要一上来 100、200 个体。
-
----
-
-# 十八、初始化不要随机
-
-45 个子问题分别找离它最近的 anchor。
-
-例如权重：
-
-$$
-\lambda=(0.8,0.1,0.1)
-$$
-
-从 N-opt 出发。
-
-$$
-(0.1,0.8,0.1)
-$$
-
-从 E-opt 出发。
-
-$$
-(0.1,0.1,0.8)
-$$
-
-从 T-opt 出发。
-
-中间权重：
-
-$$
-(0.34,0.33,0.33)
-$$
-
-可以随机选择三个 anchor 中一个，然后进行一次：
-
-$$
-\text{Destroy}
-+
-\text{CP-SAT Repair}
-$$
-
-产生新解。
-
-这样第一代就全部是：
-
-$$
-\boxed{\text{硬约束可行解}}
-$$
-
-而不是大量垃圾染色体。
-
----
-
-# 十九、MOEA/D 邻域
-
-按权重向量欧氏距离：
-
-$$
-d_{ij}
-=
-\|\lambda_i-\lambda_j\|_2
-$$
-
-每个子问题取：
-
-$$
-T=10
-$$
-
-个最近邻。
-
-父代就从：
-
-$$
-B(i)
-$$
-
-里面取。
-
-一般：
-
-```python
-p1, p2 = rng.choice(neighbors[i], size=2)
-```
-
-然后做前面的：
+但是这里不能简单写：
 
 ```text
-common tasks
-↓
-difference region
-↓
-random destroy
-↓
-CP-SAT repair
+前半段 RP1
+后半段 RP2
+```
+
+然后认为一个 relay UAV 瞬间换位置。
+
+必须考虑：
+
+* $p_1\rightarrow p_2$ 的飞行时间；
+* 切换期间谁保持通信；
+* 是否由 R01、R02 进行接力。
+
+最容易且最稳妥的办法是：
+
+$$
+\boxed{
+\text{两个固定 relay service block 进行交接}
+}
+$$
+
+并在交接点保证：
+
+$$
+\text{至少一个中继链路可用}.
+$$
+
+题目明确不允许 relay-relay 多跳，因此这里只是运输 UAV 在两个中继之间切换，不是 R1→R2→G01。
+
+---
+
+# 十五、Q3 的目标函数也不能直接照搬 Q2 的三个目标
+
+题目明确写的是：
+
+* 配送及时性；
+* 联合任务完成时间；
+* 运输与中继总能耗；
+* 两类无人机使用架次。
+
+所以我建议 Q3 正式使用 **4 目标 MOEA/D**。
+
+## 目标 1：配送及时性
+
+逐箱到达时间：
+
+$$
+t_j=s_{r(j)}+\delta_{r(j),j}.
+$$
+
+硬时限继续作为硬约束。
+
+然后及时性可定义为优先级加权的归一化配送时间：
+
+$$
+f_1=
+\sum_{j\in J}
+w_j
+\frac{t_j}{T_j^{exp}}.
+$$
+
+越小越好。
+
+另外再报告：
+
+$$
+\sum_jw_j[t_j-T_j^{exp}]_+
+$$
+
+作为延误指标。
+
+---
+
+## 目标 2：联合 makespan
+
+注意 Q3 不再只是运输无人机。
+
+应为：
+
+$$
+\boxed{
+f_2=C_{\max}^{joint}
+}
+$$
+
+$$
+C_{\max}^{joint}
+=
+\max
+\left\{
+\max_r C_r^T,\,
+\max_b C_b^R
+\right\}.
+$$
+
+这里中继结束时间是：
+
+> 中继无人机最后一个架次完成并返回 O01。
+
+充电结束不计入 makespan。
+
+---
+
+## 目标 3：总能耗
+
+$$
+f_3
+=
+E_T+E_R
+$$
+
+其中：
+
+$$
+E_T=\sum_r x_rE_r^T,
+$$
+
+$$
+E_R=\sum_bz_bE_b^R.
+$$
+
+---
+
+## 目标 4：总架次数
+
+建议优化：
+
+$$
+f_4=N_T+N_R.
+$$
+
+同时结果表里单独报告：
+
+$$
+N_T,\qquad N_R.
+$$
+
+没有必要为了“运输架次/中继架次”拆成五目标，否则 MOEA/D 搜索会明显更重。
+
+---
+
+# 十六、内层 CP-SAT 需要包含哪些约束
+
+对一个已经被 MOEA/D 缩小的局部候选解，CP-SAT 负责以下约束。
+
+### 运输部分
+
+货箱唯一覆盖：
+
+$$
+\sum_{r:j\in J_r}x_r=1.
+$$
+
+硬截止时间：
+
+$$
+s_r+\delta_{rj}
+\le
+D_j+M(1-x_r).
+$$
+
+运输无人机资源：
+
+$$
+\operatorname{Cumulative}
+(I_r^T,1,n_g^T).
+$$
+
+共享电池：
+
+$$
+\operatorname{Cumulative}
+(I_r^{BT},1,n_g^B).
+$$
+
+---
+
+### 通信部分
+
+对于每个被选择运输任务的每个通信 gap：
+
+$$
+\boxed{
+\text{必须存在一个 relay service block 覆盖它}
+}
+$$
+
+实际 service interval：
+
+$$
+I_{rg}
+=
+[s_r+\tau_{rg}^s,\,
+s_r+\tau_{rg}^e].
+$$
+
+候选位置必须同时满足：
+
+$$
+A_{\text{Transport},p}=1
+$$
+
+和
+
+$$
+A_{p,G01}=1.
+$$
+
+这也正是题目要求的“两段链路同一时刻均可用”。
+
+---
+
+### relay 到位约束
+
+若 block 使用位置 $p$：
+
+$$
+t_B^s
+\ge
+T^{prep}+T_p^{out}+T^{link}.
+$$
+
+这是以前非常容易漏掉的约束。
+
+---
+
+### relay UAV
+
+只有 R01、R02：
+
+$$
+\operatorname{Cumulative}
+(I_b^R,1,2).
+$$
+
+---
+
+### relay 能源组件
+
+共有 6 组：
+
+$$
+\operatorname{Cumulative}
+(I_b^{BR},1,6).
+$$
+
+电池 interval 应包含：
+
+$$
+\text{飞行}
++
+\text{悬停服务}
++
+\text{返航}
++
+\text{充电}.
+$$
+
+relay UAV interval 则只包含：
+
+$$
+\text{准备}
++
+\text{飞行}
++
+\text{服务}
++
+\text{返航}
++
+\text{无人机周转}.
+$$
+
+两者不要混成一个资源。
+
+---
+
+# 十七、最终算法结构我建议直接定成下面这样
+
+```text
+                  Q2运输候选任务库
+                         │
+                         ▼
+          ┌─────────────────────────┐
+          │ Step 3 直连通信Profile │
+          └─────────────────────────┘
+                         │
+                         ▼
+          ┌─────────────────────────┐
+          │ Step 4 第一阶段候选筛选 │
+          └─────────────────────────┘
+                         │
+                         ▼
+          ┌─────────────────────────┐
+          │ Step 5 通信Gap模板化    │
+          └─────────────────────────┘
+                         │
+                         ▼
+          ┌─────────────────────────┐
+          │ Step 6 中继覆盖库       │
+          │ DEM+LOS+双向链路预算    │
+          └─────────────────────────┘
+                         │
+                         ▼
+        ┌────────────────────────────┐
+        │ Step 6.5 中继作业代价计算 │
+        │ 飞行时间/能耗/lead time   │
+        └────────────────────────────┘
+                         │
+                         ▼
+        ┌────────────────────────────┐
+        │ Q3候选运输任务二次筛选    │
+        └────────────────────────────┘
+                         │
+                         ▼
+   ┌────────────────────────────────────┐
+   │             MOEA/D                 │
+   │ 任务组合 + Destroy/Recombine/LNS   │
+   └────────────────────────────────────┘
+                         │
+                         ▼
+       ┌───────────────────────────────┐
+       │ Local CP-SAT Transport Repair│
+       │ 货箱+UAV+电池+开始时刻       │
+       └───────────────────────────────┘
+                         │
+                         ▼
+       ┌───────────────────────────────┐
+       │ Relay Service Block Generator│
+       │ 合并同位置/同时段通信需求    │
+       └───────────────────────────────┘
+                         │
+                         ▼
+       ┌───────────────────────────────┐
+       │ Local Relay CP-SAT Scheduler │
+       │ R01/R02 + 6能源组件          │
+       └───────────────────────────────┘
+                         │
+                         ▼
+               4目标评价 / Pareto
+                         │
+                         ▼
+                MOEA/D继续迭代
+                         │
+                         ▼
+                 最终Pareto档案
+                         │
+                         ▼
+        细粒度连续通信 + 资源复核
 ```
 
 ---
 
-# 二十、MOEA/D 更新
+# 十八、MOEA/D 的参数不建议直接复制 Q2
 
-新方案为：
+Q2 是 3 目标，Q3 是 4 目标。
 
-$$
-Y
-$$
-
-更新 ideal point：
+例如 simplex lattice：
 
 $$
-z_j^*
-=
-\min(z_j^*,f_j(Y))
+H=6
 $$
 
-然后对邻居：
+时子问题数量：
 
 $$
-j\in B(i)
+\binom{6+4-1}{4-1}=84.
 $$
 
-计算：
+84 个子问题已经够用了。
 
-$$
-g(Y|\lambda_j,z^*)
-$$
+建议初始：
 
-和：
+```text
+n_obj = 4
+H = 6
+population = 84
+T = 10~15
+nr = 2
+generations = 30~50
+```
 
-$$
-g(X_j|\lambda_j,z^*)
-$$
+不要一开始把 H 开得特别大。
 
-若：
+因为 Q3 每个个体都比 Q2 贵。
 
-$$
-g(Y|\lambda_j,z^*)
-\le
-g(X_j|\lambda_j,z^*)
-$$
+---
 
-则：
+# 十九、CP-SAT 也不要每个 MOEA/D 个体都长时间求
 
-$$
-X_j\leftarrow Y
-$$
+推荐两层评价。
+
+### 普通后代
+
+```text
+0.5~2 s local CP-SAT
++
+快速 relay block packing
+```
+
+主要用于筛选。
+
+### 进入 Pareto archive 的优质方案
+
+再做：
+
+```text
+5~10 s 联合精修
+```
+
+### 最终 Pareto 解
+
+最后统一：
+
+```text
+30~60 s / solution
+```
+
+做 CP-SAT polish。
+
+这样比：
+
+> 84 个权重 × 40 代 × 每次 CP-SAT 30 秒
+
+合理得多。
+
+---
+
+# 二十、连续通信最后必须做一次比 10 s 更细的验证
+
+你现在通信轨迹：
+
+```text
+dt = 10 s
+```
+
+用于大规模候选筛选非常合理。
+
+但题目写的是：
+
+> 爬升、巡航、下降及投送全过程均保持连续通信。
+
+所以论文最终不要直接声称：
+
+> 10 s 采样通过，所以连续通信严格成立。
 
 建议：
 
+### 优化阶段
+
 $$
-n_r=2
+\Delta t=10s.
 $$
 
-即一个 offspring 最多替换两个邻居。
+### 最终 Pareto 解验证
 
-否则某个特别好的方案会瞬间把整个 population 同质化。
+重新：
+
+$$
+\Delta t=1s
+$$
+
+或者做自适应细化：
+
+```text
+链路状态不变 → 粗采样
+状态转换附近 → 1s / 更细
+```
+
+如果发现新的未覆盖状态：
+
+```text
+加入 constraint/candidate library
+→ 再求一次
+```
+
+这可以称为：
+
+$$
+\boxed{\text{通信约束生成 / adaptive refinement}}
+$$
+
+论文里会非常好讲。
 
 ---
 
-# 二十一、一定再维护一个独立 Pareto Archive
+# 二十一、所以现在各部分的处理结论很明确
 
-MOEA/D population 和 Pareto archive 不是一回事。
-
-建立：
-
-```python
-archive = []
-```
-
-任何新可行解 $Y$：
-
-如果被 archive 里某个解支配：
-
-```text
-丢弃
-```
-
-如果它支配 archive 中其他解：
-
-```text
-删除被支配解
-```
-
-然后加入：
-
-```text
-Y
-```
-
-支配关系：
-
-$$
-A\prec B
-$$
-
-当：
-
-$$
-N_A\le N_B
-$$
-
-$$
-E_A\le E_B
-$$
-
-$$
-T_A\le T_B
-$$
-
-且至少一个严格小于。
+| 当前部分                | 结论                                              |
+| ------------------- | ----------------------------------------------- |
+| Q3 Step3 直连通信缓存     | **保留**                                          |
+| Q3 Step4 通信感知筛选     | **保留，但要增加 Q2 全 Pareto seeds 和 relay cost 二次筛选** |
+| Q3 Step5 gap 模板     | **保留**                                          |
+| Q3 Step6 两跳覆盖       | **保留，但 boundary 强制覆盖要改**                        |
+| 4×4 DEM + 20m 中继搜索  | **全局粗搜保留，难点 gap 局部细化**                          |
+| 当前 `Q3.py`          | **作为 baseline，不作为最终 Q3**                        |
+| 全局大 CP-SAT          | **不建议**                                         |
+| 纯 MOEA/D            | **不建议**                                         |
+| MOEA/D + 全局 CP-SAT  | **仍然太重**                                        |
+| MOEA/D + 局部 CP-SAT  | **最适合**                                         |
+| relay 一 gap 一架次     | **不建议**                                         |
+| Relay Service Block | **建议加入**                                        |
+| 10s 通信采样            | **优化可以，最终需细化验证**                                |
 
 ---
 
-# 二十二、缓存是必须做的
+# 二十二、如果现在开始改代码，我建议严格按这个顺序
 
-因为不同权重很容易产生相同任务组合。
+不要先写 MOEA/D。
 
-定义：
+**第一步**先改 Step5/6 的 relay coverage 口径，把 direct before/after 从“必须被中继覆盖”改为“仅用于边界验证”，然后重新跑 Step6，看看那 **365 个无 single-site full-cover gap** 还剩多少。
 
-```python
-key = tuple(sorted(task_ids))
+**第二步**新增：
+
+```text
+src/q3/relay/flight_profile.py
 ```
 
-然后：
+为每个 `q3_relay_sites.csv` 候选点计算：
 
-```python
-schedule_cache[key]
+```text
+outbound_time_s
+return_time_s
+outbound_energy_kWh
+return_energy_kWh
+lead_time_s
+max_service_time_s
 ```
 
-存：
+**第三步**基于真实 relay flight energy/time 重新压缩站点。
 
-```python
-{
-    "objectives": (...),
-    "starts": {...},
-    "status": ...,
-    "schedule": ...
-}
+**第四步**新增：
+
+```text
+src/q3/relay/service_block.py
 ```
 
-相同任务集合再次出现，就不需要重新做完整调度。
+给“当前选中的运输方案”动态产生 Relay Service Blocks。
 
-对于 Q2 这种问题，这个优化很重要。
+**第五步**新增：
+
+```text
+src/q3/relay/scheduler.py
+```
+
+只负责：
+
+```text
+gap coverage
+relay site
+relay UAV
+relay energy component
+service time
+recharge
+```
+
+**第六步**再建立：
+
+```text
+src/q3/joint_scheduler.py
+```
+
+联合运输开始时刻和 relay 调度。
+
+**第七步**最后才写：
+
+```text
+src/q3/moead_cp_sat.py
+```
+
+把你 Q2 的：
+
+```text
+Consensus
+Destroy
+Recombine
+CP-SAT Repair
+Pareto Archive
+```
+
+迁移过来。
 
 ---
 
-# 二十三、但 CP-SAT 会改变任务组合，缓存要放在求解之后
-
-例如输入 skeleton：
-
-```text
-A B C D
-```
-
-经过 CP-SAT：
-
-```text
-A B X Y
-```
-
-真正 cache key 应该是：
-
-```python
-tuple(sorted(["A", "B", "X", "Y"]))
-```
-
-而不是 destroy 前的 skeleton。
-
----
-
-# 二十四、代码结构建议这样改
-
-当前：
-
-```text
-src/q2/
-    battery.py
-    candidate_generator.py
-    cp_sat_scheduler.py
-    ...
-```
-
-新增：
-
-```text
-src/q2/
-    moead_cp_sat.py
-    moead_core.py
-    moead_archive.py
-```
-
-如果希望文件少，也可以只增加两个：
-
-```text
-src/q2/
-    moead.py
-    moead_cp_sat.py
-```
-
-我更推荐后者。
-
----
-
-# 二十五、`moead.py` 只实现纯 MOEA/D
-
-不要往里面塞 UAV 逻辑。
-
-负责：
-
-```python
-generate_weights()
-build_neighbors()
-tchebycheff()
-dominates()
-update_archive()
-select_parents()
-run_moead()
-```
-
-例如：
-
-```python
-@dataclass
-class Solution:
-    task_ids: tuple
-    starts: dict
-    objectives: tuple
-    status: str
-```
-
-这样以后 Q3、Q4 可以复用这个 MOEA/D 核心。
-
-这一点对你后面的统一框架特别重要。
-
----
-
-# 二十六、真正 Q2 专有逻辑放 `moead_cp_sat.py`
-
-这里负责：
-
-```python
-prepare_q2_problem()
-load_anchor_solutions()
-
-build_local_neighborhood()
-
-destroy_and_recombine()
-
-solve_moead_subproblem()
-
-evaluate_solution()
-
-save_results()
-```
-
-也就是说以后：
-
-```text
-src/moead/core.py
-```
-
-甚至可以进一步抽成公共模块。
-
-Q2/Q3/Q4 都调用。
-
-这是你后续最值得做的代码重构。
-
----
-
-# 二十七、建议把现有 CP-SAT 重构出一个公共 prepare 函数
-
-现在很多东西是 private：
-
-```python
-_read_inputs()
-_deadlines()
-_candidate_subset()
-_resource_ids()
-_build_model()
-```
-
-MOEA/D 还要用。
-
-建议增加：
-
-```python
-def prepare_q2_problem(
-    per_box_type_k=8
-):
-    ...
-```
-
-返回：
-
-```python
-{
-    "tasks": tasks,
-    "deliveries": deliveries,
-    "boxes": boxes,
-    "task_boxes": task_boxes,
-    "task_offsets": task_offsets,
-    "deadlines": deadlines,
-    "uav_ids": uav_ids,
-    "battery_ids": battery_ids,
-    "energy_capacity": energy_capacity,
-    "charge_full": charge_full,
-}
-```
-
-以后：
-
-```python
-cp_sat_scheduler.py
-```
-
-和：
-
-```python
-moead_cp_sat.py
-```
-
-共用它。
-
-这样就不会出现两套 deadline、两套 battery、两套 candidate pool。
-
----
-
-# 二十八、增加一个最关键的新函数
-
-建议在 `moead_cp_sat.py` 写：
-
-```python
-def solve_local_subproblem(
-    problem,
-    fixed_task_ids,
-    free_box_ids,
-    weight,
-    ideal_point,
-    objective_ranges,
-    start_hints=None,
-    time_limit_s=2.0,
-    workers=2,
-):
-    ...
-```
-
-它执行：
-
-```text
-固定任务
-      ↓
-根据 free boxes 找 KU
-      ↓
-构建小型 CP-SAT
-      ↓
-加入 ExactlyOne
-      ↓
-加入 UAV cumulative
-      ↓
-加入 battery cumulative
-      ↓
-加入 hard deadline
-      ↓
-加入 MOEA/D Tchebycheff objective
-      ↓
-AddHint
-      ↓
-Solve
-```
-
-返回：
-
-```python
-{
-    "feasible": True,
-    "task_ids": ...,
-    "starts": ...,
-    "N": ...,
-    "E": ...,
-    "Cmax": ...,
-    "solver_status": ...,
-}
-```
-
-这是整个 Q2 新算法的核心接口。
-
----
-
-# 二十九、这里有一个非常容易踩的代码坑
-
-你现有 `_build_model()`：
-
-```python
-for i, row in tasks.iterrows():
-```
-
-后面又：
-
-```python
-tasks.iloc[i]
-```
-
-因此局部筛完以后一定：
-
-```python
-tasks = tasks.reset_index(drop=True)
-```
-
-否则：
-
-```python
-iterrows() 的 i
-```
-
-和：
-
-```python
-iloc[i]
-```
-
-可能不一致。
-
-实现 MOEA/D 的局部候选池时这一点一定注意。
-
----
-
-# 三十、每次内层求解时间不要给 200 秒
-
-MOEA/D 要调用很多次 CP-SAT。
-
-第一版建议：
-
-```python
-population_size = 45
-generations = 40
-local_time_limit = 1.0 ~ 2.0 s
-workers = 1 or 2
-```
-
-理论最多：
-
-$$
-45\times40=1800
-$$
-
-次局部求解。
-
-但因为：
-
-* 局部候选规模很小；
-* 有 cache；
-* 很多父代相同；
-* 有 start hints；
-
-实际比 1800 次完整 CP-SAT 快非常多。
-
----
-
-# 三十一、最终 Pareto archive 再做一次长时间精修
-
-MOEA/D 搜索结束以后，假设留下：
-
-$$
-15\sim30
-$$
-
-个非支配方案。
-
-这时候可以：
-
-```text
-每个方案
-↓
-把 destroy neighborhood 放大
-↓
-CP-SAT 30~60 s
-↓
-重新优化
-```
-
-这叫：
-
-$$
-\boxed{\text{Final Polishing}}
-$$
-
-非常适合写论文。
-
-于是算法分成：
-
-### 搜索阶段
-
-$$
-1\sim2\text{s CP-SAT}
-$$
-
-快速探索。
-
-### 精修阶段
-
-$$
-30\sim60\text{s CP-SAT}
-$$
-
-提高最终 Pareto 质量。
-
----
-
-# 三十二、我建议第一版参数直接定成这样
-
-| 参数                    |                    推荐值 |
-| --------------------- | ---------------------: |
-| 目标数                   |                      3 |
-| $H$                   |                      8 |
-| population            |                     45 |
-| neighborhood $T$      |                     10 |
-| generations           |                     40 |
-| max replacement $n_r$ |                      2 |
-| random destroy        |              1–3 tasks |
-| local CP-SAT          |                  1.5 s |
-| CP-SAT workers        |                      2 |
-| $\rho$                |                   0.01 |
-| random seed           |                   2026 |
-| final polishing       | 30 s / Pareto solution |
-
-第一版先不要追求很大 population。
-
----
-
-# 三十三、主程序怎么改
-
-不要删除现在 CP-SAT 基准。
-
-建议 `Q2.py` 支持：
-
-```bash
-python code/Q2.py --method cp-sat
-```
-
-表示：
-
-```text
-原来的 N/E/T exact baseline
-```
-
-以及：
-
-```bash
-python code/Q2.py --method moead
-```
-
-表示：
-
-```text
-MOEA/D + CP-SAT
-```
-
-以及：
-
-```bash
-python code/Q2.py --method all
-```
-
-流程：
-
-```text
-foundation check
-↓
-candidate generation
-↓
-CP-SAT anchors
-↓
-MOEA/D + CP-SAT
-↓
-final validation
-```
-
-论文实验也方便复现。
-
----
-
-# 三十四、输出文件建议重新独立命名
-
-不要再覆盖旧的 Q2 Pareto 文件。
-
-生成：
-
-```text
-Q2_moead_pareto.csv
-Q2_moead_population.csv
-Q2_moead_convergence.csv
-Q2_moead_manifest.json
-```
-
-最终 Pareto 每个方案保存：
-
-```text
-Q2_moead_selected_P001.csv
-Q2_moead_schedule_P001.csv
-Q2_moead_delivery_P001.csv
-
-Q2_moead_selected_P002.csv
-...
-```
-
----
-
-# 三十五、`Q2_moead_pareto.csv` 至少包含
-
-```text
-solution_id
-n_sorties
-energy_kWh
-Cmax_s
-Cmax_h
-hard_violations
-n_A
-n_B
-n_C
-solver_status
-polished
-```
-
-例如：
-
-| ID   |  N | E/kWh | Cmax/h |   A |   B |   C |
-| ---- | -: | ----: | -----: | --: | --: | --: |
-| P001 | 20 | 64.21 |   2.66 | ... | ... | ... |
-| P002 | 20 | 64.50 |   2.40 | ... | ... | ... |
-| P003 | 21 | 62.24 |   2.55 | ... | ... | ... |
-| P004 | 22 | 63.10 |   2.20 | ... | ... | ... |
-| P005 | 24 | 67.37 |   2.14 | ... | ... | ... |
-
-真正运行以后当然以实际数据为准。
-
----
-
-# 三十六、收敛文件建议这样记录
-
-`Q2_moead_convergence.csv`：
-
-```text
-generation
-archive_size
-best_N
-best_E
-best_T
-mean_N
-mean_E
-mean_T
-cp_sat_calls
-cache_hits
-wall_time_s
-```
-
-后面论文可以直接画：
-
-* MOEA/D 收敛曲线；
-* $E-C_{\max}$ Pareto 图；
-* $N-E-C_{\max}$ 三维 Pareto 图。
-
----
-
-# 三十七、最终验证一定继续走独立 validator
-
-每个 Pareto 解最后重新检查：
-
-$$
-\boxed{\text{80箱每箱恰好一次}}
-$$
-
-$$
-\boxed{\text{质量/体积/能量合法}}
-$$
-
-$$
-\boxed{\text{UAV不冲突}}
-$$
-
-$$
-\boxed{\text{电池不冲突}}
-$$
-
-$$
-\boxed{\text{首批保障无超时}}
-$$
-
-$$
-\boxed{\text{医疗物资无超时}}
-$$
-
-但你现有旧 `final_validator.py` 也需要统一 deadline 逻辑。
-
-最好不要自己再维护 `_build_box_deadlines()`。
-
-统一：
-
-```python
-from .cp_sat_scheduler import _deadlines
-```
-
-或者更进一步把 deadline 抽到：
-
-```text
-q2/problem_data.py
-```
-
-让：
-
-```text
-CP-SAT
-MOEA/D
-validator
-Q3
-```
-
-全部用同一个接口。
-
----
-
-# 三十八、完整伪代码可以直接按这个实现
-
-```text
-Algorithm Q2-MOEAD-CP-SAT
-
-Input:
-    reduced candidate task set K
-    box set B
-    UAV resources
-    battery resources
-
-1. Run CP-SAT baselines:
-       X_N = N-opt
-       X_E = E-opt
-       X_T = T-opt
-
-2. Generate decomposition weights:
-       Λ = {λ1,...,λM}
-
-3. Build weight neighborhoods B(i)
-
-4. Initialize population:
-       for each λ_i:
-           choose nearest anchor
-           apply local destroy
-           child ← CP-SAT-Repair(anchor, λ_i)
-
-5. Initialize:
-       ideal point z*
-       external archive EP
-
-6. for generation = 1,...,G:
-
-       for i = 1,...,M:
-
-           select X_p1, X_p2 from B(i)
-
-           S_common =
-               tasks(X_p1) ∩ tasks(X_p2)
-
-           D =
-               tasks(X_p1) △ tasks(X_p2)
-
-           randomly destroy 1~3
-           additional common tasks
-
-           construct fixed tasks S_fix
-
-           U =
-               boxes not covered by S_fix
-
-           K_U =
-               {k | boxes(k) ⊆ U}
-
-           Y ← CP-SAT(
-                   fixed=S_fix,
-                   candidates=K_U,
-                   weight=λ_i
-               )
-
-           if Y infeasible:
-               continue
-
-           evaluate:
-               F(Y)=(N,E,Cmax)
-
-           update z*
-
-           update EP
-
-           for j ∈ B(i):
-               if g(Y|λ_j,z*)
-                  <= g(X_j|λ_j,z*):
-
-                   X_j ← Y
-
-                   replacement_count += 1
-
-               if replacement_count >= nr:
-                   break
-
-7. Final CP-SAT polishing
-   for Y ∈ EP
-
-8. Remove duplicate/dominated solutions
-
-9. Independent validation
-
-Output:
-    Pareto front EP
-```
-
----
-
-# 三十九、这样设计以后，MOEA/D 和 CP-SAT 的分工就非常清楚了
-
-这也是我认为你现在最应该采用的 Q2 版本：
+## 最终我建议你在论文里把 Q3 方法命名为
 
 $$
 \boxed{
-\text{MOEA/D}
+\text{基于通信状态预计算与中继服务块的 MOEA/D--CP-SAT 协同调度模型}
 }
 $$
 
-负责：
+或者更简洁：
 
-$$
-\text{多目标分解}
-$$
+> **通信感知 MOEA/D–CP-SAT 运输—中继协同优化模型**
 
-$$
-\text{Pareto 搜索方向}
-$$
-
-$$
-\text{父代选择}
-$$
-
-$$
-\text{决定重新优化哪些任务区域}
-$$
-
-$$
-\text{种群与邻域更新}
-$$
-
-而：
+整个 Q2–Q4 的主线也就能够统一成：
 
 $$
 \boxed{
-\text{CP-SAT}
+Q2:
+\text{MOEA/D + CP-SAT运输调度}
 }
 $$
-
-负责：
-
-$$
-\text{具体候选任务选择}
-$$
-
-$$
-\text{每箱恰好运输一次}
-$$
-
-$$
-\text{机型资源}
-$$
-
-$$
-\text{共享电池资源}
-$$
-
-$$
-\text{开始时刻}
-$$
-
-$$
-\text{充电周转}
-$$
-
-$$
-\text{硬时限}
-$$
-
-这样就真正符合你要的：
 
 $$
 \boxed{
-\text{MOEA/D 外层策略优化}
-+
-\text{CP-SAT 内层精确调度}
+Q3:
+\text{MOEA/D + CP-SAT运输/中继协同调度}
 }
 $$
 
-而且不是为了统一 Q2/Q3/Q4 硬套算法，两层确实分别解决不同难度的部分。
+$$
+\boxed{
+Q4:
+\text{继承Q3方案后的分区与资源配置优化}
+}
+$$
 
----
-
-## 最推荐的具体实施顺序
-
-第一步先**不要写 MOEA/D 主循环**，先把 `cp_sat_scheduler.py` 重构出一个：
-
-```python
-solve_local_subproblem(...)
-```
-
-确保：
-
-> 给定固定任务 + 自由货箱 + 权重 $\lambda$，能够由 CP-SAT 返回一套完整可行方案。
-
-第二步，用 N-opt 人工 destroy 2 个任务测试这个函数，看它能不能重新组合货箱并保持全部约束。
-
-第三步，再实现 `moead.py` 的权重、邻域、Tchebycheff、archive。
-
-第四步接上 45 个子问题、40 代搜索。
-
-第五步最后加 cache、convergence、final polishing。
-
-**这个顺序最稳。**如果第一步 `solve_local_subproblem()` 没有完全正确，直接开始写完整 MOEA/D，后面很难判断到底是进化算法的问题还是 CP-SAT repair 的问题。
+其中最重要的一点是：**Q3 不要推翻你现在 Step3–Step6，前半部分方向是对的；真正缺的是 Step6 之后把“通信覆盖”提升成“中继无人机实际作业”，再让 MOEA/D 搜方案、让小规模 CP-SAT 排时间与资源。** 这比把完整 Q3 做成一个巨型 CP-SAT 稳定得多，也比“固定 Q2 再补中继”更符合题目要求。

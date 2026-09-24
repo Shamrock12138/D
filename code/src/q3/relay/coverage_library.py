@@ -440,7 +440,7 @@ def run_step6():
     grouped = gap_states.sort_values(["gap_id", "sample_idx"]).groupby("gap_id").state_id.apply(list)
     sequences = {}
     for gap in gaps.itertuples(index=False):
-        ids = [gap.before_state_id, *grouped[gap.gap_id], gap.after_state_id]
+        ids = grouped[gap.gap_id]
         sequences[gap.gap_id] = tuple(state_index[sid] for sid in ids)
 
     parameters = load_relay_link_parameters()
@@ -684,7 +684,7 @@ def run_step6():
             "FSPL>limit impossible; FSPL+obstruction<=limit guaranteed; every uncertain "
             "pair is checked with actual DEM LOS"
         ),
-        "gap_policy": "before + outage samples + after; alternatives retain contiguous sample ranges",
+        "gap_policy": "outage samples only (direct=0); before/after direct states retained for boundary verification only, not mandatory for relay coverage",
         "output_roles": {
             "cache/q3_step6_physical_coverage.npz": "full physical feasibility matrix B_sp (all sites × all states)",
             "q3_state_relay_coverage.csv": "sparse physical coverage over retained optimization candidate sites",
