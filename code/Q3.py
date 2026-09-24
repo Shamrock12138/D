@@ -18,6 +18,7 @@ from src.q3.trajectory_generator import (
     load_uav_parameters,
 )
 from src.q3.communication.checker import run_direct_check
+from src.q3.communication.gap_detector import run_gap_detector
 
 
 def main() -> None:
@@ -65,6 +66,13 @@ def main() -> None:
         f"不可用 {counts['points'] - counts['direct']}"
     )
     print("通信状态文件: data/communication_status.csv")
+    requirements, summaries = run_gap_detector()
+    print(
+        f"通信断连区间: {len(requirements)}，"
+        f"受影响架次: {sum(item['gap_count'] > 0 for item in summaries)}/{len(summaries)}"
+    )
+    print("中继需求文件: data/relay_requirement.json")
+    print("架次汇总文件: data/communication_gap_summary.csv")
 
 
 if __name__ == "__main__":
