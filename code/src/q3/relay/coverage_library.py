@@ -25,6 +25,7 @@ sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 PROJECT = Path(__file__).resolve().parents[3]
 DATA = PROJECT / "data"
+CACHE_DIR = DATA / "cache"
 OUTAGE_PATH = DATA / "q3_outage_states.csv"
 GAPS_PATH = DATA / "q3_task_comm_gaps.csv"
 GAP_STATES_PATH = DATA / "q3_task_gap_states.csv"
@@ -35,6 +36,9 @@ STATE_COVERAGE_PATH = DATA / "q3_state_relay_coverage.csv"
 GAP_OPTIONS_PATH = DATA / "q3_gap_relay_options.csv"
 GAP_SUMMARY_PATH = DATA / "q3_gap_relay_summary.csv"
 MANIFEST_PATH = DATA / "q3_step6_manifest.json"
+PHYSICAL_CACHE_NPZ = CACHE_DIR / "q3_step6_physical_coverage.npz"
+PHYSICAL_MANIFEST = CACHE_DIR / "q3_step6_physical_manifest.json"
+PHYSICAL_SITES_PATH = CACHE_DIR / "q3_step6_physical_sites.csv"
 
 
 def _sha256(path: Path):
@@ -209,22 +213,41 @@ def _uncovered_states(packed, n_states):
     return [index for index in range(n_states) if not _bit_column(packed, index).any()]
 
 
-def _signature_representatives(sites, packed):
-    groups = {}
+def _pareto_signature_representatives(sites, packed):
+    u"""同 coverage signature 内做 Pareto 非支配筛选: min d, min h, max margin."""
+    groups = defaultdict(list)
     for index, row in enumerate(packed):
-        key = row.tobytes()
-        if key not in groups:
-            groups[key] = [index, index, index]
+        groups[row.tobytes()].append(index)
+    keep = []
+    distance = sites.horizontal_distance_to_O01_m.to_numpy()
+    height = sites.agl_height.to_numpy()
+    margin = sites.relay_g01_margin_db.to_numpy()
+    for members in groups.values():
+        if len(members) == 1:
+            keep.append(members[0])
             continue
-        low, margin, near = groups[key]
-        if sites.iloc[index].agl_height < sites.iloc[low].agl_height:
-            low = index
-        if sites.iloc[index].relay_g01_margin_db > sites.iloc[margin].relay_g01_margin_db:
-            margin = index
-        if sites.iloc[index].horizontal_distance_to_O01_m < sites.iloc[near].horizontal_distance_to_O01_m:
-            near = index
-        groups[key] = [low, margin, near]
-    keep = sorted({index for values in groups.values() for index in values})
+        group_mask = np.asarray(members, dtype=int)
+        group_distance = distance[group_mask]
+        group_height = height[group_mask]
+        group_margin = margin[group_mask]
+        nondominated = np.ones(len(group_mask), dtype=bool)
+        for i in range(len(group_mask)):
+            if not nondominated[i]:
+                continue
+            dominated = (
+                (group_distance <= group_distance[i])
+                & (group_height <= group_height[i])
+                & (group_margin >= group_margin[i])
+                & (
+                    (group_distance < group_distance[i])
+                    | (group_height < group_height[i])
+                    | (group_margin > group_margin[i])
+                )
+            )
+            if dominated.any():
+                nondominated[i] = False
+        keep.extend(group_mask[nondominated].tolist())
+    keep = sorted(set(map(int, keep)))
     return sites.iloc[keep].reset_index(drop=True), packed[keep], len(groups)
 
 
@@ -242,7 +265,59 @@ def _ranges(mask):
     return ";".join(ranges)
 
 
+def _pareto_filter_sites(indices, sites):
+    u"""在给定站点子集中做 Pareto 非支配筛选: min d, min h, max margin."""
+    if len(indices) <= 1:
+        return np.asarray(indices, dtype=int)
+    idx = np.asarray(indices, dtype=int)
+    distance = sites.horizontal_distance_to_O01_m.to_numpy()[idx]
+    height = sites.agl_height.to_numpy()[idx]
+    margin = sites.relay_g01_margin_db.to_numpy()[idx]
+    nondominated = np.ones(len(idx), dtype=bool)
+    for i in range(len(idx)):
+        if not nondominated[i]:
+            continue
+        dominated = (
+            (distance <= distance[i])
+            & (height <= height[i])
+            & (margin >= margin[i])
+            & (
+                (distance < distance[i])
+                | (height < height[i])
+                | (margin > margin[i])
+            )
+        )
+        if dominated.any():
+            nondominated[i] = False
+    return idx[nondominated]
+
+
+def _select_style_representatives(eligible, sites, max_per_style=5):
+    u"""从合格站点中按多种风格代表选择（不重复）。"""
+    result = []
+    styles = [
+        (sites.relay_g01_margin_db.to_numpy(), False),
+        (sites.agl_height.to_numpy(), True),
+        (sites.horizontal_distance_to_O01_m.to_numpy(), True),
+    ]
+    for values, ascending in styles:
+        order = eligible[np.argsort(values[eligible], kind="stable")]
+        if not ascending:
+            order = order[::-1]
+        for pick in order:
+            if pick not in result:
+                result.append(int(pick))
+            if sum(1 for x in result if x in eligible) >= max_per_style:
+                break
+    return list(dict.fromkeys(result))
+
+
 def _gap_alternatives(sequence, packed, sites, states, parameters, max_style=5):
+    u"""生成 gap 的 relay 备选站点列表。
+
+    完整覆盖路径: full-cover 站点 → Pareto 筛选 → 风格代表。
+    部分覆盖路径: Pareto + greedy set cover 确保并集完整。
+    """
     n_candidates, n_required = len(sites), len(sequence)
     counts = np.zeros(n_candidates, dtype=np.int16)
     current = np.zeros(n_candidates, dtype=np.int16)
@@ -254,48 +329,39 @@ def _gap_alternatives(sequence, packed, sites, states, parameters, max_style=5):
         counts += column
         current = np.where(column, current + 1, 0)
         longest = np.maximum(longest, current)
-    pool = set()
-    positive = np.flatnonzero(counts)
-    if not len(positive):
-        return []
-    top_n = min(250, len(positive))
-    top = positive[np.argpartition(counts[positive], -top_n)[-top_n:]]
-    pool.update(map(int, top))
-    for column in columns:
-        choices = np.flatnonzero(column)
-        if len(choices):
-            best = choices[np.argmin(
-                sites.horizontal_distance_to_O01_m.to_numpy()[choices]
-                + 5.0 * sites.agl_height.to_numpy()[choices]
-            )]
-            pool.add(int(best))
-    pool = np.asarray(sorted(pool), dtype=int)
-    matrix = np.column_stack([column[pool] for column in columns])
-    selected = []
-    uncovered = np.ones(n_required, dtype=bool)
-    while uncovered.any():
-        gains = matrix[:, uncovered].sum(axis=1)
-        gains[[np.where(pool == item)[0][0] for item in selected if item in pool]] = -1
-        local = int(np.argmax(gains))
-        if gains[local] <= 0:
-            raise RuntimeError("候选中继集合的并集无法覆盖 gap")
-        selected.append(int(pool[local]))
-        uncovered &= ~matrix[local]
 
-    full = pool[matrix.all(axis=1)]
-    styles = [
-        (counts, False), (longest, False),
-        (sites.relay_g01_margin_db.to_numpy(), False),
-        (sites.agl_height.to_numpy(), True),
-        (sites.horizontal_distance_to_O01_m.to_numpy(), True),
-    ]
-    eligible = full if len(full) else pool
-    for values, ascending in styles:
-        order = eligible[np.argsort(values[eligible], kind="stable")]
-        if not ascending:
-            order = order[::-1]
-        selected.extend(map(int, order[:max_style]))
-    selected = list(dict.fromkeys(selected))
+    full = np.flatnonzero(counts == n_required)
+    selected = []
+
+    if len(full):
+        eligible = _pareto_filter_sites(full, sites)
+        selected = _select_style_representatives(eligible, sites, max_per_style=max_style)
+    else:
+        positive = np.flatnonzero(counts)
+        if not len(positive):
+            return []
+        eligible = _pareto_filter_sites(positive, sites)
+        pool = np.asarray(sorted(set(eligible.tolist())), dtype=int)
+        if not len(pool):
+            pool = positive
+        matrix = np.column_stack([column[pool] for column in columns])
+        uncovered = np.ones(n_required, dtype=bool)
+        while uncovered.any():
+            gains = matrix[:, uncovered].sum(axis=1)
+            gains[[np.where(pool == item)[0][0] for item in selected if item in pool]] = -1
+            local = int(np.argmax(gains))
+            if gains[local] <= 0:
+                raise RuntimeError("候选中继集合的并集无法覆盖 gap")
+            selected.append(int(pool[local]))
+            uncovered &= ~matrix[local]
+
+        style_picks = _select_style_representatives(
+            np.asarray(selected, dtype=int), sites, max_per_style=max_style,
+        )
+        for pick in style_picks:
+            if pick not in selected:
+                selected.append(pick)
+
     result = []
     for candidate in selected:
         mask = np.asarray([column[candidate] for column in columns], dtype=bool)
@@ -358,13 +424,61 @@ def run_step6():
     parameters = load_relay_link_parameters()
     terrain = DemTerrain()
     try:
-        sites, site_stats = generate_backhaul_sites(states, terrain, parameters)
-        print(
-            f"回传筛选: {site_stats['raw_height_candidates']} → "
-            f"{site_stats['backhaul_available_candidates']} 全部保留",
-            flush=True,
-        )
-        packed, access_stats = _actual_coverage(states, sites, parameters, terrain)
+        # ═══════════════════════════════════════════════════════════
+        # 物理覆盖缓存检查
+        # ═══════════════════════════════════════════════════════════
+        sources = {
+            "q3_outage_states.csv": OUTAGE_PATH,
+            "q3_task_comm_gaps.csv": GAPS_PATH,
+            "q3_task_gap_states.csv": GAP_STATES_PATH,
+            "DEM": DEM_PATH,
+            "通信链路参数.xlsx": PARAMETER_PATH,
+            "中继无人机数据.xlsx": RELAY_UAV_PATH,
+        }
+        current_hashes = {name: _sha256(path) for name, path in sources.items()}
+
+        cache_valid = False
+        if PHYSICAL_CACHE_NPZ.exists() and PHYSICAL_MANIFEST.exists():
+            cached_manifest = json.loads(PHYSICAL_MANIFEST.read_text(encoding="utf-8"))
+            cache_valid = cached_manifest.get("input_sha256", {}) == current_hashes
+
+        if cache_valid:
+            print("发现有效物理覆盖缓存，跳过 DEM LOS 计算", flush=True)
+            archive = dict(np.load(PHYSICAL_CACHE_NPZ, allow_pickle=False))
+            packed = archive["packed"]
+            all_sites = pd.read_csv(PHYSICAL_SITES_PATH, encoding="utf-8-sig")
+            site_stats = cached_manifest.get("site_stats", {})
+            access_stats = cached_manifest.get("access_stats", {})
+            print(
+                f"加载: {len(all_sites)} relay sites, {len(states)} states",
+                flush=True,
+            )
+        else:
+            all_sites, site_stats = generate_backhaul_sites(states, terrain, parameters)
+            print(
+                f"回传筛选: {site_stats['raw_height_candidates']} -> "
+                f"{site_stats['backhaul_available_candidates']} 全部保留",
+                flush=True,
+            )
+            packed, access_stats = _actual_coverage(states, all_sites, parameters, terrain)
+
+            CACHE_DIR.mkdir(parents=True, exist_ok=True)
+            np.savez_compressed(PHYSICAL_CACHE_NPZ, packed=packed)
+            cache_manifest = {
+                "input_sha256": current_hashes,
+                "site_stats": site_stats,
+                "access_stats": access_stats,
+            }
+            PHYSICAL_MANIFEST.write_text(
+                json.dumps(cache_manifest, ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            all_sites[["candidate_id", "dem_row", "dem_col", "lon", "lat",
+                        "ground_height", "agl_height", "absolute_height",
+                        "relay_g01_margin_db", "horizontal_distance_to_O01_m"]] \
+                .to_csv(PHYSICAL_SITES_PATH, index=False, encoding="utf-8-sig")
+            print("物理覆盖缓存已保存", flush=True)
+
         missing = _uncovered_states(packed, len(states))
         if missing:
             details = states.iloc[missing][["state_id", "x", "y", "z"]]
@@ -373,9 +487,19 @@ def run_step6():
                 f"粗网格及实际 LOS 补充后仍有 {len(missing)} 个状态无中继覆盖，"
                 "已输出局部细化清单"
             )
-        sites, packed, signature_count = _signature_representatives(sites, packed)
-        print(f"覆盖签名压缩后站点: {len(sites)} ({signature_count} 种签名)", flush=True)
 
+        # ═══════════════════════════════════════════════════════════
+        # 覆盖签名 Pareto 压缩
+        # ═══════════════════════════════════════════════════════════
+        sites, packed, signature_count = _pareto_signature_representatives(all_sites, packed)
+        print(
+            f"覆盖签名 Pareto 压缩后站点: {len(sites)} ({signature_count} 种签名)",
+            flush=True,
+        )
+
+        # ═══════════════════════════════════════════════════════════
+        # gap alternatives
+        # ═══════════════════════════════════════════════════════════
         signature_to_gaps = defaultdict(list)
         for gap_id, sequence in sequences.items():
             signature_to_gaps[sequence].append(gap_id)
@@ -390,8 +514,16 @@ def run_step6():
         option_rows, summary_rows, used_candidates = [], [], set()
         gap_lookup = gaps.set_index("gap_id")
         n_states = len(states)
+        gaps_single_full = 0
+        gaps_needs_switching = 0
         for sequence, gap_ids in signature_to_gaps.items():
             alternatives = options_by_signature[sequence]
+            has_single_full = any(a["full_cover"] for a in alternatives)
+            for gap_id in gap_ids:
+                if has_single_full:
+                    gaps_single_full += 1
+                else:
+                    gaps_needs_switching += 1
             union = np.zeros(len(sequence), dtype=bool)
             for alternative in alternatives:
                 candidate = alternative["candidate_index"]
@@ -480,6 +612,34 @@ def run_step6():
     _write_csv(pair_frame, STATE_COVERAGE_PATH)
     _write_csv(options, GAP_OPTIONS_PATH)
     _write_csv(summaries, GAP_SUMMARY_PATH)
+
+    # ═══════════════════════════════════════════════════════════
+    # 最终断言
+    # ═══════════════════════════════════════════════════════════
+    assert len(states) == 13199, f"expected 13199 states, got {len(states)}"
+    assert summaries["union_cover_pass"].eq(1).all(), "存在 union 覆盖失败的 gap"
+    assert set(states["state_id"]).issubset(
+        set(pair_frame["state_id"])
+    ), "state_relay_coverage 未包含所有必需状态"
+    assert set(options["candidate_id"]).issubset(
+        set(final_sites["candidate_id"])
+    ), "gap alternatives 引用了未出现在 final_sites 中的候选站点"
+    assert (pair_frame["two_hop_margin_db"] >= -1e-8).all(), "存在负两跳余量"
+
+    # ═══════════════════════════════════════════════════════════
+    # 输出汇总
+    # ═══════════════════════════════════════════════════════════
+    print(f"\nrequired states: {len(states)}")
+    print(f"covered states: {pair_frame['state_id'].nunique()}")
+    print(f"gaps: {len(summaries)}")
+    print(f"gaps union PASS: {summaries['union_cover_pass'].sum()}/{len(summaries)}")
+    print(f"gaps with single-site full cover: {gaps_single_full}")
+    print(f"gaps requiring relay-site switching: {gaps_needs_switching}")
+    print(f"physical relay sites (all heights): {len(all_sites)}")
+    print(f"optimization relay sites (Pareto compressed): {len(final_sites)}")
+    print(f"physical B_sp pairs: {len(pair_frame)}")
+    print(f"optimization gap alternatives: {len(options)}")
+
     inputs = [
         OUTAGE_PATH, GAPS_PATH, GAP_STATES_PATH, STEP5_MANIFEST,
         DEM_PATH, PARAMETER_PATH, RELAY_UAV_PATH,
@@ -498,14 +658,21 @@ def run_step6():
             "pair is checked with actual DEM LOS"
         ),
         "gap_policy": "before + outage samples + after; alternatives retain contiguous sample ranges",
+        "output_roles": {
+            "q3_state_relay_coverage.csv": "physical feasibility library",
+            "q3_gap_relay_options.csv": "reduced optimization candidate library",
+        },
         "outage_states": len(outage), "boundary_states": len(boundary),
         "required_states": len(states), "unique_gap_signatures": len(signature_to_gaps),
         "site_generation": site_stats,
         "access_coverage": access_stats,
         "coverage_signatures": signature_count,
+        "physical_relay_sites": len(all_sites),
         "final_relay_sites": len(final_sites),
         "state_relay_pairs": len(pair_frame),
         "gap_options": len(options), "gaps": len(summaries),
+        "gaps_single_site_full_cover": gaps_single_full,
+        "gaps_require_relay_switching": gaps_needs_switching,
         "uncovered_required_states": 0,
         "gaps_failing_union_coverage": int((summaries.union_cover_pass != 1).sum()),
         "input_sha256": {path.name: _sha256(path) for path in inputs},
@@ -515,7 +682,7 @@ def run_step6():
         json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
     print(
-        f"Step6 完成: {len(states)} 状态、{len(final_sites)} 站点、"
+        f"\nStep6 完成: {len(states)} 状态、{len(final_sites)} 站点、"
         f"{len(pair_frame)} 稀疏覆盖对、{len(options)} gap alternatives",
         flush=True,
     )
