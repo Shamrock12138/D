@@ -72,7 +72,7 @@ def main():
                 json.dumps({"inputs": input_hashes}, ensure_ascii=False, indent=2),
                 encoding="utf-8",
             )
-        from src.q2.joint_scheduler import run_joint
+        from src.q2.cp_sat_scheduler import run_joint
         run_joint()
     else:
         failing = [(name, detail) for name, ok, detail in result["checks"] if not ok]
