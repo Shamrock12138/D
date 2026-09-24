@@ -5,9 +5,4 @@ __pycache__/
 code/data/cache/
 
 # Q3 Step6 大数据输出（超过 GitHub 100MB 限制）
-code/data/q3_state_relay_coverage.csv
-code/data/q3_gap_relay_options.csv
-code/data/q3_gap_relay_summary.csv
-code/data/q3_relay_sites.csv
-code/data/q3_boundary_states.csv
-code/data/q3_step6_manifest.json
+*/q3_state_relay_coverage.csv
