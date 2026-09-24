@@ -20,3 +20,4 @@ seed_N,PASS
 seed_E,PASS
 seed_T,PASS
 dim_counts,"{'E': 1519, 'T': 1519, 'S': 1512, 'C_outage_time': 1519, 'C_outage_ratio': 1519, 'C_gap_count': 1519}"
+n_delivery_hard_deadlines,7589

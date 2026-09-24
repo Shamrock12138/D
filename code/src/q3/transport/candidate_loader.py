@@ -70,7 +70,7 @@ def _parse_visit_order(raw: str) -> List[str]:
     return [node.strip() for node in str(raw).split(">") if node.strip()]
 
 
-def _build_box_deadlines(
+def load_box_deadlines(
     cargo_path: Optional[Path] = None,
 ) -> Dict[str, float]:
     u"""从物资需求.csv 重建逐箱硬时限。
@@ -80,6 +80,9 @@ def _build_box_deadlines(
       - 首批保障箱: 前 first_batch 个箱必须满足 first_deadline
       - 若一箱同时满足两类, 取 min(两者)
       - 其他箱: 无硬时限 (+∞)
+
+    此函数为 candidate_loader / candidate_filter / joint_scheduler
+    等所有需要硬时限的模块提供统一口径，避免多处分歧。
 
     Returns:
         box_deadlines: {box_id → deadline_s 或 inf}
@@ -136,7 +139,7 @@ def load_candidate_tasks(
     tasks_src = Path(tasks_path) if tasks_path else DATA / "Q2_candidate_tasks.csv"
     deliveries_src = Path(deliveries_path) if deliveries_path else DATA / "Q2_candidate_deliveries.csv"
 
-    box_deadlines = _build_box_deadlines(cargo_path)
+    box_deadlines = load_box_deadlines(cargo_path)
 
     deliveries_by_task: Dict[str, List[dict]] = defaultdict(list)
     with deliveries_src.open("r", encoding="utf-8-sig", newline="") as stream:

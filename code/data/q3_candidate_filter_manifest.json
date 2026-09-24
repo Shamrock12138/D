@@ -12,6 +12,7 @@
     "gap_count (min)"
   ],
   "seeds": "Q2 N-opt + E-opt + T-opt 全部架次",
+  "delivery_hard_deadlines": "7589 / ? 条 (从 load_box_deadlines 统一重建)",
   "box_coverage": "PASS",
   "uav_distribution": {
     "A": 1100,

@@ -6,6 +6,7 @@ CP-SAT 可求解的规模（~2,000–5,000），同时保持：
   - 机型多样性
   - Q2 N/E/T-opt 种子任务全部保留
   - 通信维度候选不被 energy-only 筛选误删
+  - 输出 deliveries 中的 deadline_s 使用统一口径重建
 
 筛选策略: 按 (货箱, 机型) 分组，每个维度取 Top-K 取并集。
 """
@@ -20,6 +21,8 @@ from typing import Dict, List, Optional, Set, Tuple
 
 import numpy as np
 import pandas as pd
+
+from .candidate_loader import load_box_deadlines
 
 PROJECT = Path(__file__).resolve().parents[3]
 DATA = PROJECT / "data"
@@ -130,6 +133,43 @@ def filter_candidates(
     tasks = pd.read_csv(tasks_path, encoding="utf-8-sig")
     deliveries = pd.read_csv(deliveries_path, encoding="utf-8-sig")
 
+    # 输入一致性 fail-fast
+    comm_ids = set(comm["task_id"].astype(str).str.strip())
+    task_ids = set(tasks["task_id"].astype(str).str.strip())
+    deliv_ids = set(deliveries["task_id"].astype(str).str.strip())
+    assert comm_ids == task_ids, (
+        f"Task ID 不一致: comm={len(comm_ids)}, tasks={len(task_ids)}, "
+        f"comm独有={len(comm_ids - task_ids)}, tasks独有={len(task_ids - comm_ids)}"
+    )
+    assert deliv_ids == task_ids, (
+        f"Deliveries ID 不一致: deliv={len(deliv_ids)}, tasks={len(task_ids)}, "
+        f"deliv独有={len(deliv_ids - task_ids)}, tasks独有={len(task_ids - deliv_ids)}"
+    )
+    print("输入一致性检查: PASS", flush=True)
+
+    # 关键字段一致性
+    comm_key = comm.set_index(comm["task_id"].astype(str).str.strip())[
+        ["uav_type", "n_stops", "duration_s", "energy_kWh"]
+    ]
+    task_key = tasks.set_index(tasks["task_id"].astype(str).str.strip())[
+        ["uav_type", "n_stops", "duration_s", "energy_kWh"]
+    ]
+    overlap_idx = comm_key.index.intersection(task_key.index)
+    mismatches = []
+    for col in ["uav_type", "n_stops"]:
+        diff = (comm_key.loc[overlap_idx, col].astype(str)
+                != task_key.loc[overlap_idx, col].astype(str)).sum()
+        if diff > 0:
+            mismatches.append(f"{col}: {diff}")
+    for col in ["duration_s", "energy_kWh"]:
+        diff = (np.abs(comm_key.loc[overlap_idx, col].astype(float)
+                       - task_key.loc[overlap_idx, col].astype(float)) > 1e-3).sum()
+        if diff > 0:
+            mismatches.append(f"{col}: {diff}")
+    if mismatches:
+        raise AssertionError(f"Step3/Step2 字段不一致: {mismatches}")
+    print("关键字段一致性: PASS", flush=True)
+
     n_original = len(comm)
     print(f"输入候选任务: {n_original}", flush=True)
 
@@ -174,8 +214,8 @@ def filter_candidates(
     seeds = _load_q2_seeds()
     print(f"Q2 种子任务(N+E+T): {len(seeds)} 个", flush=True)
 
-    comm_ids = comm["task_id"].astype(str).str.strip().values
-    id_to_idx = {tid: i for i, tid in enumerate(comm_ids)}
+    comm_ids_arr = comm["task_id"].astype(str).str.strip().values
+    id_to_idx = {tid: i for i, tid in enumerate(comm_ids_arr)}
     n_seed_added = 0
     for tid in seeds:
         idx = id_to_idx.get(tid)
@@ -188,16 +228,53 @@ def filter_candidates(
     print(f"筛选后候选总数: {n_selected}", flush=True)
 
     # 构建输出
-    selected_tids = set(comm_ids[selected_mask])
+    selected_tids = set(comm_ids_arr[selected_mask])
 
-    filtered_comm = comm.iloc[selected_mask].reset_index(drop=True)
-    filtered_comm["task_id"] = filtered_comm["task_id"].astype(str).str.strip()
+    # --- 输出 tasks：完整 merge Q2 task 原字段 + Step3 通信字段 ---
+    comm_sub = comm.iloc[selected_mask].copy()
+    comm_sub["task_id"] = comm_sub["task_id"].astype(str).str.strip()
+
+    tasks["task_id"] = tasks["task_id"].astype(str).str.strip()
+    tasks_sub = tasks[tasks["task_id"].isin(selected_tids)].copy()
+
+    # 从 tasks 中去掉 Step3 也有的列（避免重复）
+    dup_cols = [c for c in comm_sub.columns
+                if c in tasks_sub.columns and c != "task_id"]
+    tasks_dedup = tasks_sub.drop(columns=dup_cols, errors="ignore")
+
+    # merge: Q2 字段 + 通信摘要在右侧
+    filtered_tasks = tasks_dedup.merge(
+        comm_sub,
+        on="task_id",
+        how="left",
+        validate="one_to_one",
+    ).reset_index(drop=True)
+
+    # 列顺序：task_id 先，Q2 列，再通信列
+    comm_cols = [c for c in comm_sub.columns if c != "task_id"]
+    q2_cols = [c for c in tasks_dedup.columns if c != "task_id"]
+    ordered_cols = ["task_id"] + q2_cols + comm_cols
+    filtered_tasks = filtered_tasks[ordered_cols]
+
+    # --- 输出 deliveries：重建 hard_deadline_s ---
+    box_deadlines = load_box_deadlines()
 
     filtered_deliveries = deliveries[
         deliveries["task_id"].astype(str).str.strip().isin(selected_tids)
     ].copy()
     filtered_deliveries["task_id"] = filtered_deliveries["task_id"].astype(str).str.strip()
+
+    filtered_deliveries["deadline_s"] = (
+        filtered_deliveries["box_id"]
+        .astype(str).str.strip()
+        .map(lambda bid: box_deadlines.get(bid, float("inf")))
+    )
     filtered_deliveries = filtered_deliveries.reset_index(drop=True)
+
+    n_hard = int((filtered_deliveries["deadline_s"].apply(math.isfinite)).sum())
+    print(f"交付记录: {len(filtered_deliveries)} 条, "
+          f"{n_hard} 条含硬时限 ({n_hard / len(filtered_deliveries) * 100:.1f}%)",
+          flush=True)
 
     # --- 统计 ---
     # 货箱覆盖
@@ -211,15 +288,15 @@ def filter_candidates(
     missing_boxes = all_boxes - covered_boxes
 
     # 机型分布
-    uav_counts = filtered_comm["uav_type"].value_counts().to_dict()
+    uav_counts = filtered_tasks["uav_type"].value_counts().to_dict()
 
     # 单点/双点
-    single_stop = int((filtered_comm["n_stops"] == 1).sum())
-    double_stop = int((filtered_comm["n_stops"] == 2).sum())
+    single_stop = int((filtered_tasks["n_stops"] == 1).sum())
+    double_stop = int((filtered_tasks["n_stops"] == 2).sum())
 
     # 直连/需中继
-    direct_ok = int((filtered_comm["needs_relay"] == 0).sum())
-    needs_relay = int((filtered_comm["needs_relay"] == 1).sum())
+    direct_ok = int((filtered_tasks["needs_relay"] == 0).sum())
+    needs_relay = int((filtered_tasks["needs_relay"] == 1).sum())
 
     # 种子覆盖
     seed_coverage: Dict[str, bool] = {}
@@ -273,6 +350,7 @@ def filter_candidates(
         "seed_E": "PASS" if seed_coverage.get("E", False) else "FAIL",
         "seed_T": "PASS" if seed_coverage.get("T", False) else "FAIL",
         "dim_counts": dict(dim_counts),
+        "n_delivery_hard_deadlines": n_hard,
     }
 
     print(f"\n{'─' * 40}", flush=True)
@@ -291,7 +369,7 @@ def filter_candidates(
     print(f"  Q2 E-opt seed: {stats['seed_E']}", flush=True)
     print(f"  Q2 T-opt seed: {stats['seed_T']}", flush=True)
 
-    return filtered_comm, filtered_deliveries, stats
+    return filtered_tasks, filtered_deliveries, stats
 
 
 def save_outputs(
@@ -313,7 +391,8 @@ def save_outputs(
         tmp.replace(path)
 
     _safe_write_csv(tasks_df, tasks_out, encoding="utf-8-sig")
-    print(f"\n输出: {tasks_out.name} ({len(tasks_df)} 行)", flush=True)
+    print(f"\n输出: {tasks_out.name} ({len(tasks_df)} 行, {len(tasks_df.columns)} 列)",
+          flush=True)
 
     _safe_write_csv(deliveries_df, deliveries_out, encoding="utf-8-sig")
     print(f"输出: {deliveries_out.name} ({len(deliveries_df)} 行)", flush=True)
@@ -340,6 +419,10 @@ def save_outputs(
             "gap_count (min)",
         ],
         "seeds": "Q2 N-opt + E-opt + T-opt 全部架次",
+        "delivery_hard_deadlines": (
+            f"{stats['n_delivery_hard_deadlines']} / "
+            f"{stats.get('n_delivery_total', '?')} 条 (从 load_box_deadlines 统一重建)"
+        ),
         "box_coverage": stats["box_coverage"],
         "uav_distribution": {
             "A": stats["uav_type_A"],

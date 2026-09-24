@@ -1,0 +1,19 @@
+{
+  "step": "Q3 Step5: 通信缺口模板化",
+  "n_templates": 4779,
+  "n_direct_tasks": 652,
+  "n_relay_tasks": 4127,
+  "n_total_gaps": 5043,
+  "n_unique_outage_states": 13157,
+  "n_gap_state_mappings": 307112,
+  "dt_s": 10.0,
+  "input_sha256": {
+    "q3_candidate_tasks.csv": "7a018d34b17f0f74ce27a277b9787a6c5bf580a74308673dac52a66af8cf5040",
+    "q3_candidate_deliveries.csv": "c3e776e0dc84bff51e548251101d60724a55b920a64898f9f2abaac7a38e8067"
+  },
+  "output_sha256": {
+    "q3_outage_states.csv": "f51b548b4bff820ae5e5d6950e12770837a841f39cfe50828735f77caa3b068b",
+    "q3_task_comm_gaps.csv": "73ad8da51cd31545d56fe32c489712b53fafe2b591d741c52d31c1f481266b5f",
+    "q3_task_gap_states.csv": "c50eb312529bf798c6fe7168b45f6b6e46c52de466f311cb6819920c73950210"
+  }
+}
