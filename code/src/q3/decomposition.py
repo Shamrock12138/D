@@ -18,6 +18,7 @@ from src.q3.cp_sat_scheduler import (
 MASTER_ENERGY_SCALE = 1_000
 MASTER_GAP_PENALTY = 2_000_000
 MASTER_SORTIE_PENALTY = 1_000_000
+MASTER_RELAY_OCCUPANCY_PENALTY_PER_S = 2_000
 
 
 def build_master(problem, min_transport_tasks=0):
@@ -40,9 +41,18 @@ def build_master(problem, min_transport_tasks=0):
     # A cheap preference for smaller transport sets and fewer relay jobs.
     # This is a search guide, not one of the final Q3 objectives.
     costs = []
+    min_relay_occupancy = problem["relay"].groupby("gap_id")[
+        "relay_uav_occupancy_s"
+    ].min().to_dict()
+    relay_burden = {
+        task_id: sum(float(min_relay_occupancy[gap_id]) for gap_id in gap_ids)
+        for task_id, gap_ids in problem["task_gaps"].items()
+    }
     for row in tasks.itertuples(index=False):
         gap_count = int(row.gap_count)
         cost = (MASTER_SORTIE_PENALTY + MASTER_GAP_PENALTY * gap_count
+                + round(relay_burden.get(str(row.task_id), 0.0)
+                        * MASTER_RELAY_OCCUPANCY_PENALTY_PER_S)
                 + round(float(row.energy_kWh) * MASTER_ENERGY_SCALE))
         costs.append(cost)
     model.Minimize(sum(costs[i] * selected[i] for i in range(len(tasks))))
@@ -129,6 +139,8 @@ def run_step8_decomposed(max_task_sets=30, master_time_s=30,
 
     for iteration in range(1, int(max_task_sets) + 1):
         master = solve_master(model, selected, task_ids, master_time_s, workers)
+        if master["status"] == "MODEL_INVALID":
+            raise RuntimeError("Q3 task-selection master is invalid")
         if master["status"] not in ("OPTIMAL", "FEASIBLE"):
             attempts.append({"iteration": iteration, "master": master})
             break
@@ -150,6 +162,8 @@ def run_step8_decomposed(max_task_sets=30, master_time_s=30,
                       "relay_options": len(small["relay"])}
             attempt["subproblems"].append(detail)
             print(f"  {tier}: {sub['status']} ({len(small['relay'])} relay options)", flush=True)
+            if sub["status"] == "MODEL_INVALID":
+                raise RuntimeError(f"Q3 joint subproblem is invalid for tier={tier}")
             if sub["status"] in ("OPTIMAL", "FEASIBLE"):
                 solution = sub
                 break
