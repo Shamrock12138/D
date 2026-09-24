@@ -230,6 +230,9 @@ def _build_model(tasks, task_boxes, task_offsets, deadlines, uav_ids,
             "flight_duration_s": flight_duration,
             "battery_duration_s": battery_duration,
             "charge_s": charge_s,
+            "flight_end_var": flight_end,
+            "battery_end_var": battery_end,
+            "active_end_var": active_end,
         })
 
     task_index = {str(row.task_id): i for i, row in tasks.iterrows()}
@@ -408,6 +411,9 @@ def _build_tchebycheff_model(full_problem, fixed_task_ids, free_box_ids):
             "flight_duration_s": flight_duration,
             "battery_duration_s": battery_duration,
             "charge_s": charge_s,
+            "flight_end_var": flight_end,
+            "battery_end_var": battery_end,
+            "active_end_var": active_end,
         })
 
     tid_index = {str(row.task_id): idx for idx, row in local_tasks.iterrows()}
@@ -475,8 +481,10 @@ def _add_tchebycheff_objective(model, n_sorties, energy_units, cmax,
     model.Add(max_d >= cT * dT)
 
     augment = cN * dN + cE * dE + cT * dT
-    BIG = int(round(SCALE * (1.0 + rho)))
-    model.Minimize(BIG * max_d + augment)
+    # max_d 与 augment 已使用同一 SCALE。100*M + A 等比例等价于
+    # M + 0.01*A，和论文中的 rho=0.01 完全一致。
+    augment_multiplier = int(round(1.0 / rho))
+    model.Minimize(augment_multiplier * max_d + augment)
 
 
 def solve_local_subproblem(
@@ -487,6 +495,8 @@ def solve_local_subproblem(
     ideal_point,
     objective_ranges,
     start_hints=None,
+    seed_task_ids=None,
+    seed_starts=None,
     time_limit_s=2.0,
     workers=2,
     random_seed=2026,
@@ -503,7 +513,9 @@ def solve_local_subproblem(
         weight: MOEA/D 权重 (λ_N, λ_E, λ_T)，和为 1
         ideal_point: 当前理想点 (z_N*, z_E*, z_T*)
         objective_ranges: 归一化尺度 (r_N, r_E, r_T)
-        start_hints: {task_id: start_time_s} 给 CP-SAT 的初始 hint
+        start_hints: 兼容旧调用的开始时刻 hint
+        seed_task_ids: 完整父代所选任务集合，用作 select incumbent hint
+        seed_starts: 完整父代开始时刻，用作 start incumbent hint
         time_limit_s: CP-SAT 求解时限
         workers: CP-SAT 并行 worker 数
         random_seed: 随机种子
@@ -522,20 +534,70 @@ def solve_local_subproblem(
         weight, ideal_point, objective_ranges,
     )
 
-    if start_hints:
-        tid_index = {str(row.task_id): idx for idx, row in local_tasks.iterrows()}
+    tid_index = {str(row.task_id): idx for idx, row in local_tasks.iterrows()}
+    seed_set = set(seed_task_ids or ())
+    merged_starts = dict(start_hints or {})
+    merged_starts.update(seed_starts or {})
+    if seed_set or merged_starts:
         model.ClearHints()
-        for tid, start_val in start_hints.items():
-            if tid in tid_index:
-                model.AddHint(starts[tid_index[tid]], int(start_val))
+        hinted_cmax = 0
+        for tid, idx in tid_index.items():
+            chosen_hint = int(tid in seed_set) if seed_set else int(
+                tid in set(fixed_task_ids)
+            )
+            start_hint = int(round(merged_starts.get(tid, 0)))
+            model.AddHint(select[idx], chosen_hint)
+            model.AddHint(starts[idx], start_hint)
+            if chosen_hint:
+                flight_end_hint = start_hint + metadata[idx]["flight_duration_s"]
+                battery_end_hint = start_hint + metadata[idx]["battery_duration_s"]
+                active_end_hint = flight_end_hint
+                hinted_cmax = max(hinted_cmax, flight_end_hint)
+            else:
+                flight_end_hint = metadata[idx]["flight_duration_s"]
+                battery_end_hint = metadata[idx]["battery_duration_s"]
+                active_end_hint = 0
+            model.AddHint(metadata[idx]["flight_end_var"], flight_end_hint)
+            model.AddHint(metadata[idx]["battery_end_var"], battery_end_hint)
+            model.AddHint(metadata[idx]["active_end_var"], active_end_hint)
+        model.AddHint(cmax, hinted_cmax)
 
     solver = cp_model.CpSolver()
     solver.parameters.max_time_in_seconds = float(time_limit_s)
     solver.parameters.num_search_workers = int(workers)
     solver.parameters.random_seed = int(random_seed)
+    solver.parameters.repair_hint = True
     status = solver.Solve(model)
 
     if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
+        if status == cp_model.UNKNOWN and seed_set and seed_starts:
+            try:
+                validate_moead_solution(problem, seed_set, seed_starts)
+            except (AssertionError, KeyError, ValueError):
+                pass
+            else:
+                task_lookup = local_tasks.set_index(
+                    local_tasks["task_id"].astype(str), drop=False
+                )
+                energy = sum(float(task_lookup.loc[tid, "energy_kWh"])
+                             for tid in seed_set)
+                seed_cmax = max(
+                    int(round(seed_starts[tid]))
+                    + math.ceil(float(task_lookup.loc[tid, "duration_s"]))
+                    for tid in seed_set
+                )
+                return {
+                    "task_ids": tuple(sorted(seed_set)),
+                    "starts": {tid: int(round(seed_starts[tid])) for tid in seed_set},
+                    "N": len(seed_set),
+                    "E": energy,
+                    "Cmax": seed_cmax,
+                    "status": f"SEED_FALLBACK_{solver.StatusName(status)}",
+                    "wall_time_s": solver.WallTime(),
+                    "n_fixed": n_fixed,
+                    "n_free_candidates": n_free_candidates,
+                    "used_seed_fallback": True,
+                }
         return {
             "task_ids": None,
             "starts": None,
@@ -546,6 +608,7 @@ def solve_local_subproblem(
             "wall_time_s": solver.WallTime(),
             "n_fixed": n_fixed,
             "n_free_candidates": n_free_candidates,
+            "used_seed_fallback": False,
         }
 
     selected_tids = []
@@ -572,6 +635,126 @@ def solve_local_subproblem(
         "wall_time_s": solver.WallTime(),
         "n_fixed": n_fixed,
         "n_free_candidates": n_free_candidates,
+        "used_seed_fallback": False,
+    }
+
+
+def solve_fixed_schedule(
+    problem,
+    task_ids,
+    start_hints=None,
+    time_limit_s=10.0,
+    workers=2,
+    random_seed=2026,
+):
+    u"""固定任务集合，仅优化秒级开始时刻与 Cmax。
+
+    模型只包含当前任务，不把完整候选池重新放入 polishing 子问题。
+    """
+    task_set = set(task_ids)
+    (model, select, starts, cmax, n_sorties, energy_units, metadata,
+     n_fixed, n_free_candidates, local_tasks) = _build_tchebycheff_model(
+        problem, task_set, set()
+    )
+    model.Minimize(cmax)
+    tid_index = {str(row.task_id): idx for idx, row in local_tasks.iterrows()}
+    if start_hints:
+        model.ClearHints()
+        hinted_cmax = 0
+        for tid, idx in tid_index.items():
+            start_hint = int(round(start_hints.get(tid, 0)))
+            model.AddHint(select[idx], 1)
+            model.AddHint(starts[idx], start_hint)
+            flight_end_hint = start_hint + metadata[idx]["flight_duration_s"]
+            battery_end_hint = start_hint + metadata[idx]["battery_duration_s"]
+            model.AddHint(metadata[idx]["flight_end_var"], flight_end_hint)
+            model.AddHint(metadata[idx]["battery_end_var"], battery_end_hint)
+            model.AddHint(metadata[idx]["active_end_var"], flight_end_hint)
+            hinted_cmax = max(hinted_cmax, flight_end_hint)
+        model.AddHint(cmax, hinted_cmax)
+
+    solver = cp_model.CpSolver()
+    solver.parameters.max_time_in_seconds = float(time_limit_s)
+    solver.parameters.num_search_workers = max(1, int(workers))
+    solver.parameters.random_seed = int(random_seed)
+    solver.parameters.repair_hint = True
+    status = solver.Solve(model)
+    if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
+        return {
+            "task_ids": None, "starts": None, "N": None, "E": None,
+            "Cmax": None, "status": solver.StatusName(status),
+            "wall_time_s": solver.WallTime(), "n_fixed": n_fixed,
+            "n_free_candidates": n_free_candidates,
+        }
+
+    selected_starts = {
+        metadata[i]["task_id"]: int(solver.Value(starts[i]))
+        for i in range(len(metadata))
+    }
+    total_energy = float(local_tasks["energy_kWh"].sum())
+    return {
+        "task_ids": tuple(sorted(task_set)),
+        "starts": selected_starts,
+        "N": len(task_set),
+        "E": total_energy,
+        "Cmax": int(solver.Value(cmax)),
+        "status": solver.StatusName(status),
+        "wall_time_s": solver.WallTime(),
+        "n_fixed": n_fixed,
+        "n_free_candidates": n_free_candidates,
+    }
+
+
+def validate_moead_solution(problem, task_ids, starts):
+    u"""独立解码并复核 MOEA/D 解的覆盖、资源与硬时限。"""
+    task_set = set(task_ids)
+    selected_tasks = problem["tasks"][
+        problem["tasks"]["task_id"].astype(str).isin(task_set)
+    ].copy().reset_index(drop=True)
+    if len(selected_tasks) != len(task_set):
+        missing = sorted(task_set - set(selected_tasks["task_id"].astype(str)))
+        raise AssertionError(f"MOEA/D 解引用未知任务: {missing}")
+
+    records = []
+    for row in selected_tasks.itertuples(index=False):
+        tid = str(row.task_id)
+        typ = str(row.uav_type)
+        if tid not in starts:
+            raise AssertionError(f"MOEA/D 解缺少任务 {tid} 的开始时刻")
+        flight_duration = max(1, math.ceil(float(row.duration_s)))
+        soc = soc_after_task(float(row.energy_kWh), problem["energy_capacity"][typ])
+        charge_s = charge_time_to_full(soc, problem["charge_full"][typ])
+        records.append({
+            "task_id": tid,
+            "uav_type": typ,
+            "start_time_s": int(round(starts[tid])),
+            "flight_duration_s": flight_duration,
+            "battery_duration_s": max(
+                flight_duration, math.ceil(float(row.duration_s) + charge_s)
+            ),
+            "charge_s": charge_s,
+        })
+
+    schedule = _decode_resources(
+        selected_tasks, records, problem["uav_ids"], problem["battery_ids"]
+    )
+    delivery_check = _check_delivery(
+        schedule, problem["deliveries"], problem["boxes"], problem["deadlines"]
+    )
+    hard_violations = int(delivery_check["hard_violation"].sum())
+    if hard_violations:
+        raise AssertionError(f"MOEA/D 解存在 {hard_violations} 个硬时限违反")
+    return {
+        "selected_tasks": selected_tasks,
+        "schedule": schedule,
+        "delivery_check": delivery_check,
+        "validation": {
+            "unique_box_coverage": True,
+            "uav_resources": True,
+            "battery_resources": True,
+            "hard_deadlines": True,
+            "hard_violations": 0,
+        },
     }
 
 

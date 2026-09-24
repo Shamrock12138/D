@@ -6,31 +6,56 @@ u"""Q2 MOEA/D + CP-SAT 集成：运输方案多目标优化。
   - 将 MOEA/D 子问题映射到 solve_local_subproblem
   - 缓存、精修与结果输出
 
-锚点:
-  - N-opt: (20, 64.212, 9562)
-  - E-opt: (21, 62.238, 9177)
-  - T-opt: (24, 67.370, 7721)
+锚点由当前 Q2 joint 结果动态加载，并通过输入 SHA-256 防止候选池与 anchor 错配。
 """
 
 import hashlib
 import json
 import sys
-from collections import defaultdict
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Set, Tuple
 
 import numpy as np
 import pandas as pd
 
-from src.q2.cp_sat_scheduler import solve_local_subproblem, prepare_q2_problem
+from src.q2.cp_sat_scheduler import (
+    prepare_q2_problem,
+    solve_fixed_schedule,
+    solve_local_subproblem,
+    validate_moead_solution,
+)
 from src.q2.moead import (
-    build_neighbors, dominates, generate_weights, tchebycheff, update_archive,
+    build_neighbors, generate_weights, tchebycheff, update_archive,
 )
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 PROJECT = Path(__file__).resolve().parent.parent.parent
 DATA = PROJECT / "data"
+ARCHIVE_TOLERANCE = (0.0, 1e-5, 1.0)
+
+
+def _sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def anchors_are_current() -> bool:
+    u"""检查 joint anchor 是否与当前候选池一致且三套文件齐全。"""
+    manifest_path = DATA / "Q2_joint_manifest.json"
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        stored = manifest["input_sha256"]
+    except (OSError, KeyError, TypeError, ValueError):
+        return False
+    for name in ("Q2_candidate_tasks.csv", "Q2_candidate_deliveries.csv"):
+        path = DATA / name
+        if not path.exists() or stored.get(name) != _sha256(path):
+            return False
+    return all(
+        (DATA / f"Q2_joint_selected_{obj}.csv").exists()
+        and (DATA / f"Q2_joint_schedule_{obj}.csv").exists()
+        for obj in ("N", "E", "T")
+    )
 
 
 def _load_anchor(problem: Dict, objective: str) -> Dict:
@@ -55,6 +80,10 @@ def _load_anchor(problem: Dict, objective: str) -> Dict:
 
 def _load_anchors(problem: Dict) -> Dict[str, Dict]:
     u"""加载 N/E/T 三个 anchor 方案。"""
+    if not anchors_are_current():
+        raise RuntimeError(
+            "Q2 joint anchors 缺失或已过期；请先运行 CP-SAT N/E/T 基准"
+        )
     anchors = {}
     for obj in ("N", "E", "T"):
         try:
@@ -65,9 +94,8 @@ def _load_anchors(problem: Dict) -> Dict[str, Dict]:
                 f"Cmax={anchors[obj]['objectives'][2]:.0f}",
                 flush=True,
             )
-        except FileNotFoundError:
-            print(f"  ⚠ {obj}-opt 未找到，跳过", flush=True)
-            pass
+        except FileNotFoundError as exc:
+            raise RuntimeError(f"缺少 {obj}-opt anchor 文件") from exc
     return anchors
 
 
@@ -87,16 +115,16 @@ def destroy_and_recombine(
     rng: np.random.Generator,
     min_destroy: int = 1,
     max_destroy: int = 3,
-) -> Tuple[Set[str], Set[str], Dict]:
+) -> Tuple[Set[str], Set[str], Set[str], Dict[str, float]]:
     u"""Consensus + Destroy + Recombine 算子。
 
     1. 求父代共同任务 S_common
     2. 释放差异区域涉及的货箱
     3. 随机从共同任务中额外 destroy 1~3 个
-    4. 返回 (fixed_task_ids, free_box_ids, start_hints)
+    4. 返回固定集、自由箱集，以及完整父代 select + start 热启动
 
     Returns:
-        (fixed, free_boxes, hints)
+        (fixed, free_boxes, seed_task_ids, seed_starts)
     """
     tasks_a = set(parent_a["task_ids"])
     tasks_b = set(parent_b["task_ids"])
@@ -107,7 +135,7 @@ def destroy_and_recombine(
 
     n_destroy = rng.integers(min_destroy, max_destroy + 1)
     extra_destroy: Set[str] = set()
-    common_list = list(common)
+    common_list = sorted(common)
     if common_list:
         destroy_count = min(n_destroy, len(common_list))
         extra_destroy = set(rng.choice(common_list, size=destroy_count, replace=False))
@@ -117,18 +145,42 @@ def destroy_and_recombine(
 
     fixed = common - extra_destroy
 
-    hints: Dict[str, float] = {}
-    for tid in fixed:
-        if tid in parent_a.get("starts", {}):
-            hints[tid] = parent_a["starts"][tid]
-        elif tid in parent_b.get("starts", {}):
-            hints[tid] = parent_b["starts"][tid]
-
-    return fixed, free_boxes, hints
+    seed_task_ids = set(parent_a["task_ids"])
+    seed_starts = dict(parent_a.get("starts", {}))
+    return fixed, free_boxes, seed_task_ids, seed_starts
 
 
-def _cache_key(task_ids: Tuple[str, ...]) -> str:
-    return hashlib.sha256(",".join(sorted(task_ids)).encode()).hexdigest()
+def _subproblem_cache_key(
+    fixed_task_ids,
+    free_box_ids,
+    weight,
+    ideal_point,
+    objective_ranges,
+) -> str:
+    u"""对真正的局部子问题输入建缓存键；热启动不改变数学子问题。"""
+    payload = {
+        "fixed": sorted(fixed_task_ids),
+        "free_boxes": sorted(free_box_ids),
+        "weight": [round(float(v), 10) for v in weight],
+        "ideal": [round(float(v), 6) for v in ideal_point],
+        "ranges": [round(float(v), 6) for v in objective_ranges],
+    }
+    raw = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def _update_q2_archive(archive: List[Dict], solution: Dict) -> bool:
+    return update_archive(
+        archive, solution, duplicate_tolerance=ARCHIVE_TOLERANCE
+    )
+
+
+def _has_duplicate_objective(archive: List[Dict], objectives) -> bool:
+    return any(
+        all(abs(float(a) - float(b)) <= tol
+            for a, b, tol in zip(sol["objectives"], objectives, ARCHIVE_TOLERANCE))
+        for sol in archive
+    )
 
 
 def run_q2_moead(
@@ -159,7 +211,6 @@ def run_q2_moead(
         (population, archive, stats)
     """
     rng = np.random.default_rng(random_seed)
-
     if verbose:
         print("=" * 60, flush=True)
         print("Q2 MOEA/D + CP-SAT 多目标运输优化", flush=True)
@@ -168,21 +219,21 @@ def run_q2_moead(
     problem = prepare_q2_problem(per_box_type_k=per_box_type_k)
     if verbose:
         print(f"候选池: {len(problem['tasks'])} tasks\n", flush=True)
-
     anchors = _load_anchors(problem)
 
     weights = generate_weights(3, H)
     M = len(weights)
     neighbors = build_neighbors(weights, T)
+    pure_anchor_index = {
+        weights.index((1.0, 0.0, 0.0)): "N",
+        weights.index((0.0, 1.0, 0.0)): "E",
+        weights.index((0.0, 0.0, 1.0)): "T",
+    }
 
-    zN = min(anchors[obj]["objectives"][0] for obj in anchors)
-    zE = min(anchors[obj]["objectives"][1] for obj in anchors)
-    zT = min(anchors[obj]["objectives"][2] for obj in anchors)
-    anchor_triple = {"N": (zN, anchors["N"]["objectives"][1], anchors["N"]["objectives"][2]),
-                     "E": (anchors["E"]["objectives"][0], zE, anchors["E"]["objectives"][2]),
-                     "T": (anchors["T"]["objectives"][0], anchors["T"]["objectives"][1], zT)}
+    zN = min(sol["objectives"][0] for sol in anchors.values())
+    zE = min(sol["objectives"][1] for sol in anchors.values())
+    zT = min(sol["objectives"][2] for sol in anchors.values())
     ideal_point = (zN, zE, zT)
-
     rN = max(4, anchors["T"]["objectives"][0] - zN)
     rE = max(5.0, anchors["T"]["objectives"][1] - zE)
     rT = max(1800, anchors["N"]["objectives"][2] - zT)
@@ -192,185 +243,230 @@ def run_q2_moead(
         print(f"\n理想点: N*={zN}, E*={zE:.4f}, T*={zT:.0f}", flush=True)
         print(f"尺度: rN={rN:.1f}, rE={rE:.2f}, rT={rT:.0f}\n", flush=True)
 
-    # 初始化：每个子问题从最近 anchor 出发并局部 destroy
-    population: List[Dict] = []
-    for i, lam in enumerate(weights):
-        dists = {
-            obj: max(abs(lam[0] - (1 if obj == "N" else 0)),
-                     abs(lam[1] - (1 if obj == "E" else 0)),
-                     abs(lam[2] - (1 if obj == "T" else 0)))
-            for obj in anchors
-        }
-        nearest = min(dists, key=dists.get)
-        anchor = anchors[nearest]
+    subproblem_cache: Dict[str, Dict] = {}
+    solver_calls = 0
+    solver_successes = 0
+    seed_fallbacks = 0
+    cache_hits = 0
 
-        if i < 3:
-            population.append(dict(anchor))
-            continue
-
-        fixed, free_boxes, hints = destroy_and_recombine(
-            problem, anchor, anchor, rng,
-            min_destroy=2, max_destroy=5,
+    def evaluate_neighborhood(fixed, free_boxes, weight, seed_ids, seed_starts):
+        nonlocal solver_calls, solver_successes, seed_fallbacks, cache_hits
+        key = _subproblem_cache_key(
+            fixed, free_boxes, weight, ideal_point, ranges
         )
-
+        if key in subproblem_cache:
+            cache_hits += 1
+            return dict(subproblem_cache[key]), True
+        solver_calls += 1
         result = solve_local_subproblem(
-            problem, fixed, free_boxes,
-            lam, ideal_point, ranges,
-            start_hints=hints,
+            problem, fixed, free_boxes, weight, ideal_point, ranges,
+            seed_task_ids=seed_ids,
+            seed_starts=seed_starts,
             time_limit_s=time_limit_s_local,
             workers=2,
+            random_seed=random_seed,
         )
+        if result["task_ids"] is not None and not result.get("used_seed_fallback", False):
+            solver_successes += 1
+        if result.get("used_seed_fallback", False):
+            seed_fallbacks += 1
+        subproblem_cache[key] = dict(result)
+        return result, False
 
-        if result["task_ids"] is not None:
+    # 初始化：三个纯权重位置显式放入 N/E/T anchor；其余从最近 anchor 局部修复。
+    population: List[Dict] = []
+    for i, lam in enumerate(weights):
+        if i in pure_anchor_index:
+            sol = dict(anchors[pure_anchor_index[i]])
+            sol["local_solver_status"] = "ANCHOR"
+            sol["origin_weight"] = lam
+            population.append(sol)
+            continue
+
+        anchor_name = min(
+            anchors,
+            key=lambda name: max(
+                abs(lam[0] - (1.0 if name == "N" else 0.0)),
+                abs(lam[1] - (1.0 if name == "E" else 0.0)),
+                abs(lam[2] - (1.0 if name == "T" else 0.0)),
+            ),
+        )
+        anchor = anchors[anchor_name]
+        fixed, free_boxes, seed_ids, seed_starts = destroy_and_recombine(
+            problem, anchor, anchor, rng, min_destroy=2, max_destroy=5
+        )
+        result, _ = evaluate_neighborhood(
+            fixed, free_boxes, lam, seed_ids, seed_starts
+        )
+        if result["task_ids"] is None:
+            sol = dict(anchor)
+            sol["local_solver_status"] = "ANCHOR_FALLBACK"
+        else:
             sol = {
                 "task_ids": result["task_ids"],
                 "starts": result["starts"],
-                "objectives": (float(result["N"]), float(result["E"]), float(result["Cmax"])),
-                "status": result["status"],
-                "weight": lam,
+                "objectives": (
+                    float(result["N"]), float(result["E"]), float(result["Cmax"])
+                ),
+                "local_solver_status": result["status"],
             }
-            population.append(sol)
-        else:
-            population.append(dict(anchor))
+        sol["origin_weight"] = lam
+        population.append(sol)
 
     archive: List[Dict] = []
+    duplicate_solution_hits = 0
     for sol in population:
-        update_archive(archive, sol)
+        if _has_duplicate_objective(archive, sol["objectives"]):
+            duplicate_solution_hits += 1
+        _update_q2_archive(archive, sol)
 
-    schedule_cache: Dict[str, Dict] = {}
-    total_evals = 0
-    cache_hits = 0
-
+    attempted_evals = 0
+    successful_evals = 0
+    failed_evals = 0
+    generation_log = []
     if verbose:
-        print(f"初始化完成: pop={M}, archive={len(archive)}", flush=True)
+        print(f"初始化完成: pop={M}, unique_archive={len(archive)}", flush=True)
 
     for gen in range(max_generations):
+        gen_successes = 0
+        gen_failures = 0
+        gen_cache_hits_before = cache_hits
         for i in range(M):
+            attempted_evals += 1
             p1_idx, p2_idx = rng.choice(neighbors[i], size=2, replace=False).tolist()
             parent_a = population[p1_idx]
             parent_b = population[p2_idx]
-
-            fixed, free_boxes, hints = destroy_and_recombine(
-                problem, parent_a, parent_b, rng,
+            fixed, free_boxes, seed_ids, seed_starts = destroy_and_recombine(
+                problem, parent_a, parent_b, rng
             )
-
-            result = solve_local_subproblem(
-                problem, fixed, free_boxes,
-                weights[i], ideal_point, ranges,
-                start_hints=hints,
-                time_limit_s=time_limit_s_local,
-                workers=2,
+            result, _ = evaluate_neighborhood(
+                fixed, free_boxes, weights[i], seed_ids, seed_starts
             )
-
             if result["task_ids"] is None:
+                failed_evals += 1
+                gen_failures += 1
                 continue
 
-            total_evals += 1
-
-            cache_key = _cache_key(result["task_ids"])
-            if cache_key in schedule_cache:
-                cache_hits += 1
-
+            successful_evals += 1
+            gen_successes += 1
             obj = (float(result["N"]), float(result["E"]), float(result["Cmax"]))
-            for j in range(3):
-                if obj[j] < ideal_point[j]:
-                    ideal_point = tuple(
-                        obj[k] if k == j else ideal_point[k] for k in range(3)
-                    )
-
+            ideal_point = tuple(min(ideal_point[j], obj[j]) for j in range(3))
             child = {
                 "task_ids": result["task_ids"],
                 "starts": result["starts"],
                 "objectives": obj,
-                "status": result["status"],
-                "weight": weights[i],
+                "local_solver_status": result["status"],
+                "origin_weight": weights[i],
             }
-
-            update_archive(archive, child)
-            schedule_cache[cache_key] = child
+            if _has_duplicate_objective(archive, obj):
+                duplicate_solution_hits += 1
+            _update_q2_archive(archive, child)
 
             replacements = 0
             for j in neighbors[i]:
                 if replacements >= nr:
                     break
-                g_child = tchebycheff(
-                    obj, weights[j], ideal_point, ranges,
-                )
-                g_existing = tchebycheff(
-                    population[j]["objectives"], weights[j],
-                    ideal_point, ranges,
-                )
-                if g_child <= g_existing:
-                    population[j] = child
+                if tchebycheff(obj, weights[j], ideal_point, ranges) <= tchebycheff(
+                    population[j]["objectives"], weights[j], ideal_point, ranges
+                ):
+                    population[j] = dict(child)
                     replacements += 1
 
+        summary = _archive_summary(archive)
+        generation_log.append({
+            "generation": gen + 1,
+            "archive_size": len(archive),
+            "successful_evals": gen_successes,
+            "failed_evals": gen_failures,
+            "cache_hits": cache_hits - gen_cache_hits_before,
+            **summary,
+        })
         if verbose and (gen + 1) % max(1, max_generations // 10) == 0:
-            obj_summary = _archive_summary(archive)
             print(
-                f"  gen {gen + 1}/{max_generations} | "
-                f"archive={len(archive)} | "
-                f"N∈[{obj_summary['min_N']},{obj_summary['max_N']}] "
-                f"E∈[{obj_summary['min_E']:.2f},{obj_summary['max_E']:.2f}] "
-                f"T∈[{obj_summary['min_T']:.0f},{obj_summary['max_T']:.0f}]",
+                f"  gen {gen + 1}/{max_generations} | unique_archive={len(archive)} | "
+                f"success={gen_successes}/{M} | cache={cache_hits - gen_cache_hits_before} | "
+                f"N∈[{summary['min_N']},{summary['max_N']}] "
+                f"E∈[{summary['min_E']:.2f},{summary['max_E']:.2f}] "
+                f"T∈[{summary['min_T']:.0f},{summary['max_T']:.0f}]",
                 flush=True,
             )
 
-    # 最终精修
+    # 两阶段精修：先固定任务集合精修时间，再释放小邻域重新组合任务。
     if verbose:
-        print(f"\n最终精修: {len(archive)} 个非支配解, 各 {polish_time_s}s", flush=True)
-
+        print(f"\n最终精修: {len(archive)} 个不同非支配点", flush=True)
     polished_archive: List[Dict] = []
-    for idx, sol in enumerate(archive):
-        task_set = set(sol["task_ids"])
-        all_boxes = _get_boxes_for_tasks(problem, task_set)
-
-        # 释放所有然后让 CP-SAT 重新组合
-        result = solve_local_subproblem(
-            problem,
-            task_set,  # 全部固定
-            all_boxes,
-            sol.get("weight", (0.34, 0.33, 0.33)),
-            ideal_point, ranges,
-            start_hints=sol.get("starts", {}),
-            time_limit_s=polish_time_s,
-            workers=4,
+    fixed_budget = max(1.0, min(10.0, float(polish_time_s) / 3.0))
+    lns_budget = max(1.0, float(polish_time_s) - fixed_budget)
+    for sol in list(archive):
+        weight = sol.get("origin_weight", (0.34, 0.33, 0.33))
+        solver_calls += 1
+        fixed_result = solve_fixed_schedule(
+            problem, sol["task_ids"], sol.get("starts", {}),
+            time_limit_s=fixed_budget, workers=4, random_seed=random_seed
         )
+        base = sol
+        if fixed_result["task_ids"] is not None:
+            solver_successes += 1
+            base = {
+                "task_ids": fixed_result["task_ids"],
+                "starts": fixed_result["starts"],
+                "objectives": (
+                    float(fixed_result["N"]), float(fixed_result["E"]),
+                    float(fixed_result["Cmax"]),
+                ),
+                "local_solver_status": f"FIXED_SCHEDULE_{fixed_result['status']}",
+                "origin_weight": weight,
+            }
+            _update_q2_archive(polished_archive, base)
 
+        fixed, free_boxes, seed_ids, seed_starts = destroy_and_recombine(
+            problem, base, base, rng, min_destroy=2, max_destroy=5
+        )
+        result = solve_local_subproblem(
+            problem, fixed, free_boxes, weight, ideal_point, ranges,
+            seed_task_ids=seed_ids, seed_starts=seed_starts,
+            time_limit_s=lns_budget, workers=4, random_seed=random_seed
+        )
+        solver_calls += 1
+        if result["task_ids"] is not None and not result.get("used_seed_fallback", False):
+            solver_successes += 1
+        if result.get("used_seed_fallback", False):
+            seed_fallbacks += 1
         if result["task_ids"] is not None:
             polished = {
                 "task_ids": result["task_ids"],
                 "starts": result["starts"],
-                "objectives": (float(result["N"]), float(result["E"]), float(result["Cmax"])),
-                "status": f"POLISHED_{result['status']}",
-                "weight": sol.get("weight"),
+                "objectives": (
+                    float(result["N"]), float(result["E"]), float(result["Cmax"])
+                ),
+                "local_solver_status": f"LNS_{result['status']}",
+                "origin_weight": weight,
             }
-            update_archive(polished_archive, polished)
+            _update_q2_archive(polished_archive, polished)
 
-    final_archive = archive.copy()
-    for sol in polished_archive:
-        update_archive(final_archive, sol)
-
-    # 去重：移除任务组合完全相同的解（保留状态更好的）
-    seen: Dict[Tuple[str, ...], Dict] = {}
-    for sol in final_archive:
-        key = sol["task_ids"]
-        if key not in seen or sol["status"].startswith("OPTIMAL"):
-            seen[key] = sol
-    deduped = list(seen.values())
-    update_deduped = []
-    for sol in deduped:
-        update_archive(update_deduped, sol)  # 重新计算支配
-    final_archive = update_deduped
+    final_archive: List[Dict] = []
+    for sol in archive + polished_archive:
+        _update_q2_archive(final_archive, sol)
+    final_archive.sort(key=lambda sol: tuple(sol["objectives"]))
 
     stats = {
-        "total_evals": total_evals,
+        "attempted_evals": attempted_evals,
+        "successful_evals": successful_evals,
+        "failed_evals": failed_evals,
+        "solver_calls": solver_calls,
+        "solver_successes": solver_successes,
+        "seed_fallbacks": seed_fallbacks,
         "cache_hits": cache_hits,
+        "duplicate_solution_hits": duplicate_solution_hits,
         "initial_archive_size": len(archive),
         "final_archive_size": len(final_archive),
         "ideal_point": ideal_point,
         "ranges": ranges,
+        "weights": weights,
+        "generation_log": generation_log,
+        "random_seed": random_seed,
+        "per_box_type_k": per_box_type_k,
     }
-
     return population, final_archive, stats
 
 
@@ -393,18 +489,32 @@ def save_moead_results(
     archive: List[Dict],
     stats: Dict,
 ) -> None:
-    u"""保存 MOEA/D 结果到文件。"""
-    # Pareto 档案
-    pareto_rows = []
+    u"""保存 MOEA/D 结果，并独立复核每个 Pareto 解。"""
+    problem = prepare_q2_problem(per_box_type_k=stats.get("per_box_type_k", 8))
+    validated = []
     for idx, sol in enumerate(archive):
+        sid = f"P{idx + 1:03d}"
+        checked = validate_moead_solution(
+            problem, sol["task_ids"], sol["starts"]
+        )
+        validated.append((sid, sol, checked))
+
+    pareto_rows = []
+    for sid, sol, checked in validated:
         obj = sol["objectives"]
+        validation = checked["validation"]
         pareto_rows.append({
-            "solution_id": f"P{idx + 1:03d}",
+            "solution_id": sid,
             "n_sorties": int(obj[0]),
             "energy_kWh": round(obj[1], 4),
             "Cmax_s": int(obj[2]),
             "Cmax_h": round(obj[2] / 3600, 2),
-            "status": sol.get("status", ""),
+            "local_solver_status": sol.get("local_solver_status", ""),
+            "unique_box_coverage": validation["unique_box_coverage"],
+            "uav_resources": validation["uav_resources"],
+            "battery_resources": validation["battery_resources"],
+            "hard_deadlines": validation["hard_deadlines"],
+            "hard_violations": validation["hard_violations"],
         })
     pd.DataFrame(pareto_rows).to_csv(
         DATA / "Q2_moead_pareto.csv", index=False, encoding="utf-8-sig",
@@ -412,6 +522,7 @@ def save_moead_results(
 
     # 种群
     pop_rows = []
+    weights = stats["weights"]
     for idx, sol in enumerate(population):
         obj = sol["objectives"]
         pop_rows.append({
@@ -419,23 +530,38 @@ def save_moead_results(
             "n_sorties": int(obj[0]),
             "energy_kWh": round(obj[1], 4),
             "Cmax_s": int(obj[2]),
-            "status": sol.get("status", ""),
-            "weight": json.dumps(sol.get("weight", [])),
+            "local_solver_status": sol.get("local_solver_status", ""),
+            "weight": json.dumps(weights[idx]),
+            "origin_weight": json.dumps(sol.get("origin_weight", [])),
         })
     pd.DataFrame(pop_rows).to_csv(
         DATA / "Q2_moead_population.csv", index=False, encoding="utf-8-sig",
     )
 
-    # 每个 Pareto 解的详细排程
-    for idx, sol in enumerate(archive):
-        sid = f"P{idx + 1:03d}"
-        task_rows = []
-        for tid in sol["task_ids"]:
-            task_rows.append({
-                "task_id": tid,
-                "start_time_s": sol["starts"].get(tid, 0),
-            })
-        pd.DataFrame(task_rows).to_csv(
+    pd.DataFrame(stats["generation_log"]).to_csv(
+        DATA / "Q2_moead_convergence.csv", index=False, encoding="utf-8-sig",
+    )
+
+    # 每个 Pareto 解均输出任务、实体资源排程、逐箱送达复核三张表。
+    for sid, sol, checked in validated:
+        tasks_out = checked["selected_tasks"].copy()
+        tasks_out.insert(
+            1, "start_time_s",
+            tasks_out["task_id"].astype(str).map(sol["starts"]),
+        )
+        tasks_out.to_csv(
+            DATA / f"Q2_moead_tasks_{sid}.csv",
+            index=False, encoding="utf-8-sig",
+        )
+        checked["schedule"].to_csv(
+            DATA / f"Q2_moead_schedule_{sid}.csv",
+            index=False, encoding="utf-8-sig",
+        )
+        checked["delivery_check"].to_csv(
+            DATA / f"Q2_moead_delivery_check_{sid}.csv",
+            index=False, encoding="utf-8-sig",
+        )
+        tasks_out[["task_id", "start_time_s"]].to_csv(
             DATA / f"Q2_moead_selected_{sid}.csv",
             index=False, encoding="utf-8-sig",
         )
@@ -448,16 +574,31 @@ def save_moead_results(
         "archive_size": len(archive),
         "ideal_point": list(stats["ideal_point"]),
         "ranges": list(stats["ranges"]),
-        "total_evals": stats["total_evals"],
+        "attempted_evals": stats["attempted_evals"],
+        "successful_evals": stats["successful_evals"],
+        "failed_evals": stats["failed_evals"],
+        "solver_calls": stats["solver_calls"],
+        "solver_successes": stats["solver_successes"],
+        "seed_fallbacks": stats["seed_fallbacks"],
         "cache_hits": stats["cache_hits"],
+        "duplicate_solution_hits": stats["duplicate_solution_hits"],
+        "archive_duplicate_tolerance": list(ARCHIVE_TOLERANCE),
+        "random_seed": stats["random_seed"],
+        "optimality_scope": "local CP-SAT neighborhood only; not a global Q2 optimality proof",
+        "validation": (
+            "every Pareto point independently decoded to UAV/battery IDs and checked for "
+            "unique box coverage, cumulative resources and hard deadlines"
+        ),
+        "input_sha256": {
+            name: _sha256(DATA / name)
+            for name in ("Q2_candidate_tasks.csv", "Q2_candidate_deliveries.csv")
+        },
     }
-    tmp = (DATA / "Q2_moead_manifest.json").with_suffix(".json.tmp")
-    with tmp.open("w", encoding="utf-8") as stream:
+    with (DATA / "Q2_moead_manifest.json").open("w", encoding="utf-8") as stream:
         json.dump(manifest, stream, ensure_ascii=False, indent=2)
-    if (DATA / "Q2_moead_manifest.json").exists():
-        (DATA / "Q2_moead_manifest.json").unlink()
-    tmp.replace(DATA / "Q2_moead_manifest.json")
+        stream.write("\n")
 
-    print(f"\n输出: Q2_moead_pareto.csv ({len(archive)} 解)", flush=True)
+    print(f"\n输出: Q2_moead_pareto.csv ({len(archive)} 个不同目标点)", flush=True)
     print(f"输出: Q2_moead_population.csv ({len(population)} 子问题)", flush=True)
+    print("输出: Q2_moead_convergence.csv", flush=True)
     print(f"输出: Q2_moead_manifest.json", flush=True)

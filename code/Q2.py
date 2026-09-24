@@ -113,7 +113,15 @@ def main():
         print("\n" + "=" * 50)
         print("Q2: MOEA/D + CP-SAT 多目标搜索")
         print("=" * 50)
-        from src.q2.moead_cp_sat import run_q2_moead, save_moead_results
+        from src.q2.moead_cp_sat import (
+            anchors_are_current,
+            run_q2_moead,
+            save_moead_results,
+        )
+        if not anchors_are_current():
+            print("CP-SAT anchor 缺失或与当前候选池不一致，先自动重算 N/E/T 基准。")
+            from src.q2.cp_sat_scheduler import run_joint
+            run_joint()
         population, archive, stats = run_q2_moead(
             time_limit_s_local=1.5,
             max_generations=40,

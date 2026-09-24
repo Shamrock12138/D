@@ -101,6 +101,7 @@ def update_archive(
     archive: List[Dict],
     solution: Dict,
     key_fn: Optional[Callable[[Dict], Tuple[float, ...]]] = None,
+    duplicate_tolerance: Optional[Tuple[float, ...]] = None,
 ) -> bool:
     u"""向 Pareto 档案添加新解，维护非支配集。
 
@@ -108,6 +109,7 @@ def update_archive(
         archive: 当前档案列表，原地修改
         solution: 候选解 dict，需至少包含 "objectives" 键
         key_fn: 提取目标向量的函数，默认取 solution["objectives"]
+        duplicate_tolerance: 各目标判重容差；None 表示逐分量精确相等
 
     Returns:
         True 若解被加入档案。
@@ -116,6 +118,15 @@ def update_archive(
 
     for existing in list(archive):
         existing_obj = key_fn(existing) if key_fn else existing["objectives"]
+        tolerances = duplicate_tolerance or (0.0,) * len(obj)
+        if len(tolerances) != len(obj):
+            raise ValueError("duplicate_tolerance 与目标维数不一致")
+        if all(abs(float(a) - float(b)) <= float(tol)
+               for a, b, tol in zip(existing_obj, obj, tolerances)):
+            if dominates(obj, existing_obj):
+                archive.remove(existing)
+                continue
+            return False
         if dominates(existing_obj, obj):
             return False
         if dominates(obj, existing_obj):

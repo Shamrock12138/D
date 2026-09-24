@@ -6,7 +6,14 @@ import pandas as pd
 CODE = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(CODE))
 
-from src.q2.cp_sat_scheduler import solve_joint
+from src.q2.cp_sat_scheduler import (
+    _candidate_subset,
+    _resource_ids,
+    solve_fixed_schedule,
+    solve_joint,
+    solve_local_subproblem,
+    validate_moead_solution,
+)
 
 
 def _synthetic_inputs():
@@ -75,3 +82,54 @@ def test_t_opt_serializes_single_uav_and_battery():
     assert len(schedule) == 2
     assert schedule.iloc[1]["start_time_s"] >= 11
     assert result["hard_violations"] == 0
+
+
+def _synthetic_problem():
+    tasks, deliveries, boxes, uavs, batteries = _synthetic_inputs()
+    tasks, task_boxes, task_offsets, deadlines = _candidate_subset(
+        tasks, deliveries, boxes, per_box_type_k=10
+    )
+    uav_ids, battery_ids = _resource_ids(uavs, batteries)
+    return {
+        "tasks": tasks,
+        "deliveries": deliveries,
+        "boxes": boxes,
+        "task_boxes": task_boxes,
+        "task_offsets": task_offsets,
+        "deadlines": deadlines,
+        "uav_ids": uav_ids,
+        "battery_ids": battery_ids,
+        "energy_capacity": {"A": 10.0},
+        "charge_full": {"A": 0.0},
+        "horizon_s": 100,
+    }
+
+
+def test_local_subproblem_accepts_complete_parent_hint_and_validates():
+    problem = _synthetic_problem()
+    result = solve_local_subproblem(
+        problem,
+        fixed_task_ids=set(),
+        free_box_ids={"B001", "B002"},
+        weight=(1 / 3, 1 / 3, 1 / 3),
+        ideal_point=(1.0, 1.5, 16.0),
+        objective_ranges=(2.0, 1.0, 20.0),
+        seed_task_ids={"R3"},
+        seed_starts={"R3": 0},
+        time_limit_s=5,
+        workers=1,
+    )
+    assert result["task_ids"] is not None
+    checked = validate_moead_solution(problem, result["task_ids"], result["starts"])
+    assert checked["validation"]["hard_violations"] == 0
+    assert len(checked["delivery_check"]) == 2
+
+
+def test_fixed_schedule_only_builds_selected_tasks():
+    problem = _synthetic_problem()
+    result = solve_fixed_schedule(
+        problem, {"R3"}, {"R3": 0}, time_limit_s=5, workers=1
+    )
+    assert result["task_ids"] == ("R3",)
+    assert result["n_free_candidates"] == 0
+    assert result["Cmax"] == 16
