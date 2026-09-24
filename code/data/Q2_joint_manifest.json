@@ -1,12 +1,30 @@
 {
-  "model": "time-indexed joint set partition and heterogeneous resource scheduling MILP",
-  "run_command": "python -m src.q2.joint_scheduler",
-  "time_step_s": 300,
+  "model": "CP-SAT set partitioning with optional intervals and cumulative resources",
+  "run_command": "python -m src.q2.cp_sat_scheduler",
+  "time_unit_s": 1,
   "horizon_s": 36000,
-  "candidate_reduction": "top 10 per box by energy, flight duration and candidate latest start, plus prior N/E/T selected tasks",
-  "optimality_scope": "optimal only within reduced candidate pool and 5-minute start grid; T-opt may be a time-limited incumbent",
-  "resource_logic": "same-type UAV and shared-battery capacities enforced at each slot; identities decoded after solve",
-  "hard_deadlines": "all first-batch boxes plus all medical boxes; checked at per-box arrival offsets",
+  "energy_scale": 10000,
+  "candidate_reduction": "top 8 per (box, UAV type) by energy, duration and deadline slack, plus prior N/E/T selected tasks",
+  "objective_order": {
+    "N": [
+      "sorties",
+      "Cmax",
+      "energy"
+    ],
+    "E": [
+      "energy",
+      "Cmax",
+      "sorties"
+    ],
+    "T": [
+      "Cmax",
+      "energy",
+      "sorties"
+    ]
+  },
+  "optimality_scope": "within the reduced candidate pool and integer-second conservative durations; each stage status and bound are stored in Q2_joint_summary.csv",
+  "resource_logic": "same-type UAV flight intervals and battery flight-plus-recharge intervals use separate cumulative constraints; identities are decoded after solving",
+  "hard_deadlines": "all first-batch boxes plus all medical boxes; integer-ceiling delivery offsets are enforced and real offsets are checked after decoding",
   "input_sha256": {
     "Q2_candidate_tasks.csv": "83d5bd8848720e21ae09db79be1339b0093d95946cfd9379942ec301930cb8d6",
     "Q2_candidate_deliveries.csv": "2efe9c9520f0ab63b3091568e050223b8bb7cbfbe3c74ce9a39fa99397c4059d",
