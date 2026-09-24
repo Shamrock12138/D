@@ -2,17 +2,35 @@
   "algorithm": "MOEA/D + CP-SAT matheuristic",
   "n_obj": 3,
   "n_subproblems": 45,
-  "archive_size": 37,
+  "archive_size": 27,
   "ideal_point": [
     20.0,
-    62.23823158945353,
-    7623.0
+    62.23823158945352,
+    6868.0
   ],
   "ranges": [
     4.0,
     5.131667564271218,
     1840.4143548993725
   ],
-  "total_evals": 85,
-  "cache_hits": 42
+  "attempted_evals": 1800,
+  "successful_evals": 1800,
+  "failed_evals": 0,
+  "solver_calls": 1891,
+  "solver_successes": 1885,
+  "seed_fallbacks": 6,
+  "cache_hits": 3,
+  "duplicate_solution_hits": 1173,
+  "archive_duplicate_tolerance": [
+    0.0,
+    1e-05,
+    1.0
+  ],
+  "random_seed": 2026,
+  "optimality_scope": "local CP-SAT neighborhood only; not a global Q2 optimality proof",
+  "validation": "every Pareto point independently decoded to UAV/battery IDs and checked for unique box coverage, cumulative resources and hard deadlines",
+  "input_sha256": {
+    "Q2_candidate_tasks.csv": "83d5bd8848720e21ae09db79be1339b0093d95946cfd9379942ec301930cb8d6",
+    "Q2_candidate_deliveries.csv": "2efe9c9520f0ab63b3091568e050223b8bb7cbfbe3c74ce9a39fa99397c4059d"
+  }
 }
