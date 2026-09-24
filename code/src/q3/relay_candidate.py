@@ -13,6 +13,7 @@ import numpy as np
 
 from src.q3.communication.link_budget import (
     EARTH_RADIUS_M,
+    PARAMETER_PATH,
 )
 from src.q3.communication.relay_link import (
     RELAY_UAV_PATH,
@@ -263,17 +264,23 @@ def build_coverage(
         candidate_z = raw_z[kept]
         candidate_backhaul_margin = relay_margin[kept]
         candidate_backhaul_guaranteed = relay_guaranteed[kept]
-        candidate_ids = np.asarray([f"R{index:06d}" for index in range(1, len(kept) + 1)])
+        candidate_ids = np.asarray([f"RP{index:06d}" for index in range(1, len(kept) + 1)])
+        raw_rows = np.repeat(rows, n_heights)
+        raw_cols = np.repeat(cols, n_heights)
+        candidate_dem_row = raw_rows[kept]
+        candidate_dem_col = raw_cols[kept]
 
         with candidate_path.open("w", encoding="utf-8", newline="") as stream:
             writer = csv.writer(stream)
             writer.writerow((
-                "candidate_id", "lon", "lat", "ground_height", "agl_height",
-                "absolute_height", "relay_g01_available", "relay_g01_margin_db",
-                "relay_g01_margin_lower_bound",
+                "candidate_id", "dem_row", "dem_col", "lon", "lat",
+                "ground_height", "agl_height", "absolute_height",
+                "relay_g01_available", "relay_g01_margin_db",
+                "relay_g01_guaranteed",
             ))
             writer.writerows(zip(
-                candidate_ids, candidate_lons, candidate_lats, candidate_ground,
+                candidate_ids, candidate_dem_row, candidate_dem_col,
+                candidate_lons, candidate_lats, candidate_ground,
                 candidate_agl, candidate_z, np.ones(len(kept), dtype=int),
                 candidate_backhaul_margin, candidate_backhaul_guaranteed.astype(int),
             ))
@@ -417,7 +424,7 @@ def build_coverage(
             "uncovered_sample_details": failures,
             "inputs_sha256": {
                 path.name: hashlib.sha256(path.read_bytes()).hexdigest()
-                for path in (requirements_path, dem_path, relay_data_path)
+                for path in (requirements_path, dem_path, relay_data_path, PARAMETER_PATH)
             },
         }
         with manifest_path.open("w", encoding="utf-8") as stream:
