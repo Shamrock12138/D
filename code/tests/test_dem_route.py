@@ -42,6 +42,12 @@ class DemRouteTests(unittest.TestCase):
                         self.assertEqual(
                             set(cells), set(analyzer._grid_cells_along_line(end, start))
                         )
+                boundary = analyzer._grid_cells_along_line((6.0, 11.8), (6.0, 1.2))
+                self.assertEqual({column for _, column in boundary}, {5, 6})
+                self.assertEqual(
+                    set(boundary),
+                    set(analyzer._grid_cells_along_line((6.0, 1.2), (6.0, 11.8))),
+                )
                 self.assertEqual(
                     analyzer.get_max_dem_along_route(*cases[0][:2]), 99
                 )

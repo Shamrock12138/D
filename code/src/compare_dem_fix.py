@@ -1,6 +1,9 @@
 """对照 DEM 修复前后的航段参数，输出可追溯差异表。"""
 
 import sys
+import hashlib
+import json
+import platform
 from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -12,6 +15,15 @@ PROJECT = Path(__file__).resolve().parents[1]
 OLD = PROJECT / "data_before_dem_fix" / "route_parameter_all.csv"
 NEW = PROJECT / "data" / "route_parameter_all.csv"
 OUTPUT = PROJECT / "data" / "dem_route_fix_comparison.csv"
+MANIFEST = PROJECT / "data" / "dem_route_fix_manifest.json"
+
+
+def sha256(path):
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
 
 
 def main():
@@ -28,6 +40,14 @@ def main():
     if (comparison["distance_new"] - comparison["distance_old"]).abs().max() > 1e-8:
         raise ValueError("DEM 修复不应改变水平距离")
     comparison.to_csv(OUTPUT, index=False, encoding="utf-8-sig")
+    MANIFEST.write_text(json.dumps({
+        "python": platform.python_version(),
+        "old_route_sha256": sha256(OLD),
+        "new_route_sha256": sha256(NEW),
+        "comparison_sha256": sha256(OUTPUT),
+        "validation": "python -m unittest discover -s code/tests -p test_dem_route.py -v",
+        "rebuild": "python code/src/build_route_matrices.py",
+    }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(f"已保存 {OUTPUT.name}，共 {len(comparison)} 条航段")
     print(comparison.reindex(comparison["delta_h_max"].abs().sort_values(
         ascending=False).index)[

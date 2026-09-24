@@ -1,0 +1,8 @@
+{
+  "python": "3.11.7",
+  "old_route_sha256": "e8c023a6a2aaf4f123a7252e1a7eab8827d6cd9ec72f3594036683825875f139",
+  "new_route_sha256": "a4fadcc0a00e024bd80ae5db365f0e41dcd95b76aa8d88a196b552c39df0aa7e",
+  "comparison_sha256": "2ca426c81ed1f85c68d2c47c3d0349e7ac4da57178de506cd97952cac3c08cc4",
+  "validation": "python -m unittest discover -s code/tests -p test_dem_route.py -v",
+  "rebuild": "python code/src/build_route_matrices.py"
+}

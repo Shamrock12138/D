@@ -1,4 +1,4 @@
-﻿objective,candidate_count,time_option_count,n_sorties,energy_kWh,Cmax_s,hard_violations,solver_status
-N,1560,40956,18,62.56165362119746,29679.509499342308,0,Optimization terminated successfully. (HiGHS Status 7: Optimal)
-E,1560,40956,20,61.89981662911854,30279.509499342308,0,Optimization terminated successfully. (HiGHS Status 7: Optimal)
-T,1560,40956,23,72.22190771369607,12213.600023787336,0,Time limit reached. (HiGHS Status 13: Time limit reached)
+﻿objective,candidate_count,time_option_count,n_sorties,energy_kWh,Cmax_s,hard_violations,mip_gap,solver_status
+N,1580,40155,21,66.4572333096004,33592.470877312684,0,0.0,Optimization terminated successfully. (HiGHS Status 7: Optimal)
+E,1580,40155,22,63.07142729116651,29629.426177517467,0,0.0,Optimization terminated successfully. (HiGHS Status 7: Optimal)
+T,1580,40155,26,78.88715851890038,27546.580686312238,0,0.9962276461484003,Time limit reached. (HiGHS Status 13: Time limit reached)
