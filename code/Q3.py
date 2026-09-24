@@ -19,6 +19,7 @@ from src.q3.trajectory_generator import (
 )
 from src.q3.communication.checker import run_direct_check
 from src.q3.communication.gap_detector import run_gap_detector
+from src.q3.relay_candidate import build_coverage
 
 
 def main() -> None:
@@ -73,6 +74,16 @@ def main() -> None:
     )
     print("中继需求文件: data/relay_requirement.json")
     print("架次汇总文件: data/communication_gap_summary.csv")
+    coverage = build_coverage()
+    print(f"中继候选点: {coverage['relay_g01_available_candidates']}")
+    print(
+        "至少一个中继候选点可覆盖: "
+        f"{coverage['samples_with_at_least_one_candidate']}/{coverage['disconnected_samples']}"
+    )
+    print(f"仍无法覆盖的断连点: {coverage['uncovered_samples']}")
+    print("候选点文件: data/relay_candidates.csv")
+    print("双链路覆盖文件: data/relay_coverage_matrix.csv")
+    print("覆盖汇总文件: data/relay_requirement_candidate_summary.csv")
 
 
 if __name__ == "__main__":

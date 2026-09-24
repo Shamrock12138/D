@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Tuple
 
+import numpy as np
 from PIL import Image
 
 from .link_budget import horizontal_distance_m
@@ -31,6 +32,7 @@ class DemTerrain:
             raise ValueError("DEM 采样间隔必须为正的有限值")
         self.image = Image.open(path)
         self.image.load()
+        self.data = np.asarray(self.image)
         scale = self.image.tag_v2.get(33550)
         tie = self.image.tag_v2.get(33922)
         geo_keys = self.image.tag_v2.get(34735)
@@ -55,24 +57,50 @@ class DemTerrain:
     def check_line(
         self, a: Tuple[float, float, float], b: Tuple[float, float, float]
     ) -> TerrainResult:
-        horizontal_m = horizontal_distance_m(a, b)
-        if horizontal_m < 1e-9:
-            return TerrainResult(blocked=False, max_intrusion_m=0.0, samples_checked=0)
-        n = max(1, math.ceil(horizontal_m / self.sample_step_m))
-        intrusion = -math.inf
-        for k in range(1, n):
-            ratio = k / n
-            lon = a[0] + ratio * (b[0] - a[0])
-            lat = a[1] + ratio * (b[1] - a[1])
-            sight_z = a[2] + ratio * (b[2] - a[2])
-            intrusion = max(intrusion, self.height_at(lon, lat) - sight_z)
-        if intrusion == -math.inf:
-            intrusion = 0.0
-        return TerrainResult(
-            blocked=intrusion >= 0.0,
-            max_intrusion_m=intrusion,
-            samples_checked=max(0, n - 1),
-        )
+        return self.check_lines([a], [b])[0]
+
+    def check_lines(self, starts, ends) -> list:
+        """向量化检查一批视线，采样间隔不超过 sample_step_m。"""
+        starts = np.asarray(starts, dtype=float)
+        ends = np.asarray(ends, dtype=float)
+        if starts.ndim != 2 or starts.shape[1] != 3 or ends.shape != starts.shape:
+            raise ValueError("starts 和 ends 必须是形状相同的 N×3 坐标数组")
+        phi1 = np.radians(starts[:, 1])
+        phi2 = np.radians(ends[:, 1])
+        dphi = phi2 - phi1
+        dlon = np.radians(ends[:, 0] - starts[:, 0])
+        hav = np.sin(dphi / 2) ** 2 + np.cos(phi1) * np.cos(phi2) * np.sin(dlon / 2) ** 2
+        horizontal = 2 * 6_371_000.0 * np.arcsin(np.sqrt(np.clip(hav, 0.0, 1.0)))
+        n = np.maximum(1, np.ceil(horizontal / self.sample_step_m).astype(int))
+        max_sample = max(0, int(n.max(initial=1)) - 1)
+        if max_sample == 0:
+            return [TerrainResult(False, 0.0, 0) for _ in range(len(starts))]
+
+        k = np.arange(1, max_sample + 1, dtype=float)[None, :]
+        valid = k < n[:, None]
+        ratio = k / n[:, None]
+        lon = starts[:, 0, None] + ratio * (ends[:, 0, None] - starts[:, 0, None])
+        lat = starts[:, 1, None] + ratio * (ends[:, 1, None] - starts[:, 1, None])
+        sight_z = starts[:, 2, None] + ratio * (ends[:, 2, None] - starts[:, 2, None])
+        cols = np.floor((lon - self.origin_lon) / self.pixel_lon).astype(np.int32)
+        rows = np.floor((self.origin_lat - lat) / self.pixel_lat).astype(np.int32)
+        outside = valid & ((cols < 0) | (cols >= self.image.width) | (rows < 0) | (rows >= self.image.height))
+        if outside.any():
+            r, c = np.argwhere(outside)[0]
+            raise ValueError(f"通信视线采样位置 ({lon[r, c]:.7f}, {lat[r, c]:.7f}) 超出 DEM")
+        safe_rows = np.where(valid, rows, 0)
+        safe_cols = np.where(valid, cols, 0)
+        intrusion = np.where(valid, self.data[safe_rows, safe_cols] - sight_z, -np.inf)
+        maxima = np.max(intrusion, axis=1)
+        maxima = np.where(np.isfinite(maxima), maxima, 0.0)
+        return [
+            TerrainResult(
+                blocked=bool(maxima[i] >= 0.0),
+                max_intrusion_m=float(maxima[i]),
+                samples_checked=int(max(0, n[i] - 1)),
+            )
+            for i in range(len(starts))
+        ]
 
     def close(self) -> None:
         self.image.close()
