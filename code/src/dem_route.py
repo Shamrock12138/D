@@ -199,10 +199,28 @@ class DEMRouteAnalyzer:
                 add_cell(r - 1, c - 1)
 
         add_edge_neighbors()
-        limit = 3 * (abs(end_r - r) + abs(end_c - c) + 10)
+        limit = 5 * (abs(end_r - r) + abs(end_c - c) + 10)
         for _ in range(limit):
             if (r, c) == (end_r, end_c):
                 break
+
+            def _past_target():
+                cr = (step_r > 0 and r >= end_r) or (step_r < 0 and r <= end_r)
+                cc = (step_c > 0 and c >= end_c) or (step_c < 0 and c <= end_c)
+                if cr and cc:
+                    return True
+                if step_r == 0 and cc:
+                    return True
+                if step_c == 0 and cr:
+                    return True
+                return False
+
+            if _past_target():
+                if (r, c) != (end_r, end_c):
+                    add_cell(end_r, end_c)
+                    add_edge_neighbors()
+                break
+
             if next_c < next_r - 1e-12:
                 c += step_c
                 next_c += delta_c

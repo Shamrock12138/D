@@ -1,5 +1,7 @@
 u"""Step7：中继飞行/能耗/时间 profile 与 gap job options 预计算。"""
 
+import hashlib
+import json
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -32,6 +34,16 @@ OUT_PROFILES_PATH = DATA / "q3_relay_operation_profiles.csv"
 OUT_JOB_OPTIONS_PATH = DATA / "q3_relay_job_options.csv"
 
 G = 9.80665
+
+OUT_MANIFEST_PATH = DATA / "q3_step7_manifest.json"
+
+
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
 
 
 @dataclass(frozen=True)
@@ -115,7 +127,7 @@ def build_site_operation_profiles(
     safety_margin_m = 50.0
 
     rows = []
-    failed = 0
+    failed_sites = []
     for idx, site in sites.iterrows():
         cid = site["candidate_id"]
         lon = float(site["lon"])
@@ -127,9 +139,9 @@ def build_site_operation_profiles(
 
         try:
             h_max_dem = dem.get_max_dem_along_route((o01_lon, o01_lat), (lon, lat))
-        except RuntimeError:
-            h_max_dem = max(float(site["ground_height"]), o01_ground)
-            failed += 1
+        except RuntimeError as exc:
+            failed_sites.append(cid)
+            continue
 
         cruise_h = max(h_max_dem + safety_margin_m, o01_op, hover_abs)
 
@@ -190,8 +202,11 @@ def build_site_operation_profiles(
             "lead_time_s": lead_time_s,
         })
 
-    if failed:
-        print(f"  警告: {failed} 个站点 DEM 栅格穿越失败，使用 ground height 作为 h_max 回退")
+    if failed_sites:
+        raise RuntimeError(
+            f"DEM 栅格穿越失败，{len(failed_sites)} 个站点无法计算航线最高地形: "
+            f"{failed_sites[:10]}{'...' if len(failed_sites) > 10 else ''}"
+        )
     return pd.DataFrame(rows)
 
 
@@ -293,17 +308,19 @@ def validate_step7(
     sites: pd.DataFrame,
     profiles: pd.DataFrame,
     params: RelayFlightParams,
-    total_gaps: int,
+    all_gap_ids: set,
 ) -> bool:
     print("\n  Step7 完整性验证")
     print("  " + "-" * 50)
     all_ok = True
 
-    gaps_with_options = job_options["gap_id"].nunique()
-    print(f"  Gaps with >=1 energy-feasible option: {gaps_with_options} / {total_gaps}")
-    if gaps_with_options < total_gaps:
-        missing = set(range(1, total_gaps + 1)) - set(job_options["gap_id"].unique())
-        print(f"  *** FAIL: {len(missing)} gaps 无能源可行 option: {sorted(missing)[:20]}...")
+    covered_ids = set(job_options["gap_id"].unique())
+    total_gaps = len(all_gap_ids)
+    print(f"  Gaps with >=1 energy-feasible option: {len(covered_ids)} / {total_gaps}")
+    missing = all_gap_ids - covered_ids
+    if missing:
+        sample = sorted(missing)[:20]
+        print(f"  *** FAIL: {len(missing)} gaps 无能源可行 option: {sample}...")
         all_ok = False
 
     if (job_options["relay_energy_kWh"] > params.max_energy_kwh).any():
@@ -424,19 +441,52 @@ def run_step7():
     print(f"\n  输出: {OUT_JOB_OPTIONS_PATH} ({len(job_options)} rows)")
 
     print("\n[6/7] 完整性验证...")
-    ok = validate_step7(job_options, sites, profiles, params, len(gaps))
+    all_gap_ids = set(gaps["gap_id"].unique())
+    ok = validate_step7(job_options, sites, profiles, params, all_gap_ids)
 
     print("\n[7/7] 汇总")
     print(f"  Relay sites:                       {len(sites)}")
     print(f"  Input gap alternatives:            {len(gap_options)}")
-    print(f"  Gaps:                              {len(gaps)}")
+    print(f"  Gaps:                              {len(all_gap_ids)}")
     print(f"  Energy-feasible alternatives:      {len(job_options)}")
     print(f"  Energy-infeasible removed:         {removed}")
-    print(f"  Gaps with >=1 feasible option:     {job_options['gap_id'].nunique()} / {len(gaps)}")
-    lost = len(gaps) - job_options["gap_id"].nunique()
+    n_covered = job_options["gap_id"].nunique()
+    lost = len(all_gap_ids) - n_covered
+    print(f"  Gaps with >=1 feasible option:     {n_covered} / {len(all_gap_ids)}")
     print(f"  Gaps with 0 feasible option:       {lost}")
     print(f"  Max relay job energy:              {job_options['relay_energy_kWh'].max():.4f} kWh")
     print(f"  Min end SOC:                       {min_soc*100:.2f}%")
+
+    manifest = {
+        "step": "Step7",
+        "description": "中继飞行/能耗/时间 profile 与 gap job options 预计算",
+        "inputs": {
+            "q3_relay_sites.csv": _sha256(SITES_PATH),
+            "q3_gap_relay_options.csv": _sha256(GAP_OPTIONS_PATH),
+            "q3_task_comm_gaps.csv": _sha256(GAPS_PATH),
+            "中继无人机数据.xlsx": _sha256(RELAY_UAV_XLSX),
+            "中继无人机_共享电池.csv": _sha256(RELAY_BATTERY_CSV),
+            "服务区数据.csv": _sha256(SERVICE_AREA_CSV),
+        },
+        "outputs": {
+            "q3_relay_operation_profiles.csv": _sha256(OUT_PROFILES_PATH),
+            "q3_relay_job_options.csv": _sha256(OUT_JOB_OPTIONS_PATH),
+        },
+        "stats": {
+            "relay_sites": len(sites),
+            "gaps": len(all_gap_ids),
+            "input_gap_alternatives": len(gap_options),
+            "energy_feasible_alternatives": len(job_options),
+            "energy_infeasible_removed": removed,
+            "gaps_with_feasible_option": n_covered,
+            "gaps_without_feasible_option": lost,
+            "max_relay_job_energy_kWh": float(job_options["relay_energy_kWh"].max()),
+            "min_end_soc": float(min_soc),
+        },
+    }
+    with open(OUT_MANIFEST_PATH, "w", encoding="utf-8") as fh:
+        json.dump(manifest, fh, indent=2, ensure_ascii=False)
+    print(f"\n  输出: {OUT_MANIFEST_PATH}")
 
     if not ok:
         print("\n*** 验证未通过，请检查输出后修复 ***")

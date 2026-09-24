@@ -1,0 +1,27 @@
+{
+  "step": "Step7",
+  "description": "中继飞行/能耗/时间 profile 与 gap job options 预计算",
+  "inputs": {
+    "q3_relay_sites.csv": "341c8a6b6f4c91a03cdd4e808abca7ebf5c6648331b7ea085e2888e8939ebfc7",
+    "q3_gap_relay_options.csv": "cc1b50137ca18440e414891095a822be421bc5c341cc0ce2916d7ec977337d28",
+    "q3_task_comm_gaps.csv": "e21dc73721a1144c93bc060680e5e3cfa0814414f471142e96ae78d123ff8f20",
+    "中继无人机数据.xlsx": "be52643ff29419233e6a141dca03a04160a8af551cab36d8c49b51bb836bea04",
+    "中继无人机_共享电池.csv": "08946e69850472ff2f6d12e5cb223ed50d7f1cfa7f29c2fadd443c1f55a466c4",
+    "服务区数据.csv": "29f280f5907cf48ac0386d2bda7e278fe634bd541d4cb26fcd248272c0f55b2b"
+  },
+  "outputs": {
+    "q3_relay_operation_profiles.csv": "3d1506eaba4092568dc4659c6617067603b61454faed0cd55809aaa19bfa6822",
+    "q3_relay_job_options.csv": "48cac1bfd225ed3723e3dcb40cdb496d6269f17d190229a6165f544fac76f577"
+  },
+  "stats": {
+    "relay_sites": 414,
+    "gaps": 5043,
+    "input_gap_alternatives": 49177,
+    "energy_feasible_alternatives": 49177,
+    "energy_infeasible_removed": 0,
+    "gaps_with_feasible_option": 5043,
+    "gaps_without_feasible_option": 0,
+    "max_relay_job_energy_kWh": 0.8972102633092972,
+    "min_end_soc": 0.7196217927158446
+  }
+}
