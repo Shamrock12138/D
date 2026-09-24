@@ -189,6 +189,7 @@ def prepare_q3_problem(tier="tier2"):
     return {
         "tasks": tasks,
         "deliveries": deliveries,
+        "boxes": boxes,
         "gaps": gaps,
         "relay": relay,
         "task_boxes": task_boxes,
@@ -331,8 +332,14 @@ def _build_q3_model(problem):
 
         dispatch_int = math.floor(float(row["dispatch_offset_s"]))
         return_int = math.ceil(float(row["return_offset_s"]))
-        uav_occ_int = max(1, return_int - dispatch_int)
-        energy_occ_int = max(1, return_int - dispatch_int)
+        uav_release_int = math.ceil(
+            float(row["dispatch_offset_s"]) + float(row["relay_uav_occupancy_s"])
+        )
+        energy_release_int = math.ceil(
+            float(row["dispatch_offset_s"]) + float(row["energy_component_occupancy_s"])
+        )
+        uav_occ_int = max(1, uav_release_int - dispatch_int)
+        energy_occ_int = max(1, energy_release_int - dispatch_int)
         min_transport_start_int = max(0, math.ceil(float(row["min_transport_start_s"])))
 
         chosen = model.NewBoolVar(f"select_r_{opt_idx}")
@@ -378,6 +385,8 @@ def _build_q3_model(problem):
             "candidate_id": row["candidate_id"],
             "dispatch_offset_int": dispatch_int,
             "return_offset_int": return_int,
+            "uav_release_offset_int": uav_release_int,
+            "energy_release_offset_int": energy_release_int,
             "uav_occupancy_int": uav_occ_int,
             "energy_occupancy_int": energy_occ_int,
             "uav_end_var": relay_uav_end,
@@ -388,16 +397,8 @@ def _build_q3_model(problem):
         key = (task_id, gap_id)
         gap_option_vars[key].append(len(relay_select) - 1)
 
-    # Σ y_o = x_k  for each gap in each task
-    for (task_id, gap_id), opt_indices in gap_option_vars.items():
-        if task_id in task_map:
-            t_idx = task_map[task_id]
-            model.Add(sum(relay_select[i] for i in opt_indices) == select[t_idx])
-        else:
-            model.Add(sum(relay_select[i] for i in opt_indices) == 0)
-
-    # Require every gap of a selected task to choose exactly one relay option.
-    # Iterating task_gaps also catches gaps accidentally removed by reduction.
+    # Require each gap of a selected task to choose exactly one relay option.
+    # Also catches gaps accidentally removed by reduction.
     for task_id, gap_ids in task_gaps.items():
         for gap_id in gap_ids:
             option_vars = gap_option_vars.get((task_id, str(gap_id)), [])
@@ -495,15 +496,21 @@ def _decode_q3_resources(problem, solver, select_vars, start_vars, relay_select_
     relay_uav_ready = {f"R0{i + 1}": 0 for i in range(RELAY_UAV_CAPACITY)}
     energy_ready = {f"E0{i + 1}": 0 for i in range(RELAY_ENERGY_CAPACITY)}
     relay_rows = []
+
+    active_relays = []
     for j, chosen in enumerate(relay_select_vars):
-        if not solver.Value(chosen):
-            continue
+        if solver.Value(chosen):
+            start = int(solver.Value(relay_start_vars[j]))
+            active_relays.append((start, j))
+    active_relays.sort(key=lambda x: x[0])
+
+    for start, j in active_relays:
         meta = r_meta[j]
         option = relay_df.iloc[meta["opt_idx"]]
-        start = int(solver.Value(relay_start_vars[j]))
-        uav_end = start + int(meta["uav_occupancy_int"])
-        energy_end = start + int(meta["energy_occupancy_int"])
-        relay_return = start + int(meta["return_offset_int"] - meta["dispatch_offset_int"])
+        transport_start = start - int(meta["dispatch_offset_int"])
+        uav_end = transport_start + int(meta["uav_release_offset_int"])
+        energy_end = transport_start + int(meta["energy_release_offset_int"])
+        relay_return = transport_start + int(meta["return_offset_int"])
         relay_uav = next((rid for rid, ready in relay_uav_ready.items() if ready <= start), None)
         energy_id = next((eid for eid, ready in energy_ready.items() if ready <= start), None)
         if relay_uav is None or energy_id is None:
@@ -523,12 +530,16 @@ def _decode_q3_resources(problem, solver, select_vars, start_vars, relay_select_
             "end_soc": float(option["end_soc"]),
             "coverage_start_offset_s": float(option["coverage_start_s"]),
             "coverage_end_offset_s": float(option["coverage_end_s"]),
+            "relay_uav_occupancy_s": float(option["relay_uav_occupancy_s"]),
+            "energy_component_occupancy_s": float(option["energy_component_occupancy_s"]),
+            "dispatch_offset_s": float(option["dispatch_offset_s"]),
         })
     relay_columns = [
         "gap_id", "task_id", "candidate_id", "relay_uav_id", "energy_component_id",
         "dispatch_time_s", "arrival_time_s", "service_start_s", "service_end_s",
         "return_time_s", "uav_release_time_s", "energy_release_time_s",
         "relay_energy_kWh", "end_soc", "coverage_start_offset_s", "coverage_end_offset_s",
+        "relay_uav_occupancy_s", "energy_component_occupancy_s", "dispatch_offset_s",
     ]
     relay_schedule = pd.DataFrame(relay_rows, columns=relay_columns).sort_values(
         ["relay_uav_id", "dispatch_time_s"]
@@ -605,6 +616,18 @@ def validate_q3_solution(problem, transport, relay, joint_cmax_s):
     checks["relay_service_covers_gap"] = bool((relay["service_end_s"] >= coverage_end - 1e-9).all())
     checks["relay_energy_limit"] = bool((relay["relay_energy_kWh"] <= 2.56 + 1e-9).all())
     checks["relay_end_soc_limit"] = bool((relay["end_soc"] >= 0.20 - 1e-9).all())
+    uav_release_ok = True
+    energy_release_ok = True
+    for row in relay.itertuples(index=False):
+        s_k = starts[row.task_id]
+        expected_uav_release = s_k + row.dispatch_offset_s + row.relay_uav_occupancy_s
+        expected_energy_release = s_k + row.dispatch_offset_s + row.energy_component_occupancy_s
+        if row.uav_release_time_s < expected_uav_release - 1e-9:
+            uav_release_ok = False
+        if row.energy_release_time_s < expected_energy_release - 1e-9:
+            energy_release_ok = False
+    checks["relay_uav_release_valid"] = uav_release_ok
+    checks["relay_energy_release_valid"] = energy_release_ok
     relay_end = float(relay["return_time_s"].max()) if not relay.empty else 0.0
     actual_cmax = max(float(transport["end_time_s"].max()), relay_end)
     checks["joint_cmax_consistent"] = actual_cmax <= float(joint_cmax_s) + 1.0 + 1e-9
