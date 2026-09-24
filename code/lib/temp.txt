@@ -1,0 +1,1946 @@
+可以。按照你给出的统一主线，我建议 Q2 不再做成“MOEA/D 单独选任务 + CP-SAT 只排时间”，而是做成一个更标准、也更符合你 Q2/Q3/Q4 统一叙事的：
+
+$$
+\boxed{\text{外层 MOEA/D 多目标搜索}+\text{内层 CP-SAT 精确局部重优化}}
+$$
+
+我重新读取的是你当前 `main`，HEAD 为 `28d81fc...`。当前 Q2 正式主线仍然是 `code/Q2.py → src/q2/cp_sat_scheduler.py`，MOEA/D 尚未实现。
+
+其中现有 CP-SAT 已经把“任务选择、开始时刻、无人机容量、共享电池+充电占用、硬时限”联合起来，这一层应该保留，而不是推倒重写。
+
+---
+
+# 一、Q2 最终算法架构就定成这个
+
+建议论文和代码都统一成：
+
+```text
+Q2_candidate_tasks.csv
+Q2_candidate_deliveries.csv
+        ↓
+候选任务预筛选
+71595 → 当前约 2615
+        ↓
+现有 CP-SAT 求 N/E/T 三个基准解
+        ↓
+N-opt / E-opt / T-opt
+作为 MOEA/D 初始锚点
+        ↓
+生成 MOEA/D 权重向量
+λ=(λN, λE, λT)
+        ↓
+维护一组运输方案骨架
+        ↓
+父代选择
+        ↓
+共同任务保留 + 局部任务释放
+        ↓
+形成“自由货箱区域 U”
+        ↓
+从候选池提取局部候选任务 KU
+        ↓
+┌──────────────────────────┐
+│      内层 CP-SAT          │
+│                          │
+│ 决定：                    │
+│  具体选择哪些运输任务 xk   │
+│  每个任务开始时间 sk       │
+│  UAV并发约束              │
+│  电池及充电占用约束         │
+│  硬时限约束                │
+│                          │
+│ 按 λ 求当前分解子问题       │
+└──────────────────────────┘
+        ↓
+得到精确可行运输调度
+        ↓
+计算
+(N, E, Cmax)
+        ↓
+MOEA/D 邻域更新
+        ↓
+External Pareto Archive
+        ↓
+最终 Pareto 解集
+        ↓
+对非支配解长时间 CP-SAT 精修
+```
+
+这样你之前那张统一表就完全成立：
+
+| 问题 | MOEA/D             | CP-SAT             |
+| -- | ------------------ | ------------------ |
+| Q2 | 搜索运输方案及 $N/E/T$ 权衡 | 具体任务选择、UAV、电池、开始时刻 |
+| Q3 | 搜索运输+通信方案及目标权衡     | 运输、中继、资源、时间联合调度    |
+| Q4 | 搜索任务分区             | 各分区内部资源配置与调度       |
+
+---
+
+# 二、Q2 的目标就用三个，不要再加旧的延迟目标
+
+当前正式 CP-SAT 已经把：
+
+* 首批保障物资截止时间；
+* 医疗物资期望送达时间；
+
+作为**硬约束**。
+
+因此新的 MOEA/D 就优化：
+
+$$
+\boxed{
+\min
+F=
+\left(
+f_1,f_2,f_3
+\right)
+=
+\left(
+N,E,C_{\max}
+\right)
+}
+$$
+
+其中：
+
+### 目标 1：运输架次
+
+$$
+f_1=N=\sum_{k\in K}x_k
+$$
+
+### 目标 2：运输总能耗
+
+$$
+f_2=E=\sum_{k\in K}E_kx_k
+$$
+
+### 目标 3：总完成时间
+
+$$
+f_3=C_{\max}
+$$
+
+deadline 不再作为第四个目标：
+
+$$
+F_{\text{delay}}
+$$
+
+因为：
+
+$$
+\boxed{F_{\text{delay}}=0}
+$$
+
+应当是所有可行解必须满足的条件。
+
+这一点要和旧的 `src/q2/multi_objective.py` 区分开。
+
+旧文件实际上使用过另一套 deadline 逻辑，所以旧的：
+
+* `Q2_objectives.csv`
+* `Q2_pareto_front.csv`
+* `Q2_final_pareto.csv`
+
+都不要作为新的 MOEA/D 输入。
+
+---
+
+# 三、先修一个当前代码里的 seed 口径问题
+
+这是我检查仓库后认为你实现 MOEA/D 前必须先改的地方。
+
+当前正式 CP-SAT 输出的是：
+
+```text
+Q2_joint_selected_N.csv
+Q2_joint_selected_E.csv
+Q2_joint_selected_T.csv
+```
+
+但是 `cp_sat_scheduler.py::_candidate_subset()` 里面目前读取的还是：
+
+```python
+Q2_selected_tasks_N.csv
+Q2_selected_tasks_E.csv
+Q2_selected_tasks_T.csv
+```
+
+这三个属于旧流程。
+
+建议统一改成：
+
+```python
+for objective in ("N", "E", "T"):
+    path = DATA / f"Q2_joint_selected_{objective}.csv"
+```
+
+如果想兼容第一次运行，就：
+
+```python
+for objective in ("N", "E", "T"):
+    paths = [
+        DATA / f"Q2_joint_selected_{objective}.csv",
+        DATA / f"Q2_selected_tasks_{objective}.csv",
+    ]
+
+    for path in paths:
+        if path.exists():
+            ...
+            break
+```
+
+但是 MOEA/D 初始化时：
+
+$$
+\boxed{\text{只认 joint 版本}}
+$$
+
+比较干净。
+
+---
+
+# 四、现有三个 CP-SAT 解正好作为 MOEA/D 锚点
+
+你当前 `Q2_joint_summary.csv` 是：
+
+| 基准    |    $N$ |  $E$ / kWh | $C_{\max}$ | 状态       |
+| ----- | -----: | ---------: | ---------: | -------- |
+| N-opt | **20** |     64.212 |     9562 s | OPTIMAL  |
+| E-opt |     21 | **62.238** |     9177 s | OPTIMAL  |
+| T-opt |     24 |     67.370 | **7721 s** | FEASIBLE |
+
+所以初始化的时候直接：
+
+$$
+S^N,\qquad S^E,\qquad S^T
+$$
+
+三个种子。
+
+这非常有价值。
+
+尤其：
+
+$$
+N^*=20
+$$
+
+和
+
+$$
+E^*=62.2382
+$$
+
+当前在缩减候选池范围内已经被 CP-SAT 证明最优。
+
+而：
+
+$$
+C_{\max}=7721
+$$
+
+目前只能叫：
+
+> 当前已知最好的 T-opt 可行解
+
+因为 T 阶段仍是 `FEASIBLE`。
+
+---
+
+# 五、MOEA/D 个体怎么编码：这是整个实现最关键的地方
+
+不要搞一个：
+
+$$
+x\in\{0,1\}^{2615}
+$$
+
+然后直接交叉变异。
+
+那样大量个体都会：
+
+* 某箱没送；
+* 某箱送两次；
+* deadline 不可行；
+* UAV 并发超限；
+* 电池超限。
+
+## 推荐表示
+
+每个 MOEA/D 个体保存：
+
+$$
+\boxed{
+X=
+\left(
+S,\mathbf s,F
+\right)
+}
+$$
+
+其中：
+
+### 1. $S$
+
+当前 CP-SAT 输出的一套运输任务集合：
+
+$$
+S=\{k_1,k_2,\ldots,k_m\}
+$$
+
+例如：
+
+```python
+task_ids = frozenset([
+    "R000234",
+    "R000241",
+    "R000490",
+    ...
+])
+```
+
+### 2. $\mathbf s$
+
+这些任务当前的开始时刻，用来给下一次 CP-SAT `AddHint()`。
+
+### 3. $F$
+
+目标向量：
+
+```python
+objectives = (
+    n_sorties,
+    energy_kwh,
+    cmax_s,
+)
+```
+
+但是注意：
+
+> **$S$ 只是 MOEA/D 当前维护的运输方案骨架，不是下一代必须原封不动采用的最终任务。**
+
+下一步 CP-SAT 可以局部改变 $S$。
+
+这样就符合你要求的：
+
+$$
+\boxed{
+\text{MOEA/D管方案搜索}
++
+\text{CP-SAT管具体任务选择}
+}
+$$
+
+---
+
+# 六、交叉不要普通 one-point crossover
+
+这里建议设计成非常适合你问题的：
+
+$$
+\boxed{\text{Consensus + Destroy + CP-SAT Repair}}
+$$
+
+这比普通 GA 交叉合理很多。
+
+假设两个父代：
+
+$$
+S^{(1)},S^{(2)}
+$$
+
+首先求共同任务：
+
+$$
+S^{common}
+=
+S^{(1)}\cap S^{(2)}
+$$
+
+父代都选择的任务优先保留。
+
+例如：
+
+```text
+Parent 1:
+A B C D E F G H
+
+Parent 2:
+A B C X Y F G Z
+```
+
+共同部分：
+
+```text
+A B C F G
+```
+
+这些任务先固定。
+
+---
+
+# 七、释放“父代有分歧”的货箱
+
+不同任务：
+
+$$
+D=
+S^{(1)}
+\triangle
+S^{(2)}
+$$
+
+然后找到这些任务涉及的所有货箱：
+
+$$
+U
+=
+\bigcup_{k\in D}B_k
+$$
+
+比如：
+
+```text
+D E H
+X Y Z
+```
+
+一共涉及：
+
+```text
+B003
+B004
+B016
+B027
+B041
+B055
+B056
+```
+
+这些箱全部释放。
+
+于是：
+
+$$
+\boxed{
+\text{MOEA/D决定哪里需要重新搜索}
+}
+$$
+
+而不是直接决定怎么修。
+
+---
+
+# 八、再加入 mutation
+
+如果只释放父代差异部分，很容易越来越保守。
+
+所以再从共同任务里随机释放：
+
+$$
+d=1\sim3
+$$
+
+个任务。
+
+例如：
+
+```python
+destroy_rate = 0.10 ~ 0.20
+```
+
+也就是约：
+
+$$
+2\sim4
+$$
+
+个架次。
+
+于是：
+
+```text
+父代差异区域
++
+随机 Destroy 区域
+=
+本轮自由区域 U
+```
+
+---
+
+# 九、从 2615 个任务里构造局部候选集
+
+设已经固定的任务集合：
+
+$$
+S^{fix}
+$$
+
+它们覆盖的箱不能再次被其他任务覆盖。
+
+自由货箱集合：
+
+$$
+U=B\setminus B(S^{fix})
+$$
+
+局部候选任务只保留：
+
+$$
+\boxed{
+K_U=
+\{k:B_k\subseteq U\}
+}
+$$
+
+非常重要。
+
+不是：
+
+$$
+B_k\cap U\neq\varnothing
+$$
+
+而必须：
+
+$$
+B_k\subseteq U
+$$
+
+否则新任务可能同时运输一个已经被固定任务运输的箱，导致重复覆盖。
+
+---
+
+# 十、这时才调用内层 CP-SAT
+
+构造：
+
+$$
+K^{inner}
+=
+S^{fix}\cup K_U
+$$
+
+通常不会再有 2615 个任务。
+
+例如可能只剩：
+
+$$
+80\sim400
+$$
+
+个。
+
+CP-SAT 在这里重新决定：
+
+$$
+x_k\in\{0,1\}
+$$
+
+对于固定任务：
+
+$$
+x_k=1,
+\qquad k\in S^{fix}
+$$
+
+对于自由候选：
+
+$$
+x_k\in\{0,1\},
+\qquad k\in K_U
+$$
+
+---
+
+# 十一、货箱覆盖约束直接复用你现在的
+
+你现有 CP-SAT 已经正确使用：
+
+```python
+model.AddExactlyOne(covering)
+```
+
+对应：
+
+$$
+\boxed{
+\sum_{k\in K}
+a_{bk}x_k=1
+\qquad
+\forall b
+}
+$$
+
+这一部分完全不要换。
+
+---
+
+# 十二、开始时刻继续交给 CP-SAT
+
+定义：
+
+$$
+s_k
+$$
+
+你当前已经是整数秒：
+
+```python
+start = model.NewIntVar(...)
+```
+
+继续保持。
+
+硬时限：
+
+$$
+s_k+\delta_{kb}
+\le D_b
+$$
+
+继续复用现在：
+
+```python
+model.Add(
+    start + offset <= deadline
+).OnlyEnforceIf(chosen)
+```
+
+---
+
+# 十三、无人机和电池约束也完全复用现有模型
+
+当前设计其实很适合 MOEA/D 内层。
+
+运输无人机：
+
+$$
+\operatorname{Cumulative}
+\left(
+I_k^{flight},1,N_g^{UAV}
+\right)
+$$
+
+代码继续：
+
+```python
+model.AddCumulative(
+    flight_intervals[typ],
+    [1] * len(flight_intervals[typ]),
+    len(uav_ids[typ]),
+)
+```
+
+电池：
+
+$$
+\operatorname{Cumulative}
+\left(
+I_k^{battery},1,N_g^{battery}
+\right)
+$$
+
+电池占用区间仍然是：
+
+$$
+[
+s_k,
+s_k+T_k^{flight}+T_k^{charge}
+)
+$$
+
+这一层不用因为 MOEA/D 改任何物理逻辑。
+
+---
+
+# 十四、最大的修改：CP-SAT 不再只有 N/E/T 字典序目标
+
+你现在：
+
+```python
+stage_map = {
+    "N": ...,
+    "E": ...,
+    "T": ...,
+}
+```
+
+新的 MOEA/D 内层要支持：
+
+$$
+\lambda=
+(\lambda_N,\lambda_E,\lambda_T)
+$$
+
+建议使用 **augmented Tchebycheff**。
+
+MOEA/D 标量子问题：
+
+$$
+g(X|\lambda,z^*)
+=
+\max_{i}
+\left\{
+\lambda_i
+\frac{f_i(X)-z_i^*}{r_i}
+\right\}
++
+\rho
+\sum_i
+\lambda_i
+\frac{f_i(X)-z_i^*}{r_i}
+$$
+
+其中：
+
+$$
+\rho=0.01
+$$
+
+即可。
+
+相比简单：
+
+$$
+\lambda_NN+\lambda_EE+\lambda_TC_{\max}
+$$
+
+Tchebycheff 更适合生成非凸 Pareto 前沿。
+
+---
+
+# 十五、CP-SAT 里怎么实现 Tchebycheff
+
+因为 CP-SAT 只能处理整数。
+
+你已经有：
+
+```python
+ENERGY_SCALE = 10000
+```
+
+所以：
+
+$$
+E^{int}=10000E
+$$
+
+定义：
+
+```python
+n_sorties
+energy_units
+cmax
+```
+
+再定义：
+
+```python
+g = model.NewIntVar(0, BIG_M, "tcheby")
+```
+
+设尺度：
+
+$$
+r_N,\quad r_E,\quad r_T
+$$
+
+根据三个 anchor 初始化。
+
+然后整数化系数：
+
+```python
+cN = round(SCALE * lambda_N / rN)
+cE = round(SCALE * lambda_E / rE)
+cT = round(SCALE * lambda_T / rT)
+```
+
+加入：
+
+```python
+model.Add(
+    g >= cN * (n_sorties - zN)
+)
+
+model.Add(
+    g >= cE * (energy_units - zE)
+)
+
+model.Add(
+    g >= cT * (cmax - zT)
+)
+```
+
+最终：
+
+```python
+model.Minimize(
+    BIG_WEIGHT * g
+    + cN * (n_sorties - zN)
+    + cE * (energy_units - zE)
+    + cT * (cmax - zT)
+)
+```
+
+这就是真正的：
+
+$$
+\boxed{\text{MOEA/D 子问题}\rightarrow\text{CP-SAT 精确求解}}
+$$
+
+---
+
+# 十六、尺度不能直接用原值
+
+因为当前大约：
+
+$$
+N\approx20
+$$
+
+$$
+E\approx62\sim67
+$$
+
+$$
+C_{\max}\approx7700\sim9600
+$$
+
+不归一化的话：
+
+$$
+C_{\max}
+$$
+
+必然把其他目标淹没。
+
+可以先根据当前 anchor 建立：
+
+$$
+r_N
+=
+24-20
+=
+4
+$$
+
+$$
+r_E
+\approx
+67.370-62.238
+=
+5.132
+$$
+
+时间可以先：
+
+$$
+r_T
+=
+9562-7721
+=
+1841
+$$
+
+为了避免范围太窄，建议设最小尺度：
+
+$$
+r_N\ge4
+$$
+
+$$
+r_E\ge5\text{ kWh}
+$$
+
+$$
+r_T\ge1800\text{ s}
+$$
+
+后面根据 Pareto archive 动态更新 nadir。
+
+---
+
+# 十七、MOEA/D 权重数量不用很大
+
+三个目标。
+
+采用 simplex lattice：
+
+$$
+\lambda_N+\lambda_E+\lambda_T=1
+$$
+
+先设：
+
+$$
+H=8
+$$
+
+得到：
+
+$$
+\binom{H+3-1}{3-1}
+=
+\binom{10}{2}
+=
+45
+$$
+
+组权重。
+
+例如：
+
+$$
+(1,0,0)
+$$
+
+$$
+(0,1,0)
+$$
+
+$$
+(0,0,1)
+$$
+
+$$
+(0.5,0.25,0.25)
+$$
+
+$$
+(0.25,0.5,0.25)
+$$
+
+等等。
+
+所以：
+
+$$
+\boxed{\text{population size}=45}
+$$
+
+已经够你 Q2 第一版。
+
+没必要一上来 100、200 个体。
+
+---
+
+# 十八、初始化不要随机
+
+45 个子问题分别找离它最近的 anchor。
+
+例如权重：
+
+$$
+\lambda=(0.8,0.1,0.1)
+$$
+
+从 N-opt 出发。
+
+$$
+(0.1,0.8,0.1)
+$$
+
+从 E-opt 出发。
+
+$$
+(0.1,0.1,0.8)
+$$
+
+从 T-opt 出发。
+
+中间权重：
+
+$$
+(0.34,0.33,0.33)
+$$
+
+可以随机选择三个 anchor 中一个，然后进行一次：
+
+$$
+\text{Destroy}
++
+\text{CP-SAT Repair}
+$$
+
+产生新解。
+
+这样第一代就全部是：
+
+$$
+\boxed{\text{硬约束可行解}}
+$$
+
+而不是大量垃圾染色体。
+
+---
+
+# 十九、MOEA/D 邻域
+
+按权重向量欧氏距离：
+
+$$
+d_{ij}
+=
+\|\lambda_i-\lambda_j\|_2
+$$
+
+每个子问题取：
+
+$$
+T=10
+$$
+
+个最近邻。
+
+父代就从：
+
+$$
+B(i)
+$$
+
+里面取。
+
+一般：
+
+```python
+p1, p2 = rng.choice(neighbors[i], size=2)
+```
+
+然后做前面的：
+
+```text
+common tasks
+↓
+difference region
+↓
+random destroy
+↓
+CP-SAT repair
+```
+
+---
+
+# 二十、MOEA/D 更新
+
+新方案为：
+
+$$
+Y
+$$
+
+更新 ideal point：
+
+$$
+z_j^*
+=
+\min(z_j^*,f_j(Y))
+$$
+
+然后对邻居：
+
+$$
+j\in B(i)
+$$
+
+计算：
+
+$$
+g(Y|\lambda_j,z^*)
+$$
+
+和：
+
+$$
+g(X_j|\lambda_j,z^*)
+$$
+
+若：
+
+$$
+g(Y|\lambda_j,z^*)
+\le
+g(X_j|\lambda_j,z^*)
+$$
+
+则：
+
+$$
+X_j\leftarrow Y
+$$
+
+建议：
+
+$$
+n_r=2
+$$
+
+即一个 offspring 最多替换两个邻居。
+
+否则某个特别好的方案会瞬间把整个 population 同质化。
+
+---
+
+# 二十一、一定再维护一个独立 Pareto Archive
+
+MOEA/D population 和 Pareto archive 不是一回事。
+
+建立：
+
+```python
+archive = []
+```
+
+任何新可行解 $Y$：
+
+如果被 archive 里某个解支配：
+
+```text
+丢弃
+```
+
+如果它支配 archive 中其他解：
+
+```text
+删除被支配解
+```
+
+然后加入：
+
+```text
+Y
+```
+
+支配关系：
+
+$$
+A\prec B
+$$
+
+当：
+
+$$
+N_A\le N_B
+$$
+
+$$
+E_A\le E_B
+$$
+
+$$
+T_A\le T_B
+$$
+
+且至少一个严格小于。
+
+---
+
+# 二十二、缓存是必须做的
+
+因为不同权重很容易产生相同任务组合。
+
+定义：
+
+```python
+key = tuple(sorted(task_ids))
+```
+
+然后：
+
+```python
+schedule_cache[key]
+```
+
+存：
+
+```python
+{
+    "objectives": (...),
+    "starts": {...},
+    "status": ...,
+    "schedule": ...
+}
+```
+
+相同任务集合再次出现，就不需要重新做完整调度。
+
+对于 Q2 这种问题，这个优化很重要。
+
+---
+
+# 二十三、但 CP-SAT 会改变任务组合，缓存要放在求解之后
+
+例如输入 skeleton：
+
+```text
+A B C D
+```
+
+经过 CP-SAT：
+
+```text
+A B X Y
+```
+
+真正 cache key 应该是：
+
+```python
+tuple(sorted(["A", "B", "X", "Y"]))
+```
+
+而不是 destroy 前的 skeleton。
+
+---
+
+# 二十四、代码结构建议这样改
+
+当前：
+
+```text
+src/q2/
+    battery.py
+    candidate_generator.py
+    cp_sat_scheduler.py
+    ...
+```
+
+新增：
+
+```text
+src/q2/
+    moead_cp_sat.py
+    moead_core.py
+    moead_archive.py
+```
+
+如果希望文件少，也可以只增加两个：
+
+```text
+src/q2/
+    moead.py
+    moead_cp_sat.py
+```
+
+我更推荐后者。
+
+---
+
+# 二十五、`moead.py` 只实现纯 MOEA/D
+
+不要往里面塞 UAV 逻辑。
+
+负责：
+
+```python
+generate_weights()
+build_neighbors()
+tchebycheff()
+dominates()
+update_archive()
+select_parents()
+run_moead()
+```
+
+例如：
+
+```python
+@dataclass
+class Solution:
+    task_ids: tuple
+    starts: dict
+    objectives: tuple
+    status: str
+```
+
+这样以后 Q3、Q4 可以复用这个 MOEA/D 核心。
+
+这一点对你后面的统一框架特别重要。
+
+---
+
+# 二十六、真正 Q2 专有逻辑放 `moead_cp_sat.py`
+
+这里负责：
+
+```python
+prepare_q2_problem()
+load_anchor_solutions()
+
+build_local_neighborhood()
+
+destroy_and_recombine()
+
+solve_moead_subproblem()
+
+evaluate_solution()
+
+save_results()
+```
+
+也就是说以后：
+
+```text
+src/moead/core.py
+```
+
+甚至可以进一步抽成公共模块。
+
+Q2/Q3/Q4 都调用。
+
+这是你后续最值得做的代码重构。
+
+---
+
+# 二十七、建议把现有 CP-SAT 重构出一个公共 prepare 函数
+
+现在很多东西是 private：
+
+```python
+_read_inputs()
+_deadlines()
+_candidate_subset()
+_resource_ids()
+_build_model()
+```
+
+MOEA/D 还要用。
+
+建议增加：
+
+```python
+def prepare_q2_problem(
+    per_box_type_k=8
+):
+    ...
+```
+
+返回：
+
+```python
+{
+    "tasks": tasks,
+    "deliveries": deliveries,
+    "boxes": boxes,
+    "task_boxes": task_boxes,
+    "task_offsets": task_offsets,
+    "deadlines": deadlines,
+    "uav_ids": uav_ids,
+    "battery_ids": battery_ids,
+    "energy_capacity": energy_capacity,
+    "charge_full": charge_full,
+}
+```
+
+以后：
+
+```python
+cp_sat_scheduler.py
+```
+
+和：
+
+```python
+moead_cp_sat.py
+```
+
+共用它。
+
+这样就不会出现两套 deadline、两套 battery、两套 candidate pool。
+
+---
+
+# 二十八、增加一个最关键的新函数
+
+建议在 `moead_cp_sat.py` 写：
+
+```python
+def solve_local_subproblem(
+    problem,
+    fixed_task_ids,
+    free_box_ids,
+    weight,
+    ideal_point,
+    objective_ranges,
+    start_hints=None,
+    time_limit_s=2.0,
+    workers=2,
+):
+    ...
+```
+
+它执行：
+
+```text
+固定任务
+      ↓
+根据 free boxes 找 KU
+      ↓
+构建小型 CP-SAT
+      ↓
+加入 ExactlyOne
+      ↓
+加入 UAV cumulative
+      ↓
+加入 battery cumulative
+      ↓
+加入 hard deadline
+      ↓
+加入 MOEA/D Tchebycheff objective
+      ↓
+AddHint
+      ↓
+Solve
+```
+
+返回：
+
+```python
+{
+    "feasible": True,
+    "task_ids": ...,
+    "starts": ...,
+    "N": ...,
+    "E": ...,
+    "Cmax": ...,
+    "solver_status": ...,
+}
+```
+
+这是整个 Q2 新算法的核心接口。
+
+---
+
+# 二十九、这里有一个非常容易踩的代码坑
+
+你现有 `_build_model()`：
+
+```python
+for i, row in tasks.iterrows():
+```
+
+后面又：
+
+```python
+tasks.iloc[i]
+```
+
+因此局部筛完以后一定：
+
+```python
+tasks = tasks.reset_index(drop=True)
+```
+
+否则：
+
+```python
+iterrows() 的 i
+```
+
+和：
+
+```python
+iloc[i]
+```
+
+可能不一致。
+
+实现 MOEA/D 的局部候选池时这一点一定注意。
+
+---
+
+# 三十、每次内层求解时间不要给 200 秒
+
+MOEA/D 要调用很多次 CP-SAT。
+
+第一版建议：
+
+```python
+population_size = 45
+generations = 40
+local_time_limit = 1.0 ~ 2.0 s
+workers = 1 or 2
+```
+
+理论最多：
+
+$$
+45\times40=1800
+$$
+
+次局部求解。
+
+但因为：
+
+* 局部候选规模很小；
+* 有 cache；
+* 很多父代相同；
+* 有 start hints；
+
+实际比 1800 次完整 CP-SAT 快非常多。
+
+---
+
+# 三十一、最终 Pareto archive 再做一次长时间精修
+
+MOEA/D 搜索结束以后，假设留下：
+
+$$
+15\sim30
+$$
+
+个非支配方案。
+
+这时候可以：
+
+```text
+每个方案
+↓
+把 destroy neighborhood 放大
+↓
+CP-SAT 30~60 s
+↓
+重新优化
+```
+
+这叫：
+
+$$
+\boxed{\text{Final Polishing}}
+$$
+
+非常适合写论文。
+
+于是算法分成：
+
+### 搜索阶段
+
+$$
+1\sim2\text{s CP-SAT}
+$$
+
+快速探索。
+
+### 精修阶段
+
+$$
+30\sim60\text{s CP-SAT}
+$$
+
+提高最终 Pareto 质量。
+
+---
+
+# 三十二、我建议第一版参数直接定成这样
+
+| 参数                    |                    推荐值 |
+| --------------------- | ---------------------: |
+| 目标数                   |                      3 |
+| $H$                   |                      8 |
+| population            |                     45 |
+| neighborhood $T$      |                     10 |
+| generations           |                     40 |
+| max replacement $n_r$ |                      2 |
+| random destroy        |              1–3 tasks |
+| local CP-SAT          |                  1.5 s |
+| CP-SAT workers        |                      2 |
+| $\rho$                |                   0.01 |
+| random seed           |                   2026 |
+| final polishing       | 30 s / Pareto solution |
+
+第一版先不要追求很大 population。
+
+---
+
+# 三十三、主程序怎么改
+
+不要删除现在 CP-SAT 基准。
+
+建议 `Q2.py` 支持：
+
+```bash
+python code/Q2.py --method cp-sat
+```
+
+表示：
+
+```text
+原来的 N/E/T exact baseline
+```
+
+以及：
+
+```bash
+python code/Q2.py --method moead
+```
+
+表示：
+
+```text
+MOEA/D + CP-SAT
+```
+
+以及：
+
+```bash
+python code/Q2.py --method all
+```
+
+流程：
+
+```text
+foundation check
+↓
+candidate generation
+↓
+CP-SAT anchors
+↓
+MOEA/D + CP-SAT
+↓
+final validation
+```
+
+论文实验也方便复现。
+
+---
+
+# 三十四、输出文件建议重新独立命名
+
+不要再覆盖旧的 Q2 Pareto 文件。
+
+生成：
+
+```text
+Q2_moead_pareto.csv
+Q2_moead_population.csv
+Q2_moead_convergence.csv
+Q2_moead_manifest.json
+```
+
+最终 Pareto 每个方案保存：
+
+```text
+Q2_moead_selected_P001.csv
+Q2_moead_schedule_P001.csv
+Q2_moead_delivery_P001.csv
+
+Q2_moead_selected_P002.csv
+...
+```
+
+---
+
+# 三十五、`Q2_moead_pareto.csv` 至少包含
+
+```text
+solution_id
+n_sorties
+energy_kWh
+Cmax_s
+Cmax_h
+hard_violations
+n_A
+n_B
+n_C
+solver_status
+polished
+```
+
+例如：
+
+| ID   |  N | E/kWh | Cmax/h |   A |   B |   C |
+| ---- | -: | ----: | -----: | --: | --: | --: |
+| P001 | 20 | 64.21 |   2.66 | ... | ... | ... |
+| P002 | 20 | 64.50 |   2.40 | ... | ... | ... |
+| P003 | 21 | 62.24 |   2.55 | ... | ... | ... |
+| P004 | 22 | 63.10 |   2.20 | ... | ... | ... |
+| P005 | 24 | 67.37 |   2.14 | ... | ... | ... |
+
+真正运行以后当然以实际数据为准。
+
+---
+
+# 三十六、收敛文件建议这样记录
+
+`Q2_moead_convergence.csv`：
+
+```text
+generation
+archive_size
+best_N
+best_E
+best_T
+mean_N
+mean_E
+mean_T
+cp_sat_calls
+cache_hits
+wall_time_s
+```
+
+后面论文可以直接画：
+
+* MOEA/D 收敛曲线；
+* $E-C_{\max}$ Pareto 图；
+* $N-E-C_{\max}$ 三维 Pareto 图。
+
+---
+
+# 三十七、最终验证一定继续走独立 validator
+
+每个 Pareto 解最后重新检查：
+
+$$
+\boxed{\text{80箱每箱恰好一次}}
+$$
+
+$$
+\boxed{\text{质量/体积/能量合法}}
+$$
+
+$$
+\boxed{\text{UAV不冲突}}
+$$
+
+$$
+\boxed{\text{电池不冲突}}
+$$
+
+$$
+\boxed{\text{首批保障无超时}}
+$$
+
+$$
+\boxed{\text{医疗物资无超时}}
+$$
+
+但你现有旧 `final_validator.py` 也需要统一 deadline 逻辑。
+
+最好不要自己再维护 `_build_box_deadlines()`。
+
+统一：
+
+```python
+from .cp_sat_scheduler import _deadlines
+```
+
+或者更进一步把 deadline 抽到：
+
+```text
+q2/problem_data.py
+```
+
+让：
+
+```text
+CP-SAT
+MOEA/D
+validator
+Q3
+```
+
+全部用同一个接口。
+
+---
+
+# 三十八、完整伪代码可以直接按这个实现
+
+```text
+Algorithm Q2-MOEAD-CP-SAT
+
+Input:
+    reduced candidate task set K
+    box set B
+    UAV resources
+    battery resources
+
+1. Run CP-SAT baselines:
+       X_N = N-opt
+       X_E = E-opt
+       X_T = T-opt
+
+2. Generate decomposition weights:
+       Λ = {λ1,...,λM}
+
+3. Build weight neighborhoods B(i)
+
+4. Initialize population:
+       for each λ_i:
+           choose nearest anchor
+           apply local destroy
+           child ← CP-SAT-Repair(anchor, λ_i)
+
+5. Initialize:
+       ideal point z*
+       external archive EP
+
+6. for generation = 1,...,G:
+
+       for i = 1,...,M:
+
+           select X_p1, X_p2 from B(i)
+
+           S_common =
+               tasks(X_p1) ∩ tasks(X_p2)
+
+           D =
+               tasks(X_p1) △ tasks(X_p2)
+
+           randomly destroy 1~3
+           additional common tasks
+
+           construct fixed tasks S_fix
+
+           U =
+               boxes not covered by S_fix
+
+           K_U =
+               {k | boxes(k) ⊆ U}
+
+           Y ← CP-SAT(
+                   fixed=S_fix,
+                   candidates=K_U,
+                   weight=λ_i
+               )
+
+           if Y infeasible:
+               continue
+
+           evaluate:
+               F(Y)=(N,E,Cmax)
+
+           update z*
+
+           update EP
+
+           for j ∈ B(i):
+               if g(Y|λ_j,z*)
+                  <= g(X_j|λ_j,z*):
+
+                   X_j ← Y
+
+                   replacement_count += 1
+
+               if replacement_count >= nr:
+                   break
+
+7. Final CP-SAT polishing
+   for Y ∈ EP
+
+8. Remove duplicate/dominated solutions
+
+9. Independent validation
+
+Output:
+    Pareto front EP
+```
+
+---
+
+# 三十九、这样设计以后，MOEA/D 和 CP-SAT 的分工就非常清楚了
+
+这也是我认为你现在最应该采用的 Q2 版本：
+
+$$
+\boxed{
+\text{MOEA/D}
+}
+$$
+
+负责：
+
+$$
+\text{多目标分解}
+$$
+
+$$
+\text{Pareto 搜索方向}
+$$
+
+$$
+\text{父代选择}
+$$
+
+$$
+\text{决定重新优化哪些任务区域}
+$$
+
+$$
+\text{种群与邻域更新}
+$$
+
+而：
+
+$$
+\boxed{
+\text{CP-SAT}
+}
+$$
+
+负责：
+
+$$
+\text{具体候选任务选择}
+$$
+
+$$
+\text{每箱恰好运输一次}
+$$
+
+$$
+\text{机型资源}
+$$
+
+$$
+\text{共享电池资源}
+$$
+
+$$
+\text{开始时刻}
+$$
+
+$$
+\text{充电周转}
+$$
+
+$$
+\text{硬时限}
+$$
+
+这样就真正符合你要的：
+
+$$
+\boxed{
+\text{MOEA/D 外层策略优化}
++
+\text{CP-SAT 内层精确调度}
+}
+$$
+
+而且不是为了统一 Q2/Q3/Q4 硬套算法，两层确实分别解决不同难度的部分。
+
+---
+
+## 最推荐的具体实施顺序
+
+第一步先**不要写 MOEA/D 主循环**，先把 `cp_sat_scheduler.py` 重构出一个：
+
+```python
+solve_local_subproblem(...)
+```
+
+确保：
+
+> 给定固定任务 + 自由货箱 + 权重 $\lambda$，能够由 CP-SAT 返回一套完整可行方案。
+
+第二步，用 N-opt 人工 destroy 2 个任务测试这个函数，看它能不能重新组合货箱并保持全部约束。
+
+第三步，再实现 `moead.py` 的权重、邻域、Tchebycheff、archive。
+
+第四步接上 45 个子问题、40 代搜索。
+
+第五步最后加 cache、convergence、final polishing。
+
+**这个顺序最稳。**如果第一步 `solve_local_subproblem()` 没有完全正确，直接开始写完整 MOEA/D，后面很难判断到底是进化算法的问题还是 CP-SAT repair 的问题。

@@ -1,0 +1,18 @@
+{
+  "algorithm": "MOEA/D + CP-SAT matheuristic",
+  "n_obj": 3,
+  "n_subproblems": 45,
+  "archive_size": 37,
+  "ideal_point": [
+    20.0,
+    62.23823158945353,
+    7623.0
+  ],
+  "ranges": [
+    4.0,
+    5.131667564271218,
+    1840.4143548993725
+  ],
+  "total_evals": 85,
+  "cache_hits": 42
+}

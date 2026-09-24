@@ -100,11 +100,16 @@ def _candidate_subset(tasks, deliveries, boxes, per_box_type_k=8):
 
     # 既有方案作为可行覆盖骨架，便于模型热启动式缩池，但仍接受全部硬约束复核。
     for objective in ("N", "E", "T"):
-        path = DATA / f"Q2_selected_tasks_{objective}.csv"
-        if path.exists():
-            seed = pd.read_csv(path, encoding="utf-8-sig")
-            if "task_id" in seed:
-                keep.update(seed["task_id"].astype(str))
+        paths = [
+            DATA / f"Q2_joint_selected_{objective}.csv",
+            DATA / f"Q2_selected_tasks_{objective}.csv",
+        ]
+        for path in paths:
+            if path.exists():
+                seed = pd.read_csv(path, encoding="utf-8-sig")
+                if "task_id" in seed:
+                    keep.update(seed["task_id"].astype(str))
+                break
     keep &= valid
     chosen = work.loc[work.index.intersection(keep)].copy().reset_index(drop=True)
     if chosen.empty:
@@ -114,6 +119,43 @@ def _candidate_subset(tasks, deliveries, boxes, per_box_type_k=8):
         if not any(tid in chosen_ids and bid in task_boxes[tid] for tid in task_boxes):
             raise RuntimeError(f"货箱 {bid} 在缩减候选池中没有可用任务")
     return chosen, task_boxes, task_offsets, deadlines
+
+
+def prepare_q2_problem(per_box_type_k=8):
+    u"""加载并预计算 Q2 CP-SAT 所需全部数据，供基础调度和 MOEA/D 子问题共用。
+
+    Returns:
+        dict:
+            tasks           — 缩减后的候选任务 DataFrame (已 reset_index)
+            deliveries      — 原始候选 delivery 表
+            boxes           — 货箱原始数据
+            task_boxes      — {task_id: (box_id, ...)}
+            task_offsets    — {task_id: {box_id: delivery_offset_s}}
+            deadlines       — {box_id: hard_deadline_s or inf}
+            uav_ids         — {type: [uav_id, ...]}
+            battery_ids     — {type: [battery_id, ...]}
+            energy_capacity — {type: E_use_kWh}
+            charge_full     — {type: full_charge_time_s}
+            horizon_s       — 调度时域 (默认 36000)
+    """
+    tasks_raw, deliveries, boxes, uavs, batteries, energy_capacity, charge_full = _read_inputs()
+    tasks, task_boxes, task_offsets, deadlines = _candidate_subset(
+        tasks_raw, deliveries, boxes, per_box_type_k=per_box_type_k
+    )
+    uav_ids, battery_ids = _resource_ids(uavs, batteries)
+    return {
+        "tasks": tasks,
+        "deliveries": deliveries,
+        "boxes": boxes,
+        "task_boxes": task_boxes,
+        "task_offsets": task_offsets,
+        "deadlines": deadlines,
+        "uav_ids": uav_ids,
+        "battery_ids": battery_ids,
+        "energy_capacity": energy_capacity,
+        "charge_full": charge_full,
+        "horizon_s": 36000,
+    }
 
 
 def _resource_ids(uavs, batteries):
@@ -251,6 +293,286 @@ def _solve_lexicographic(model, variables, stages, time_limit_s, workers, random
             for variable in variables:
                 model.AddHint(variable, solver.Value(variable))
     return solver, status, stage_records
+
+
+def _build_tchebycheff_model(full_problem, fixed_task_ids, free_box_ids):
+    u"""为局部子问题构建 CP-SAT 模型（不含目标函数）。
+
+    固定任务强制 x_k=1，自由任务仅保留货箱完全落在 free_box_ids 内的候选。
+
+    Returns:
+        (model, select, starts, cmax, n_sorties, energy_units, metadata,
+         fixed_count, free_count)
+    """
+    p = full_problem
+    all_tasks = p["tasks"]
+    task_boxes = p["task_boxes"]
+    task_offsets = p["task_offsets"]
+    deadlines = p["deadlines"]
+    uav_ids = p["uav_ids"]
+    battery_ids = p["battery_ids"]
+    energy_capacity = p["energy_capacity"]
+    charge_full = p["charge_full"]
+    horizon_s = p["horizon_s"]
+
+    tid_to_boxes = {str(row.task_id): set(task_boxes[str(row.task_id)])
+                    for _, row in all_tasks.iterrows()}
+    tidy_typed = dict(zip(all_tasks["task_id"].astype(str),
+                          all_tasks["uav_type"].astype(str)))
+
+    fixed_set = set(fixed_task_ids)
+    free_set = set(free_box_ids)
+    local_tids = list(fixed_set)
+
+    for tid, boxes in tid_to_boxes.items():
+        if tid in fixed_set:
+            continue
+        if boxes and boxes.issubset(free_set):
+            local_tids.append(tid)
+
+    local_tasks = all_tasks.set_index("task_id").loc[local_tids].reset_index()
+    local_tasks["task_id"] = local_tasks["task_id"].astype(str)
+
+    local_box_set = set()
+    for tid in local_tasks["task_id"]:
+        local_box_set.update(task_boxes[tid])
+    for bid in deadlines:
+        if bid not in local_box_set:
+            continue
+        covering = [tid for tid in local_tasks["task_id"] if bid in task_boxes[tid]]
+        if not covering:
+            raise RuntimeError(f"局部候选池中货箱 {bid} 无可用任务")
+
+    local_task_boxes = {tid: task_boxes[tid] for tid in local_tasks["task_id"]}
+    local_task_offsets = {tid: task_offsets[tid] for tid in local_tasks["task_id"]}
+
+    model = cp_model.CpModel()
+    select = []
+    starts = []
+    flight_ends = []
+    active_ends = []
+    flight_intervals = defaultdict(list)
+    battery_intervals = defaultdict(list)
+    metadata = []
+    fixed_count = 0
+
+    for i, row in local_tasks.iterrows():
+        tid = str(row.task_id)
+        typ = str(row.uav_type)
+        flight_duration = max(1, math.ceil(float(row.duration_s)))
+        soc = soc_after_task(float(row.energy_kWh), energy_capacity[typ])
+        charge_s = charge_time_to_full(soc, charge_full[typ])
+        battery_duration = max(flight_duration,
+                               math.ceil(float(row.duration_s) + charge_s))
+        latest = horizon_s - battery_duration
+        if math.isfinite(float(row.hard_latest_start_s)):
+            latest = min(latest, math.floor(float(row.hard_latest_start_s)))
+        if latest < 0:
+            raise RuntimeError(f"候选任务 {tid} 在给定时域内没有可行开始时刻")
+
+        if tid in fixed_set:
+            chosen = model.NewConstant(1)
+            fixed_count += 1
+        else:
+            chosen = model.NewBoolVar(f"select_{i}")
+
+        start = model.NewIntVar(0, latest, f"start_{i}")
+        flight_end = model.NewIntVar(flight_duration, horizon_s, f"flight_end_{i}")
+        battery_end = model.NewIntVar(battery_duration, horizon_s, f"battery_end_{i}")
+        flight_interval = model.NewOptionalIntervalVar(
+            start, flight_duration, flight_end, chosen, f"flight_{i}"
+        )
+        battery_interval = model.NewOptionalIntervalVar(
+            start, battery_duration, battery_end, chosen, f"battery_{i}"
+        )
+        active_end = model.NewIntVar(0, horizon_s, f"active_end_{i}")
+        model.Add(active_end == flight_end).OnlyEnforceIf(chosen)
+        model.Add(active_end == 0).OnlyEnforceIf(chosen.Not())
+
+        for bid in task_boxes[tid]:
+            deadline = deadlines[bid]
+            if math.isfinite(deadline):
+                offset = math.ceil(task_offsets[tid][bid])
+                model.Add(start + offset <= math.floor(deadline)).OnlyEnforceIf(chosen)
+
+        select.append(chosen)
+        starts.append(start)
+        flight_ends.append(flight_end)
+        active_ends.append(active_end)
+        flight_intervals[typ].append(flight_interval)
+        battery_intervals[typ].append(battery_interval)
+        metadata.append({
+            "task_idx": i,
+            "task_id": tid,
+            "uav_type": typ,
+            "flight_duration_s": flight_duration,
+            "battery_duration_s": battery_duration,
+            "charge_s": charge_s,
+        })
+
+    tid_index = {str(row.task_id): idx for idx, row in local_tasks.iterrows()}
+    for bid in local_box_set:
+        covering = [select[tid_index[tid]] for tid in tid_index
+                    if bid in task_boxes.get(tid, ())]
+        if not covering:
+            raise RuntimeError(f"货箱 {bid} 没有候选任务可覆盖")
+        model.AddExactlyOne(covering)
+
+    for typ, intervals in flight_intervals.items():
+        model.AddCumulative(intervals, [1] * len(intervals), len(uav_ids[typ]))
+    for typ, intervals in battery_intervals.items():
+        model.AddCumulative(intervals, [1] * len(intervals), len(battery_ids[typ]))
+
+    cmax = model.NewIntVar(0, horizon_s, "cmax")
+    model.AddMaxEquality(cmax, active_ends)
+
+    n_sorties = sum(select)
+    energy_units = sum(
+        int(round(float(local_tasks.iloc[idx].energy_kWh) * ENERGY_SCALE)) * select[idx]
+        for idx in range(len(local_tasks))
+    )
+
+    return (model, select, starts, cmax, n_sorties, energy_units, metadata,
+            fixed_count, len(local_tasks) - fixed_count, local_tasks)
+
+
+def _add_tchebycheff_objective(model, n_sorties, energy_units, cmax,
+                               weight, ideal_point, objective_ranges):
+    u"""向模型添加 augmented Tchebycheff 标量化目标。
+
+    g(X|λ,z*) = max_i { λ_i * (f_i - z_i*) / r_i } + ρ * Σ_i λ_i * (f_i - z_i*) / r_i
+
+    CP-SAT 只处理整数，所有系数预先缩放为整数。
+    """
+    SCALE = 1_000_000
+    rho = 0.01
+
+    wN, wE, wT = weight
+    zN, zE, zT = ideal_point
+    rN, rE, rT = objective_ranges
+
+    zN = int(zN)
+    zT = int(zT)
+
+    rN = max(rN, 1)
+    rE = max(rE, 0.01)
+    rT = max(rT, 1)
+
+    zE_units = int(round(zE * ENERGY_SCALE))
+    rE_units = max(1.0, rE * ENERGY_SCALE)
+
+    cN = int(round(SCALE * wN / rN))
+    cE = int(round(SCALE * wE / rE_units))
+    cT = int(round(SCALE * wT / rT))
+
+    dN = n_sorties - zN
+    dE = energy_units - zE_units
+    dT = cmax - zT
+
+    max_d = model.NewIntVar(0, 10 ** 9, "tcheby_max")
+    model.Add(max_d >= cN * dN)
+    model.Add(max_d >= cE * dE)
+    model.Add(max_d >= cT * dT)
+
+    augment = cN * dN + cE * dE + cT * dT
+    BIG = int(round(SCALE * (1.0 + rho)))
+    model.Minimize(BIG * max_d + augment)
+
+
+def solve_local_subproblem(
+    problem,
+    fixed_task_ids,
+    free_box_ids,
+    weight,
+    ideal_point,
+    objective_ranges,
+    start_hints=None,
+    time_limit_s=2.0,
+    workers=2,
+    random_seed=2026,
+):
+    u"""MOEA/D 内层 CP-SAT 局部子问题求解。
+
+    给定固定任务集合 + 自由货箱集合 + MOEA/D 权重 λ，
+    由 CP-SAT 在局部候选池内重新选择任务、安排开始时刻并分配资源。
+
+    Args:
+        problem: prepare_q2_problem() 返回值
+        fixed_task_ids: 强制选择的任务 ID 集合 (iterable)
+        free_box_ids: 允许新任务覆盖的货箱 ID 集合 (iterable)
+        weight: MOEA/D 权重 (λ_N, λ_E, λ_T)，和为 1
+        ideal_point: 当前理想点 (z_N*, z_E*, z_T*)
+        objective_ranges: 归一化尺度 (r_N, r_E, r_T)
+        start_hints: {task_id: start_time_s} 给 CP-SAT 的初始 hint
+        time_limit_s: CP-SAT 求解时限
+        workers: CP-SAT 并行 worker 数
+        random_seed: 随机种子
+
+    Returns:
+        dict: {'task_ids', 'starts', 'N', 'E', 'Cmax', 'status', 'wall_time_s'}
+              字段均为 None 若不可行。
+    """
+    (model, select, starts, cmax, n_sorties, energy_units, metadata,
+     n_fixed, n_free_candidates, local_tasks) = _build_tchebycheff_model(
+        problem, fixed_task_ids, free_box_ids
+    )
+
+    _add_tchebycheff_objective(
+        model, n_sorties, energy_units, cmax,
+        weight, ideal_point, objective_ranges,
+    )
+
+    if start_hints:
+        tid_index = {str(row.task_id): idx for idx, row in local_tasks.iterrows()}
+        model.ClearHints()
+        for tid, start_val in start_hints.items():
+            if tid in tid_index:
+                model.AddHint(starts[tid_index[tid]], int(start_val))
+
+    solver = cp_model.CpSolver()
+    solver.parameters.max_time_in_seconds = float(time_limit_s)
+    solver.parameters.num_search_workers = int(workers)
+    solver.parameters.random_seed = int(random_seed)
+    status = solver.Solve(model)
+
+    if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
+        return {
+            "task_ids": None,
+            "starts": None,
+            "N": None,
+            "E": None,
+            "Cmax": None,
+            "status": solver.StatusName(status),
+            "wall_time_s": solver.WallTime(),
+            "n_fixed": n_fixed,
+            "n_free_candidates": n_free_candidates,
+        }
+
+    selected_tids = []
+    selected_starts = {}
+    for i, chosen in enumerate(select):
+        if solver.Value(chosen):
+            tid = metadata[i]["task_id"]
+            selected_tids.append(tid)
+            selected_starts[tid] = int(solver.Value(starts[i]))
+
+    total_energy = sum(
+        float(local_tasks.iloc[metadata[j]["task_idx"]].energy_kWh)
+        for j in range(len(metadata))
+        if solver.Value(select[j])
+    )
+
+    return {
+        "task_ids": tuple(sorted(selected_tids)),
+        "starts": selected_starts,
+        "N": len(selected_tids),
+        "E": total_energy,
+        "Cmax": int(solver.Value(cmax)),
+        "status": solver.StatusName(status),
+        "wall_time_s": solver.WallTime(),
+        "n_fixed": n_fixed,
+        "n_free_candidates": n_free_candidates,
+    }
 
 
 def solve_joint(tasks, deliveries, boxes, uavs, batteries, objective="N",
