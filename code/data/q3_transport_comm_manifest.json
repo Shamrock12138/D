@@ -1,0 +1,32 @@
+{
+  "step": "Q3 candidate transport direct communication profiles",
+  "run_command": "python code/Q3_step3.py",
+  "runtime": {
+    "python": "3.11.7",
+    "numpy": "2.4.4",
+    "Pillow": "10.1.0",
+    "openpyxl": "3.1.5"
+  },
+  "dt_s": 10.0,
+  "task_count": 71595,
+  "segment_profile_count": 581,
+  "node_profile_count": 16,
+  "needs_relay_count": 63261,
+  "validation_seed": 2026,
+  "validation_tasks": 30,
+  "validation_mismatches": 0,
+  "input_sha256": {
+    "Q2_candidate_tasks.csv": "83d5bd8848720e21ae09db79be1339b0093d95946cfd9379942ec301930cb8d6",
+    "Q2_candidate_deliveries.csv": "2efe9c9520f0ab63b3091568e050223b8bb7cbfbe3c74ce9a39fa99397c4059d",
+    "物资需求.csv": "bbc22fa4df3ba1202471d050ddf3fb1caba027767735227a2b6ec89d44e63c2d",
+    "服务区数据.csv": "29f280f5907cf48ac0386d2bda7e278fe634bd541d4cb26fcd248272c0f55b2b",
+    "运输无人机_机型参数.csv": "fa420411e1fd5e4006a8d21bca99f7ec000e1109ef14a6276284f291707de739",
+    "route_parameter_all.csv": "a4fadcc0a00e024bd80ae5db365f0e41dcd95b76aa8d88a196b552c39df0aa7e",
+    "镇龙乡及周边30米DEM.tif": "741fe6de0b2bcaffd0f4007f574ee698d46197094f52cc954b532c4f90fc7c03",
+    "通信链路参数.xlsx": "1860d153199e7ae460ba36e83b673374e640e19de91ea167f2877271001f5f81"
+  },
+  "output_sha256": {
+    "q3_transport_comm_summary.csv": "d09225f9da40a6ae880b962da9119f39784d78ca02bcf110c9725d26a0046d7c",
+    "q3_direct_profile_validation.csv": "5111e567ab0378261405bac42b18d9264274020ee7d2e80c11883f6359fa209d"
+  }
+}
