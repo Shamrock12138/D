@@ -30,6 +30,8 @@ from typing import Dict, List, Optional, Set, Tuple
 import pandas as pd
 
 from src.q3.communication.direct_profile import DirectProfileCache
+from src.q3.communication.link_budget import PARAMETER_PATH
+from src.q3.communication.terrain_block import DEM_PATH
 from src.q3.trajectory_generator import load_box_services
 from src.q3.transport.candidate_loader import (
     TransportTaskTemplate, load_candidate_tasks, load_box_deadlines,
@@ -48,6 +50,11 @@ OUTAGE_STATES = DATA / "q3_outage_states.csv"
 TASK_GAPS = DATA / "q3_task_comm_gaps.csv"
 TASK_GAP_STATES = DATA / "q3_task_gap_states.csv"
 GAP_MANIFEST = DATA / "q3_comm_gap_manifest.json"
+STEP3_MANIFEST = DATA / "q3_transport_comm_manifest.json"
+STEP4_MANIFEST = DATA / "q3_candidate_filter_manifest.json"
+ROUTE_PARAMETERS = DATA / "route_parameter_all.csv"
+NODE_PARAMETERS = DATA / "服务区数据.csv"
+UAV_PARAMETERS = DATA / "运输无人机_机型参数.csv"
 
 
 @dataclass(frozen=True)
@@ -79,6 +86,19 @@ class OutageStateKey:
         )
 
 
+@dataclass(frozen=True)
+class ProfileSample:
+    tau: float
+    direct: bool
+    margin_db: float
+    state_key: OutageStateKey
+    x: float
+    y: float
+    z: float
+    phase: str
+    node: Optional[str]
+
+
 def _round_tau(t: float) -> float:
     return round(t, 6)
 
@@ -99,7 +119,7 @@ def _build_outage_state_library(
             if seg.direct[i]:
                 continue
             t = _round_tau(seg.times[i])
-            phase = "handover" if i == len(seg.times) - 1 else "cruise"
+            phase = seg.phase[i]
             sk = OutageStateKey(
                 uav_type=uav_type, phase=phase,
                 origin=origin, destination=dest, local_tau=t,
@@ -167,7 +187,7 @@ def _assemble_profile_with_sources(
     template: TransportTaskTemplate,
     cache: DirectProfileCache,
     box_services: dict,
-) -> List[Tuple[float, bool, float, OutageStateKey]]:
+) -> List[ProfileSample]:
     u"""完全对等 assemble_task_profile，同时记录每个采样点的 state_key。
 
     重要: 必须与 communication_summary.assemble_task_profile 使用完全相同的
@@ -178,13 +198,13 @@ def _assemble_profile_with_sources(
     if set(counts) != set(template.visit_order):
         raise ValueError(f"{template.task_id} 停靠点与货箱服务区不一致")
 
-    source_samples: List[Tuple[float, bool, float, OutageStateKey]] = []
+    source_samples: List[ProfileSample] = []
 
-    def _extend(new_items: List[Tuple[float, bool, float, OutageStateKey]]):
+    def _extend(new_items: List[ProfileSample]):
         if not new_items:
             return
         if source_samples and math.isclose(
-            source_samples[-1][0], new_items[0][0], abs_tol=1e-8,
+            source_samples[-1].tau, new_items[0].tau, abs_tol=1e-8,
         ):
             source_samples.pop()
         source_samples.extend(new_items)
@@ -206,7 +226,10 @@ def _assemble_profile_with_sources(
         "O01",
     )
     _extend([
-        (p.time, state_O01.direct, state_O01.margin_db, setup_sk)
+        ProfileSample(
+            p.time, state_O01.direct, state_O01.margin_db, setup_sk,
+            p.x, p.y, p.z, p.phase, p.node,
+        )
         for p in setup_points
     ])
     time_s += setup_dur
@@ -216,20 +239,18 @@ def _assemble_profile_with_sources(
     for origin, dest in zip(template.route, template.route[1:]):
         seg_key = (uav_name, origin, dest)
         seg = seg_cache[seg_key]
-        n_seg = len(seg.times)
         _extend([
-            (
-                time_s + seg.times[i],
-                seg.direct[i],
-                seg.margin_db[i],
+            ProfileSample(
+                time_s + seg.times[i], seg.direct[i], seg.margin_db[i],
                 OutageStateKey(
                     uav_type=uav_name,
-                    phase="handover" if i == n_seg - 1 else "cruise",
+                    phase=seg.phase[i],
                     origin=origin, destination=dest,
                     local_tau=_round_tau(seg.times[i]),
                 ),
+                seg.x[i], seg.y[i], seg.z[i], seg.phase[i], seg.node[i],
             )
-            for i in range(n_seg)
+            for i in range(len(seg.times))
         ])
         time_s += seg.duration_s
 
@@ -252,7 +273,10 @@ def _assemble_profile_with_sources(
                 dest,
             )
             _extend([
-                (p.time, dest_state.direct, dest_state.margin_db, hov_sk)
+                ProfileSample(
+                    p.time, dest_state.direct, dest_state.margin_db, hov_sk,
+                    p.x, p.y, p.z, p.phase, p.node,
+                )
                 for p in hov_points
             ])
             time_s += hov_dur
@@ -296,7 +320,7 @@ def _extract_gaps_with_states(
             skipped += 1
             continue
 
-        has_outage = any(not d for _, d, _, _ in source_samples)
+        has_outage = any(not sample.direct for sample in source_samples)
         if not has_outage:
             n_direct += 1
             continue
@@ -306,70 +330,76 @@ def _extract_gaps_with_states(
 
         in_gap = False
         gap_start = 0.0
-        gap_samples: List[Tuple[float, OutageStateKey]] = []
+        gap_samples: List[ProfileSample] = []
+        gap_before: Optional[ProfileSample] = None
+        previous: Optional[ProfileSample] = None
 
-        for tau, direct, margin, sk in source_samples:
-            if not direct and not in_gap:
-                in_gap = True
-                gap_start = tau
-                gap_samples = [(tau, sk)]
-            elif not direct and in_gap:
-                gap_samples.append((tau, sk))
-            elif direct and in_gap:
-                in_gap = False
-                gap_end = tau
-                gap_index += 1
-                gap_id = f"G{gap_index:06d}"
-                total_gaps += 1
-                task_gap_counts[template.task_id] += 1
+        def boundary_fields(prefix: str, sample: Optional[ProfileSample]):
+            if sample is None:
+                return {
+                    f"{prefix}_tau": "", f"{prefix}_direct": "",
+                    f"{prefix}_x": "", f"{prefix}_y": "", f"{prefix}_z": "",
+                    f"{prefix}_phase": "", f"{prefix}_node": "",
+                    f"{prefix}_margin_db": "",
+                }
+            return {
+                f"{prefix}_tau": round(sample.tau, 3),
+                f"{prefix}_direct": int(sample.direct),
+                f"{prefix}_x": sample.x, f"{prefix}_y": sample.y,
+                f"{prefix}_z": sample.z, f"{prefix}_phase": sample.phase,
+                f"{prefix}_node": sample.node or "",
+                f"{prefix}_margin_db": sample.margin_db,
+            }
 
-                gap_rows.append({
-                    "task_id": template.task_id,
-                    "gap_id": gap_id,
-                    "gap_index": task_gap_counts[template.task_id],
-                    "tau_start": round(gap_start, 3),
-                    "tau_end": round(gap_end, 3),
-                    "duration_s": round(gap_end - gap_start, 3),
-                    "n_outage_samples": len(gap_samples),
-                })
-
-                for gidx, (gtau, gsk) in enumerate(gap_samples):
-                    sid = state_map.get(gsk, "")
-                    gap_state_rows.append({
-                        "task_id": template.task_id,
-                        "gap_id": gap_id,
-                        "sample_idx": gidx,
-                        "tau": round(gtau, 3),
-                        "state_id": sid,
-                    })
-                gap_samples = []
-
-        if in_gap:
+        def append_gap(gap_after: Optional[ProfileSample]):
+            nonlocal gap_index, total_gaps, gap_samples
             gap_index += 1
             gap_id = f"G{gap_index:06d}"
             total_gaps += 1
             task_gap_counts[template.task_id] += 1
-            gap_end = source_samples[-1][0]
-
-            gap_rows.append({
-                "task_id": template.task_id,
-                "gap_id": gap_id,
+            gap_end = gap_after.tau if gap_after is not None else source_samples[-1].tau
+            coverage_start = gap_before.tau if gap_before is not None else gap_start
+            coverage_end = gap_after.tau if gap_after is not None else gap_end
+            row = {
+                "task_id": template.task_id, "gap_id": gap_id,
                 "gap_index": task_gap_counts[template.task_id],
-                "tau_start": round(gap_start, 3),
-                "tau_end": round(gap_end, 3),
+                "tau_start": round(gap_start, 3), "tau_end": round(gap_end, 3),
                 "duration_s": round(gap_end - gap_start, 3),
+                "coverage_start": round(coverage_start, 3),
+                "coverage_end": round(coverage_end, 3),
+                "coverage_duration_s": round(coverage_end - coverage_start, 3),
                 "n_outage_samples": len(gap_samples),
-            })
-
-            for gidx, (gtau, gsk) in enumerate(gap_samples):
-                sid = state_map.get(gsk, "")
+            }
+            row.update(boundary_fields("before", gap_before))
+            row.update(boundary_fields("after", gap_after))
+            gap_rows.append(row)
+            for gidx, sample in enumerate(gap_samples):
+                if sample.state_key not in state_map:
+                    raise AssertionError(
+                        f"{template.task_id}/{gap_id} 的断连采样没有 state_id"
+                    )
                 gap_state_rows.append({
-                    "task_id": template.task_id,
-                    "gap_id": gap_id,
-                    "sample_idx": gidx,
-                    "tau": round(gtau, 3),
-                    "state_id": sid,
+                    "task_id": template.task_id, "gap_id": gap_id,
+                    "sample_idx": gidx, "tau": round(sample.tau, 3),
+                    "state_id": state_map[sample.state_key],
                 })
+            gap_samples = []
+
+        for sample in source_samples:
+            if not sample.direct and not in_gap:
+                in_gap = True
+                gap_start = sample.tau
+                gap_before = previous if previous is not None and previous.direct else None
+                gap_samples = [sample]
+            elif not sample.direct and in_gap:
+                gap_samples.append(sample)
+            elif sample.direct and in_gap:
+                in_gap = False
+                append_gap(sample)
+            previous = sample
+
+        if in_gap:
+            append_gap(None)
 
     gaps_df = pd.DataFrame(gap_rows)
     gap_states_df = pd.DataFrame(gap_state_rows)
@@ -435,11 +465,31 @@ def _extract_gaps_with_states(
     return gaps_df, gap_states_df, stats
 
 
+def _prune_outage_states(outage_df: pd.DataFrame, gap_states_df: pd.DataFrame):
+    u"""仅保留任务 gap 真正引用的状态，并重新连续编号。"""
+    if gap_states_df.empty:
+        return outage_df.iloc[0:0].copy(), gap_states_df.copy(), len(outage_df)
+    if gap_states_df["state_id"].isna().any() or (gap_states_df["state_id"] == "").any():
+        raise AssertionError("gap-state 映射存在空 state_id")
+    used = set(gap_states_df["state_id"])
+    pruned = outage_df[outage_df["state_id"].isin(used)].copy()
+    missing = used - set(pruned["state_id"])
+    if missing:
+        raise AssertionError(f"gap-state 引用了不存在的状态: {sorted(missing)[:5]}")
+    orphan_count = len(outage_df) - len(pruned)
+    old_ids = pruned["state_id"].tolist()
+    remap = {old: f"OS{index:06d}" for index, old in enumerate(old_ids, 1)}
+    pruned["state_id"] = pruned["state_id"].map(remap)
+    remapped_gaps = gap_states_df.copy()
+    remapped_gaps["state_id"] = remapped_gaps["state_id"].map(remap)
+    if remapped_gaps["state_id"].isna().any():
+        raise AssertionError("状态压缩后出现空 state_id")
+    return pruned.reset_index(drop=True), remapped_gaps, orphan_count
+
+
 def _safe_csv(df: pd.DataFrame, path: Path):
     tmp = path.with_suffix(path.suffix + ".tmp")
     df.to_csv(tmp, index=False, encoding="utf-8-sig")
-    if path.exists():
-        path.unlink()
     tmp.replace(path)
 
 
@@ -478,10 +528,23 @@ def save_gap_outputs(
         "n_total_gaps": stats["n_total_gaps"],
         "n_unique_outage_states": stats["n_unique_outage_states"],
         "n_gap_state_mappings": len(gap_states_df),
-        "dt_s": 10.0,
+        "dt_s": stats["dt_s"],
+        "gap_boundary_policy": (
+            "tau_start/tau_end retain sampled outage semantics; relay service uses "
+            "[coverage_start, coverage_end], including the preceding direct sample "
+            "when available; boundary position/phase/margin are retained for refinement"
+        ),
+        "phase_source": "TrajectoryGenerator sample phase stored in SegmentDirectProfile",
+        "outage_states_before_prune": stats["n_outage_states_before_prune"],
+        "orphan_states_pruned": stats["n_orphan_states_pruned"],
         "input_sha256": {
             path.name: hashlib.sha256(path.read_bytes()).hexdigest()
-            for path in (CANDIDATE_TASKS, CANDIDATE_DELIVERIES)
+            for path in (
+                CANDIDATE_TASKS, CANDIDATE_DELIVERIES,
+                STEP3_MANIFEST, STEP4_MANIFEST,
+                ROUTE_PARAMETERS, NODE_PARAMETERS, UAV_PARAMETERS,
+                DEM_PATH, PARAMETER_PATH,
+            )
             if path.exists()
         },
         "output_sha256": {},
@@ -496,8 +559,6 @@ def save_gap_outputs(
     with tmp.open("w", encoding="utf-8") as stream:
         json.dump(manifest, stream, ensure_ascii=False, indent=2)
         stream.write("\n")
-    if GAP_MANIFEST.exists():
-        GAP_MANIFEST.unlink()
     tmp.replace(GAP_MANIFEST)
     print(f"输出: {GAP_MANIFEST.name}", flush=True)
 
@@ -524,15 +585,28 @@ def extract_gap_templates(
         cache.build_nodes()
         seg_keys = required_segment_keys(templates)
         cache.build_segments(keys=seg_keys, verbose=verbose)
+        state_map, outage_states_df = _build_outage_state_library(
+            cache, verbose=verbose,
+        )
+        gaps_df, gap_states_df, stats = _extract_gaps_with_states(
+            templates, cache, state_map, box_services=box_services, verbose=verbose,
+        )
     finally:
         cache.close()
 
-    state_map, outage_states_df = _build_outage_state_library(
-        cache, verbose=verbose,
+    outage_states_df, gap_states_df, orphan_count = _prune_outage_states(
+        outage_states_df, gap_states_df,
     )
-    gaps_df, gap_states_df, stats = _extract_gaps_with_states(
-        templates, cache, state_map, box_services=box_services, verbose=verbose,
-    )
+    stats["n_outage_states_before_prune"] = len(state_map)
+    stats["n_orphan_states_pruned"] = orphan_count
+    stats["n_unique_outage_states"] = len(outage_states_df)
+    stats["dt_s"] = dt
+    if verbose:
+        print(
+            f"  状态压缩: {len(state_map)} → {len(outage_states_df)} "
+            f"(裁掉 {orphan_count})",
+            flush=True,
+        )
 
     print(f"\n{'=' * 60}", flush=True)
     print("Step5 完成", flush=True)

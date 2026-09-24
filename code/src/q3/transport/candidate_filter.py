@@ -256,6 +256,10 @@ def filter_candidates(
     ordered_cols = ["task_id"] + q2_cols + comm_cols
     filtered_tasks = filtered_tasks[ordered_cols]
 
+    # Q2 候选表中的 charge_time_s 是占位 0；Q3 必须按实际能耗、SOC 与
+    # src/q2/battery.py 动态计算，避免后续调度器误用该列。
+    filtered_tasks = filtered_tasks.drop(columns=["charge_time_s"], errors="ignore")
+
     # --- 输出 deliveries：重建 hard_deadline_s ---
     box_deadlines = load_box_deadlines()
 
@@ -386,8 +390,6 @@ def save_outputs(
     def _safe_write_csv(df: pd.DataFrame, path: Path, **kwargs):
         tmp = path.with_suffix(path.suffix + ".tmp")
         df.to_csv(tmp, index=False, **kwargs)
-        if path.exists():
-            path.unlink()
         tmp.replace(path)
 
     _safe_write_csv(tasks_df, tasks_out, encoding="utf-8-sig")
@@ -419,6 +421,7 @@ def save_outputs(
             "gap_count (min)",
         ],
         "seeds": "Q2 N-opt + E-opt + T-opt 全部架次",
+        "excluded_placeholder_fields": ["charge_time_s"],
         "delivery_hard_deadlines": (
             f"{stats['n_delivery_hard_deadlines']} / "
             f"{stats.get('n_delivery_total', '?')} 条 (从 load_box_deadlines 统一重建)"
@@ -443,8 +446,6 @@ def save_outputs(
     with tmp.open("w", encoding="utf-8") as stream:
         json.dump(manifest, stream, ensure_ascii=False, indent=2)
         stream.write("\n")
-    if manifest_out.exists():
-        manifest_out.unlink()
     tmp.replace(manifest_out)
     print(f"输出: {manifest_out.name}", flush=True)
 

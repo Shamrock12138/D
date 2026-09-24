@@ -34,6 +34,8 @@ class SegmentDirectProfile:
     x: List[float]
     y: List[float]
     z: List[float]
+    phase: List[str]
+    node: List[Optional[str]]
     direct: List[bool]
     margin_db: List[float]
     terrain_blocked: List[bool]
@@ -134,6 +136,8 @@ class DirectProfileCache:
                 x=[point.x for point in points],
                 y=[point.y for point in points],
                 z=[point.z for point in points],
+                phase=[point.phase for point in points],
+                node=[point.node for point in points],
                 direct=[state.direct for state in states],
                 margin_db=[state.margin_db for state in states],
                 terrain_blocked=[state.terrain_blocked for state in states],

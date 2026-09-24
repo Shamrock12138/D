@@ -4,7 +4,7 @@ n_skipped,0
 n_direct_tasks,652
 n_relay_tasks,4127
 n_total_gaps,5043
-n_unique_outage_states,13157
+n_unique_outage_states,12792
 step4_direct_label,652
 step4_relay_label,4127
 step5_direct_found,652
@@ -13,3 +13,6 @@ false_positives,0
 false_negatives,0
 direct_match,PASS
 relay_match,PASS
+n_outage_states_before_prune,13157
+n_orphan_states_pruned,365
+dt_s,10.0

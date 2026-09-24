@@ -4,16 +4,27 @@
   "n_direct_tasks": 652,
   "n_relay_tasks": 4127,
   "n_total_gaps": 5043,
-  "n_unique_outage_states": 13157,
+  "n_unique_outage_states": 12792,
   "n_gap_state_mappings": 307112,
   "dt_s": 10.0,
+  "gap_boundary_policy": "tau_start/tau_end retain sampled outage semantics; relay service uses [coverage_start, coverage_end], including the preceding direct sample when available; boundary position/phase/margin are retained for refinement",
+  "phase_source": "TrajectoryGenerator sample phase stored in SegmentDirectProfile",
+  "outage_states_before_prune": 13157,
+  "orphan_states_pruned": 365,
   "input_sha256": {
-    "q3_candidate_tasks.csv": "7a018d34b17f0f74ce27a277b9787a6c5bf580a74308673dac52a66af8cf5040",
-    "q3_candidate_deliveries.csv": "c3e776e0dc84bff51e548251101d60724a55b920a64898f9f2abaac7a38e8067"
+    "q3_candidate_tasks.csv": "b23c4ffbd549f5a52284328075502202fff0417009eff72dea12169ded7bbc3e",
+    "q3_candidate_deliveries.csv": "c3e776e0dc84bff51e548251101d60724a55b920a64898f9f2abaac7a38e8067",
+    "q3_transport_comm_manifest.json": "903e1d57ba481a5458ead1d54ac33ff25a2ce1056abc53279cf489b5f5ee7a18",
+    "q3_candidate_filter_manifest.json": "f792ba9382ef0d63f81210e84cd78fdf9647ff637d567b23d293165222235560",
+    "route_parameter_all.csv": "a4fadcc0a00e024bd80ae5db365f0e41dcd95b76aa8d88a196b552c39df0aa7e",
+    "服务区数据.csv": "29f280f5907cf48ac0386d2bda7e278fe634bd541d4cb26fcd248272c0f55b2b",
+    "运输无人机_机型参数.csv": "fa420411e1fd5e4006a8d21bca99f7ec000e1109ef14a6276284f291707de739",
+    "镇龙乡及周边30米DEM.tif": "741fe6de0b2bcaffd0f4007f574ee698d46197094f52cc954b532c4f90fc7c03",
+    "通信链路参数.xlsx": "1860d153199e7ae460ba36e83b673374e640e19de91ea167f2877271001f5f81"
   },
   "output_sha256": {
-    "q3_outage_states.csv": "f51b548b4bff820ae5e5d6950e12770837a841f39cfe50828735f77caa3b068b",
-    "q3_task_comm_gaps.csv": "73ad8da51cd31545d56fe32c489712b53fafe2b591d741c52d31c1f481266b5f",
-    "q3_task_gap_states.csv": "c50eb312529bf798c6fe7168b45f6b6e46c52de466f311cb6819920c73950210"
+    "q3_outage_states.csv": "dc720bd235f8690952e0dfe4cdcd2c322d0a9a89e282fa0eab3385fcb090b281",
+    "q3_task_comm_gaps.csv": "e21dc73721a1144c93bc060680e5e3cfa0814414f471142e96ae78d123ff8f20",
+    "q3_task_gap_states.csv": "5e990302ca5416e682f4a0c6264a38ee1daafd42b427fa6ce11709dae314d035"
   }
 }

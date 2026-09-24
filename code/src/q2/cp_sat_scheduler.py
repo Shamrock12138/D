@@ -389,14 +389,21 @@ def _build_tchebycheff_model(full_problem, fixed_task_ids, free_box_ids):
             start, battery_duration, battery_end, chosen, f"battery_{i}"
         )
         active_end = model.NewIntVar(0, horizon_s, f"active_end_{i}")
-        model.Add(active_end == flight_end).OnlyEnforceIf(chosen)
-        model.Add(active_end == 0).OnlyEnforceIf(chosen.Not())
-
-        for bid in task_boxes[tid]:
-            deadline = deadlines[bid]
-            if math.isfinite(deadline):
-                offset = math.ceil(task_offsets[tid][bid])
-                model.Add(start + offset <= math.floor(deadline)).OnlyEnforceIf(chosen)
+        if tid in fixed_set:
+            model.Add(active_end == flight_end)
+            for bid in task_boxes[tid]:
+                deadline = deadlines[bid]
+                if math.isfinite(deadline):
+                    offset = math.ceil(task_offsets[tid][bid])
+                    model.Add(start + offset <= math.floor(deadline))
+        else:
+            model.Add(active_end == flight_end).OnlyEnforceIf(chosen)
+            model.Add(active_end == 0).OnlyEnforceIf(chosen.Not())
+            for bid in task_boxes[tid]:
+                deadline = deadlines[bid]
+                if math.isfinite(deadline):
+                    offset = math.ceil(task_offsets[tid][bid])
+                    model.Add(start + offset <= math.floor(deadline)).OnlyEnforceIf(chosen)
 
         select.append(chosen)
         starts.append(start)
@@ -538,15 +545,15 @@ def solve_local_subproblem(
     seed_set = set(seed_task_ids or ())
     merged_starts = dict(start_hints or {})
     merged_starts.update(seed_starts or {})
+    fixed_set = set(fixed_task_ids)
     if seed_set or merged_starts:
         model.ClearHints()
         hinted_cmax = 0
         for tid, idx in tid_index.items():
             chosen_hint = int(tid in seed_set) if seed_set else int(
-                tid in set(fixed_task_ids)
+                tid in fixed_set
             )
             start_hint = int(round(merged_starts.get(tid, 0)))
-            model.AddHint(select[idx], chosen_hint)
             model.AddHint(starts[idx], start_hint)
             if chosen_hint:
                 flight_end_hint = start_hint + metadata[idx]["flight_duration_s"]
@@ -566,7 +573,7 @@ def solve_local_subproblem(
     solver.parameters.max_time_in_seconds = float(time_limit_s)
     solver.parameters.num_search_workers = int(workers)
     solver.parameters.random_seed = int(random_seed)
-    solver.parameters.repair_hint = True
+    solver.parameters.repair_hint = False
     status = solver.Solve(model)
 
     if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
@@ -663,7 +670,6 @@ def solve_fixed_schedule(
         hinted_cmax = 0
         for tid, idx in tid_index.items():
             start_hint = int(round(start_hints.get(tid, 0)))
-            model.AddHint(select[idx], 1)
             model.AddHint(starts[idx], start_hint)
             flight_end_hint = start_hint + metadata[idx]["flight_duration_s"]
             battery_end_hint = start_hint + metadata[idx]["battery_duration_s"]
@@ -677,7 +683,7 @@ def solve_fixed_schedule(
     solver.parameters.max_time_in_seconds = float(time_limit_s)
     solver.parameters.num_search_workers = max(1, int(workers))
     solver.parameters.random_seed = int(random_seed)
-    solver.parameters.repair_hint = True
+    solver.parameters.repair_hint = False
     status = solver.Solve(model)
     if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
         return {
