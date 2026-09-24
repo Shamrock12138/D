@@ -126,7 +126,7 @@ def _input_hashes():
 
 def run_step8_decomposed(max_task_sets=30, master_time_s=30,
                          subproblem_time_s=60, workers=8,
-                         min_transport_tasks=20):
+                         min_transport_tasks=0):
     full_problem = prepare_q3_problem(tier="all")
     model, selected = build_master(full_problem, min_transport_tasks=min_transport_tasks)
     task_ids = full_problem["tasks"]["task_id"].astype(str).tolist()

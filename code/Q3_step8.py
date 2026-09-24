@@ -14,8 +14,8 @@ if __name__ == "__main__":
     parser.add_argument("--max-task-sets", type=int, default=30)
     parser.add_argument("--master-time", type=float, default=30)
     parser.add_argument("--subproblem-time", type=float, default=60)
-    parser.add_argument("--min-transport-tasks", type=int, default=20,
-                        help="Search heuristic, not a proven Q3 lower bound")
+    parser.add_argument("--min-transport-tasks", type=int, default=0,
+                        help="Optional hard lower bound; default 0 does not restrict feasibility")
     parser.add_argument("--workers", type=int, default=8)
     args = parser.parse_args()
     run_step8_decomposed(

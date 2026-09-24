@@ -206,7 +206,7 @@ def prepare_q3_problem(tier="tier2"):
     }
 
 
-def _build_q3_model(problem):
+def _build_q3_model(problem, relay_uav_capacity=None, relay_energy_capacity=None):
     u"""构建 Q3 联合 CP-SAT 模型：Transport + Relay + Communication Coupling。
 
     Returns:
@@ -408,11 +408,13 @@ def _build_q3_model(problem):
 
     # Relay UAV cumulative (capacity = 2)
     model.AddCumulative(
-        relay_uav_intervals, [1] * len(relay_uav_intervals), RELAY_UAV_CAPACITY
+        relay_uav_intervals, [1] * len(relay_uav_intervals),
+        RELAY_UAV_CAPACITY if relay_uav_capacity is None else relay_uav_capacity
     )
     # Energy component cumulative (capacity = 6)
     model.AddCumulative(
-        relay_energy_intervals, [1] * len(relay_energy_intervals), RELAY_ENERGY_CAPACITY
+        relay_energy_intervals, [1] * len(relay_energy_intervals),
+        RELAY_ENERGY_CAPACITY if relay_energy_capacity is None else relay_energy_capacity
     )
 
     relay_cmax = model.NewIntVar(0, horizon_s, "relay_cmax")

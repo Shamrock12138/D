@@ -1,5 +1,6 @@
 {
-  "status": "SEARCHING",
+  "status": "UNKNOWN",
+  "reason": "search limit reached before a validated joint schedule was found",
   "attempts": [
     {
       "iteration": 1,
@@ -5471,9 +5472,5571 @@
         "R069326",
         "R070215"
       ]
+    },
+    {
+      "iteration": 101,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.3846251,
+        "surrogate_cost": 88961543
+      },
+      "task_ids": [
+        "R000144",
+        "R000158",
+        "R000185",
+        "R000234",
+        "R000241",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000394",
+        "R000463",
+        "R000516",
+        "R000575",
+        "R000606",
+        "R000683",
+        "R023297",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0074153000000000005,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.022598200000000002,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R023297",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 102,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.44468450000000004,
+        "surrogate_cost": 88961589
+      },
+      "task_ids": [
+        "R000144",
+        "R000158",
+        "R000194",
+        "R000234",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000463",
+        "R000516",
+        "R000575",
+        "R000606",
+        "R000683",
+        "R005292",
+        "R066344",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0078108000000000006,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0185891,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000463",
+        "R000516",
+        "R000575",
+        "R000683",
+        "R066344",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 103,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.36848830000000005,
+        "surrogate_cost": 88961638
+      },
+      "task_ids": [
+        "R000144",
+        "R000158",
+        "R000234",
+        "R000237",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000463",
+        "R000516",
+        "R000575",
+        "R000606",
+        "R000625",
+        "R000683",
+        "R066345",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0083108,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.018535100000000002,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000516",
+        "R000575",
+        "R000625",
+        "R000683",
+        "R066345",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 104,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.32193180000000005,
+        "surrogate_cost": 88961849
+      },
+      "task_ids": [
+        "R000144",
+        "R000158",
+        "R000187",
+        "R000234",
+        "R000241",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000394",
+        "R000463",
+        "R000516",
+        "R000575",
+        "R000606",
+        "R000683",
+        "R023292",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0059817,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.021544200000000003,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R023292",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 105,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.4504406,
+        "surrogate_cost": 88961889
+      },
+      "task_ids": [
+        "R000144",
+        "R000158",
+        "R000234",
+        "R000237",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000463",
+        "R000516",
+        "R000575",
+        "R000606",
+        "R000625",
+        "R000683",
+        "R066346",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.008897,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.023153100000000003,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000516",
+        "R000575",
+        "R000625",
+        "R000683",
+        "R066346",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 106,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.3986267,
+        "surrogate_cost": 88962062
+      },
+      "task_ids": [
+        "R000144",
+        "R000158",
+        "R000186",
+        "R000234",
+        "R000241",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000394",
+        "R000463",
+        "R000516",
+        "R000575",
+        "R000606",
+        "R000683",
+        "R023294",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0068608,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.01793,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R023294",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 107,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.3907488,
+        "surrogate_cost": 88962109
+      },
+      "task_ids": [
+        "R000144",
+        "R000158",
+        "R000194",
+        "R000234",
+        "R000255",
+        "R000262",
+        "R000396",
+        "R000463",
+        "R000516",
+        "R000575",
+        "R000606",
+        "R000683",
+        "R005291",
+        "R040154",
+        "R066345",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.009258800000000001,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.022286800000000002,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000516",
+        "R000575",
+        "R000683",
+        "R040154",
+        "R066345",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 108,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.3170546,
+        "surrogate_cost": 88962149
+      },
+      "task_ids": [
+        "R000144",
+        "R000158",
+        "R000185",
+        "R000234",
+        "R000241",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000394",
+        "R000463",
+        "R000516",
+        "R000575",
+        "R000606",
+        "R000683",
+        "R023296",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0061016,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.015617800000000001,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R023296",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 109,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.3486135,
+        "surrogate_cost": 88962171
+      },
+      "task_ids": [
+        "R000144",
+        "R000158",
+        "R000187",
+        "R000234",
+        "R000255",
+        "R000262",
+        "R000438",
+        "R000463",
+        "R000516",
+        "R000575",
+        "R000606",
+        "R000683",
+        "R005315",
+        "R039657",
+        "R066345",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.007014500000000001,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0190333,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000463",
+        "R000516",
+        "R000575",
+        "R000683",
+        "R066345",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 110,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.34614520000000004,
+        "surrogate_cost": 88962266
+      },
+      "task_ids": [
+        "R000144",
+        "R000158",
+        "R000234",
+        "R000236",
+        "R000239",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000394",
+        "R000463",
+        "R000516",
+        "R000575",
+        "R000606",
+        "R000683",
+        "R023298",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0066306,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0177133,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R023298",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 111,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.33090250000000004,
+        "surrogate_cost": 88962360
+      },
+      "task_ids": [
+        "R000144",
+        "R000158",
+        "R000194",
+        "R000234",
+        "R000255",
+        "R000262",
+        "R000396",
+        "R000463",
+        "R000516",
+        "R000575",
+        "R000606",
+        "R000683",
+        "R005291",
+        "R040154",
+        "R066346",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0078857,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0191171,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000516",
+        "R000575",
+        "R000683",
+        "R040154",
+        "R066346",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 112,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.4366241,
+        "surrogate_cost": 88962422
+      },
+      "task_ids": [
+        "R000144",
+        "R000158",
+        "R000187",
+        "R000234",
+        "R000255",
+        "R000262",
+        "R000438",
+        "R000463",
+        "R000516",
+        "R000575",
+        "R000606",
+        "R000683",
+        "R005315",
+        "R039657",
+        "R066346",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0059104000000000005,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0190173,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000463",
+        "R000516",
+        "R000575",
+        "R000683",
+        "R066346",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 113,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.37588740000000004,
+        "surrogate_cost": 88971695
+      },
+      "task_ids": [
+        "R000144",
+        "R000150",
+        "R000234",
+        "R000236",
+        "R000239",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000463",
+        "R000543",
+        "R000575",
+        "R000606",
+        "R000637",
+        "R000683",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0069912,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.019614100000000002,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000463",
+        "R000543",
+        "R000575",
+        "R000637",
+        "R000683",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 114,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.3892911,
+        "surrogate_cost": 88971697
+      },
+      "task_ids": [
+        "R000136",
+        "R000158",
+        "R000234",
+        "R000236",
+        "R000239",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000490",
+        "R000516",
+        "R000575",
+        "R000606",
+        "R000637",
+        "R000683",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0076606,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.018207900000000003,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000490",
+        "R000516",
+        "R000575",
+        "R000637",
+        "R000683",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 115,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.37438710000000003,
+        "surrogate_cost": 88971750
+      },
+      "task_ids": [
+        "R000144",
+        "R000150",
+        "R000187",
+        "R000234",
+        "R000241",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000463",
+        "R000543",
+        "R000575",
+        "R000606",
+        "R000634",
+        "R000683",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0063606,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0168913,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000463",
+        "R000543",
+        "R000575",
+        "R000634",
+        "R000683",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 116,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.34037340000000005,
+        "surrogate_cost": 88971752
+      },
+      "task_ids": [
+        "R000136",
+        "R000158",
+        "R000187",
+        "R000234",
+        "R000241",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000490",
+        "R000516",
+        "R000575",
+        "R000606",
+        "R000634",
+        "R000683",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0065621,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0208162,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000490",
+        "R000516",
+        "R000575",
+        "R000634",
+        "R000683",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 117,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.31764430000000005,
+        "surrogate_cost": 88971765
+      },
+      "task_ids": [
+        "R000144",
+        "R000150",
+        "R000194",
+        "R000234",
+        "R000241",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000463",
+        "R000543",
+        "R000575",
+        "R000606",
+        "R000619",
+        "R000683",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0061031,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.016721800000000002,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000463",
+        "R000543",
+        "R000575",
+        "R000619",
+        "R000683",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 118,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.33366080000000004,
+        "surrogate_cost": 88971767
+      },
+      "task_ids": [
+        "R000136",
+        "R000158",
+        "R000194",
+        "R000234",
+        "R000241",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000490",
+        "R000516",
+        "R000575",
+        "R000606",
+        "R000619",
+        "R000683",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.006679200000000001,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.019754,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000490",
+        "R000516",
+        "R000575",
+        "R000619",
+        "R000683",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 119,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.3701956,
+        "surrogate_cost": 88971780
+      },
+      "task_ids": [
+        "R000144",
+        "R000150",
+        "R000193",
+        "R000234",
+        "R000241",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000463",
+        "R000543",
+        "R000575",
+        "R000606",
+        "R000620",
+        "R000683",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0062973000000000005,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.016657400000000003,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000463",
+        "R000543",
+        "R000575",
+        "R000620",
+        "R000683",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 120,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.33115320000000004,
+        "surrogate_cost": 88971782
+      },
+      "task_ids": [
+        "R000136",
+        "R000158",
+        "R000193",
+        "R000234",
+        "R000241",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000490",
+        "R000516",
+        "R000575",
+        "R000606",
+        "R000620",
+        "R000683",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0063159,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.017022100000000002,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000490",
+        "R000516",
+        "R000575",
+        "R000620",
+        "R000683",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 121,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.3788458,
+        "surrogate_cost": 88971789
+      },
+      "task_ids": [
+        "R000144",
+        "R000150",
+        "R000186",
+        "R000234",
+        "R000241",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000463",
+        "R000543",
+        "R000575",
+        "R000606",
+        "R000635",
+        "R000683",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0065564,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0169038,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000463",
+        "R000543",
+        "R000575",
+        "R000635",
+        "R000683",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 122,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.3178399,
+        "surrogate_cost": 88971791
+      },
+      "task_ids": [
+        "R000136",
+        "R000158",
+        "R000186",
+        "R000234",
+        "R000241",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000490",
+        "R000516",
+        "R000575",
+        "R000606",
+        "R000635",
+        "R000683",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.006217,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0165294,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000490",
+        "R000516",
+        "R000575",
+        "R000635",
+        "R000683",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 123,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.3207221,
+        "surrogate_cost": 88971809
+      },
+      "task_ids": [
+        "R000144",
+        "R000150",
+        "R000185",
+        "R000234",
+        "R000241",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000463",
+        "R000543",
+        "R000575",
+        "R000606",
+        "R000636",
+        "R000683",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.005925700000000001,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.016839800000000002,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000463",
+        "R000543",
+        "R000575",
+        "R000636",
+        "R000683",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 124,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.3332952,
+        "surrogate_cost": 88971811
+      },
+      "task_ids": [
+        "R000136",
+        "R000158",
+        "R000185",
+        "R000234",
+        "R000241",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000490",
+        "R000516",
+        "R000575",
+        "R000606",
+        "R000636",
+        "R000683",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.006436300000000001,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0171017,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000490",
+        "R000516",
+        "R000575",
+        "R000636",
+        "R000683",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 125,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.40383870000000005,
+        "surrogate_cost": 88971848
+      },
+      "task_ids": [
+        "R000144",
+        "R000150",
+        "R000192",
+        "R000234",
+        "R000241",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000463",
+        "R000543",
+        "R000575",
+        "R000606",
+        "R000621",
+        "R000683",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.006981,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.018396100000000002,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000463",
+        "R000543",
+        "R000575",
+        "R000621",
+        "R000683",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 126,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.36224870000000003,
+        "surrogate_cost": 88971850
+      },
+      "task_ids": [
+        "R000136",
+        "R000158",
+        "R000192",
+        "R000234",
+        "R000241",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000490",
+        "R000516",
+        "R000575",
+        "R000606",
+        "R000621",
+        "R000683",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0060215,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0176112,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000490",
+        "R000516",
+        "R000575",
+        "R000621",
+        "R000683",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 127,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.38586990000000004,
+        "surrogate_cost": 88972751
+      },
+      "task_ids": [
+        "R000144",
+        "R000150",
+        "R000234",
+        "R000241",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000463",
+        "R000543",
+        "R000575",
+        "R000606",
+        "R000618",
+        "R000625",
+        "R000683",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0070296,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0172556,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000543",
+        "R000575",
+        "R000618",
+        "R000625",
+        "R000683",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 128,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.4628242,
+        "surrogate_cost": 88973247
+      },
+      "task_ids": [
+        "R000144",
+        "R000150",
+        "R000193",
+        "R000234",
+        "R000255",
+        "R000262",
+        "R000396",
+        "R000463",
+        "R000543",
+        "R000575",
+        "R000606",
+        "R000618",
+        "R000683",
+        "R005303",
+        "R040154",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.006993600000000001,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0203132,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000543",
+        "R000575",
+        "R000618",
+        "R000683",
+        "R040154",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 129,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.40003700000000003,
+        "surrogate_cost": 88973295
+      },
+      "task_ids": [
+        "R000144",
+        "R000150",
+        "R000193",
+        "R000234",
+        "R000255",
+        "R000262",
+        "R000438",
+        "R000463",
+        "R000543",
+        "R000575",
+        "R000606",
+        "R000618",
+        "R000683",
+        "R005301",
+        "R039657",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0058790000000000005,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.018112100000000003,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000463",
+        "R000543",
+        "R000575",
+        "R000618",
+        "R000683",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 130,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.36225660000000004,
+        "surrogate_cost": 88973297
+      },
+      "task_ids": [
+        "R000136",
+        "R000158",
+        "R000193",
+        "R000234",
+        "R000255",
+        "R000262",
+        "R000438",
+        "R000490",
+        "R000516",
+        "R000575",
+        "R000606",
+        "R000618",
+        "R000683",
+        "R005301",
+        "R039657",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0062589,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0195243,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000490",
+        "R000516",
+        "R000575",
+        "R000618",
+        "R000683",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 131,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.396629,
+        "surrogate_cost": 88973374
+      },
+      "task_ids": [
+        "R000144",
+        "R000150",
+        "R000194",
+        "R000234",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000463",
+        "R000543",
+        "R000575",
+        "R000606",
+        "R000683",
+        "R005291",
+        "R066347",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0061048000000000005,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.017935100000000002,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000463",
+        "R000543",
+        "R000575",
+        "R000683",
+        "R066347",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 132,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.3719833,
+        "surrogate_cost": 88973376
+      },
+      "task_ids": [
+        "R000136",
+        "R000158",
+        "R000194",
+        "R000234",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000490",
+        "R000516",
+        "R000575",
+        "R000606",
+        "R000683",
+        "R005291",
+        "R066347",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0076537,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0173903,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000490",
+        "R000516",
+        "R000575",
+        "R000683",
+        "R066347",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 133,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.34723940000000003,
+        "surrogate_cost": 88973550
+      },
+      "task_ids": [
+        "R000144",
+        "R000150",
+        "R000194",
+        "R000234",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000463",
+        "R000543",
+        "R000575",
+        "R000606",
+        "R000683",
+        "R005292",
+        "R066343",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0059768,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0173004,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000463",
+        "R000543",
+        "R000575",
+        "R000683",
+        "R066343",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 134,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.35622560000000003,
+        "surrogate_cost": 88973552
+      },
+      "task_ids": [
+        "R000136",
+        "R000158",
+        "R000194",
+        "R000234",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000490",
+        "R000516",
+        "R000575",
+        "R000606",
+        "R000683",
+        "R005292",
+        "R066343",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0065192,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.017323500000000002,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000490",
+        "R000516",
+        "R000575",
+        "R000683",
+        "R066343",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 135,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.36557870000000003,
+        "surrogate_cost": 88973613
+      },
+      "task_ids": [
+        "R000144",
+        "R000150",
+        "R000193",
+        "R000234",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000463",
+        "R000543",
+        "R000575",
+        "R000606",
+        "R000683",
+        "R005301",
+        "R066342",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0058444000000000005,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.019542800000000003,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000463",
+        "R000543",
+        "R000575",
+        "R000683",
+        "R066342",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 136,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.39379580000000003,
+        "surrogate_cost": 88973615
+      },
+      "task_ids": [
+        "R000136",
+        "R000158",
+        "R000193",
+        "R000234",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000490",
+        "R000516",
+        "R000575",
+        "R000606",
+        "R000683",
+        "R005301",
+        "R066342",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0088935,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0166278,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000490",
+        "R000516",
+        "R000575",
+        "R000683",
+        "R066342",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 137,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.3835025,
+        "surrogate_cost": 88973668
+      },
+      "task_ids": [
+        "R000144",
+        "R000150",
+        "R000194",
+        "R000234",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000463",
+        "R000543",
+        "R000575",
+        "R000606",
+        "R000683",
+        "R005292",
+        "R066344",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0061400000000000005,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.018595,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000463",
+        "R000543",
+        "R000575",
+        "R000683",
+        "R066344",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 138,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.3857858,
+        "surrogate_cost": 88973670
+      },
+      "task_ids": [
+        "R000136",
+        "R000158",
+        "R000194",
+        "R000234",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000490",
+        "R000516",
+        "R000575",
+        "R000606",
+        "R000683",
+        "R005292",
+        "R066344",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0066696,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0210607,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000490",
+        "R000516",
+        "R000575",
+        "R000683",
+        "R066344",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 139,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.41245050000000005,
+        "surrogate_cost": 88973717
+      },
+      "task_ids": [
+        "R000144",
+        "R000150",
+        "R000234",
+        "R000237",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000463",
+        "R000543",
+        "R000575",
+        "R000606",
+        "R000625",
+        "R000683",
+        "R066345",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.006734,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0170377,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000543",
+        "R000575",
+        "R000625",
+        "R000683",
+        "R066345",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 140,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.3618985,
+        "surrogate_cost": 88973968
+      },
+      "task_ids": [
+        "R000144",
+        "R000150",
+        "R000234",
+        "R000237",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000463",
+        "R000543",
+        "R000575",
+        "R000606",
+        "R000625",
+        "R000683",
+        "R066346",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0073334,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.018416000000000002,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000543",
+        "R000575",
+        "R000625",
+        "R000683",
+        "R066346",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 141,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.37972670000000003,
+        "surrogate_cost": 88974188
+      },
+      "task_ids": [
+        "R000144",
+        "R000150",
+        "R000194",
+        "R000234",
+        "R000255",
+        "R000262",
+        "R000396",
+        "R000463",
+        "R000543",
+        "R000575",
+        "R000606",
+        "R000683",
+        "R005291",
+        "R040154",
+        "R066345",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.008041900000000001,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.017481200000000002,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000543",
+        "R000575",
+        "R000683",
+        "R040154",
+        "R066345",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 142,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.3814035,
+        "surrogate_cost": 88974250
+      },
+      "task_ids": [
+        "R000144",
+        "R000150",
+        "R000187",
+        "R000234",
+        "R000255",
+        "R000262",
+        "R000438",
+        "R000463",
+        "R000543",
+        "R000575",
+        "R000606",
+        "R000683",
+        "R005315",
+        "R039657",
+        "R066345",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.006971700000000001,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0184187,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000463",
+        "R000543",
+        "R000575",
+        "R000683",
+        "R066345",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 143,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.3796815,
+        "surrogate_cost": 88974252
+      },
+      "task_ids": [
+        "R000136",
+        "R000158",
+        "R000187",
+        "R000234",
+        "R000255",
+        "R000262",
+        "R000438",
+        "R000490",
+        "R000516",
+        "R000575",
+        "R000606",
+        "R000683",
+        "R005315",
+        "R039657",
+        "R066345",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0069183000000000005,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0245105,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000490",
+        "R000516",
+        "R000575",
+        "R000683",
+        "R066345",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 144,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.3963759,
+        "surrogate_cost": 88974439
+      },
+      "task_ids": [
+        "R000144",
+        "R000150",
+        "R000194",
+        "R000234",
+        "R000255",
+        "R000262",
+        "R000396",
+        "R000463",
+        "R000543",
+        "R000575",
+        "R000606",
+        "R000683",
+        "R005291",
+        "R040154",
+        "R066346",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0062239,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.018397800000000002,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000543",
+        "R000575",
+        "R000683",
+        "R040154",
+        "R066346",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 145,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.3848828,
+        "surrogate_cost": 88974501
+      },
+      "task_ids": [
+        "R000144",
+        "R000150",
+        "R000187",
+        "R000234",
+        "R000255",
+        "R000262",
+        "R000438",
+        "R000463",
+        "R000543",
+        "R000575",
+        "R000606",
+        "R000683",
+        "R005315",
+        "R039657",
+        "R066346",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0085424,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0198909,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000463",
+        "R000543",
+        "R000575",
+        "R000683",
+        "R066346",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 146,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.36342060000000004,
+        "surrogate_cost": 88974503
+      },
+      "task_ids": [
+        "R000136",
+        "R000158",
+        "R000187",
+        "R000234",
+        "R000255",
+        "R000262",
+        "R000438",
+        "R000490",
+        "R000516",
+        "R000575",
+        "R000606",
+        "R000683",
+        "R005315",
+        "R039657",
+        "R066346",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.006856,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0169523,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000490",
+        "R000516",
+        "R000575",
+        "R000683",
+        "R066346",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 147,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.38078510000000004,
+        "surrogate_cost": 88983776
+      },
+      "task_ids": [
+        "R000136",
+        "R000150",
+        "R000234",
+        "R000236",
+        "R000239",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000490",
+        "R000543",
+        "R000575",
+        "R000606",
+        "R000637",
+        "R000683",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0091737,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.016191900000000002,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000490",
+        "R000543",
+        "R000575",
+        "R000637",
+        "R000683",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 148,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.35807490000000003,
+        "surrogate_cost": 88983831
+      },
+      "task_ids": [
+        "R000136",
+        "R000150",
+        "R000187",
+        "R000234",
+        "R000241",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000490",
+        "R000543",
+        "R000575",
+        "R000606",
+        "R000634",
+        "R000683",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0063964,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.018035600000000002,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000490",
+        "R000543",
+        "R000575",
+        "R000634",
+        "R000683",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 149,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.35391480000000003,
+        "surrogate_cost": 88983846
+      },
+      "task_ids": [
+        "R000136",
+        "R000150",
+        "R000194",
+        "R000234",
+        "R000241",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000490",
+        "R000543",
+        "R000575",
+        "R000606",
+        "R000619",
+        "R000683",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0068964000000000004,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0169918,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000490",
+        "R000543",
+        "R000575",
+        "R000619",
+        "R000683",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 150,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.3272122,
+        "surrogate_cost": 88983861
+      },
+      "task_ids": [
+        "R000136",
+        "R000150",
+        "R000193",
+        "R000234",
+        "R000241",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000490",
+        "R000543",
+        "R000575",
+        "R000606",
+        "R000620",
+        "R000683",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0084312,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.017957,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000490",
+        "R000543",
+        "R000575",
+        "R000620",
+        "R000683",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 151,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.3499667,
+        "surrogate_cost": 88983870
+      },
+      "task_ids": [
+        "R000136",
+        "R000150",
+        "R000186",
+        "R000234",
+        "R000241",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000490",
+        "R000543",
+        "R000575",
+        "R000606",
+        "R000635",
+        "R000683",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0066511,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0173537,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000490",
+        "R000543",
+        "R000575",
+        "R000635",
+        "R000683",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 152,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.34333450000000004,
+        "surrogate_cost": 88983890
+      },
+      "task_ids": [
+        "R000136",
+        "R000150",
+        "R000185",
+        "R000234",
+        "R000241",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000490",
+        "R000543",
+        "R000575",
+        "R000606",
+        "R000636",
+        "R000683",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0061062,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0169415,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000490",
+        "R000543",
+        "R000575",
+        "R000636",
+        "R000683",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 153,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.35501510000000003,
+        "surrogate_cost": 88983929
+      },
+      "task_ids": [
+        "R000136",
+        "R000150",
+        "R000192",
+        "R000234",
+        "R000241",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000490",
+        "R000543",
+        "R000575",
+        "R000606",
+        "R000621",
+        "R000683",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.006639900000000001,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0216759,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000490",
+        "R000543",
+        "R000575",
+        "R000621",
+        "R000683",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 154,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.3484263,
+        "surrogate_cost": 88985376
+      },
+      "task_ids": [
+        "R000136",
+        "R000150",
+        "R000193",
+        "R000234",
+        "R000255",
+        "R000262",
+        "R000438",
+        "R000490",
+        "R000543",
+        "R000575",
+        "R000606",
+        "R000618",
+        "R000683",
+        "R005301",
+        "R039657",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.006596800000000001,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0167735,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000490",
+        "R000543",
+        "R000575",
+        "R000618",
+        "R000683",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 155,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.3872198,
+        "surrogate_cost": 88985455
+      },
+      "task_ids": [
+        "R000136",
+        "R000150",
+        "R000194",
+        "R000234",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000490",
+        "R000543",
+        "R000575",
+        "R000606",
+        "R000683",
+        "R005291",
+        "R066347",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0065167,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0169213,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000490",
+        "R000543",
+        "R000575",
+        "R000683",
+        "R066347",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 156,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.36258460000000003,
+        "surrogate_cost": 88985631
+      },
+      "task_ids": [
+        "R000136",
+        "R000150",
+        "R000194",
+        "R000234",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000490",
+        "R000543",
+        "R000575",
+        "R000606",
+        "R000683",
+        "R005292",
+        "R066343",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0067678,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0175142,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000490",
+        "R000543",
+        "R000575",
+        "R000683",
+        "R066343",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 157,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.3665687,
+        "surrogate_cost": 88985694
+      },
+      "task_ids": [
+        "R000136",
+        "R000150",
+        "R000193",
+        "R000234",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000490",
+        "R000543",
+        "R000575",
+        "R000606",
+        "R000683",
+        "R005301",
+        "R066342",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.006352600000000001,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0171509,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000490",
+        "R000543",
+        "R000575",
+        "R000683",
+        "R066342",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 158,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.49660160000000003,
+        "surrogate_cost": 88985749
+      },
+      "task_ids": [
+        "R000136",
+        "R000150",
+        "R000194",
+        "R000234",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000490",
+        "R000543",
+        "R000575",
+        "R000606",
+        "R000683",
+        "R005292",
+        "R066344",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.007615200000000001,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.017841600000000003,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000490",
+        "R000543",
+        "R000575",
+        "R000683",
+        "R066344",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 159,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.3619234,
+        "surrogate_cost": 88986331
+      },
+      "task_ids": [
+        "R000136",
+        "R000150",
+        "R000187",
+        "R000234",
+        "R000255",
+        "R000262",
+        "R000438",
+        "R000490",
+        "R000543",
+        "R000575",
+        "R000606",
+        "R000683",
+        "R005315",
+        "R039657",
+        "R066345",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0061244,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0163576,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000490",
+        "R000543",
+        "R000575",
+        "R000683",
+        "R066345",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 160,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.3617117,
+        "surrogate_cost": 88986582
+      },
+      "task_ids": [
+        "R000136",
+        "R000150",
+        "R000187",
+        "R000234",
+        "R000255",
+        "R000262",
+        "R000438",
+        "R000490",
+        "R000543",
+        "R000575",
+        "R000606",
+        "R000683",
+        "R005315",
+        "R039657",
+        "R066346",
+        "R069326",
+        "R070215",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0057561,
+          "transport_candidates": 20,
+          "relay_options": 38
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0157857,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000490",
+        "R000543",
+        "R000575",
+        "R000683",
+        "R066346",
+        "R069326",
+        "R070215"
+      ]
+    },
+    {
+      "iteration": 161,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.39471860000000003,
+        "surrogate_cost": 89001055
+      },
+      "task_ids": [
+        "R000158",
+        "R000234",
+        "R000236",
+        "R000239",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000462",
+        "R000470",
+        "R000516",
+        "R000575",
+        "R000606",
+        "R000637",
+        "R000683",
+        "R069326",
+        "R070214",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0058964,
+          "transport_candidates": 20,
+          "relay_options": 37
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.016090300000000002,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000470",
+        "R000516",
+        "R000575",
+        "R000637",
+        "R000683",
+        "R069326",
+        "R070214"
+      ]
+    },
+    {
+      "iteration": 162,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.3657183,
+        "surrogate_cost": 89001110
+      },
+      "task_ids": [
+        "R000158",
+        "R000187",
+        "R000234",
+        "R000241",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000462",
+        "R000470",
+        "R000516",
+        "R000575",
+        "R000606",
+        "R000634",
+        "R000683",
+        "R069326",
+        "R070214",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0060423000000000004,
+          "transport_candidates": 20,
+          "relay_options": 37
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.017304800000000002,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000470",
+        "R000516",
+        "R000575",
+        "R000634",
+        "R000683",
+        "R069326",
+        "R070214"
+      ]
+    },
+    {
+      "iteration": 163,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.4427493,
+        "surrogate_cost": 89001125
+      },
+      "task_ids": [
+        "R000158",
+        "R000194",
+        "R000234",
+        "R000241",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000462",
+        "R000470",
+        "R000516",
+        "R000575",
+        "R000606",
+        "R000619",
+        "R000683",
+        "R069326",
+        "R070214",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0059779,
+          "transport_candidates": 20,
+          "relay_options": 37
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0172455,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000470",
+        "R000516",
+        "R000575",
+        "R000619",
+        "R000683",
+        "R069326",
+        "R070214"
+      ]
+    },
+    {
+      "iteration": 164,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.39260340000000005,
+        "surrogate_cost": 89001140
+      },
+      "task_ids": [
+        "R000158",
+        "R000193",
+        "R000234",
+        "R000241",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000462",
+        "R000470",
+        "R000516",
+        "R000575",
+        "R000606",
+        "R000620",
+        "R000683",
+        "R069326",
+        "R070214",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0061844000000000005,
+          "transport_candidates": 20,
+          "relay_options": 37
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0159032,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000470",
+        "R000516",
+        "R000575",
+        "R000620",
+        "R000683",
+        "R069326",
+        "R070214"
+      ]
+    },
+    {
+      "iteration": 165,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.38600490000000004,
+        "surrogate_cost": 89001141
+      },
+      "task_ids": [
+        "R000158",
+        "R000234",
+        "R000236",
+        "R000239",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000443",
+        "R000489",
+        "R000516",
+        "R000575",
+        "R000606",
+        "R000637",
+        "R000683",
+        "R069326",
+        "R070214",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0071593,
+          "transport_candidates": 20,
+          "relay_options": 37
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.019554000000000002,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000489",
+        "R000516",
+        "R000575",
+        "R000637",
+        "R000683",
+        "R069326",
+        "R070214"
+      ]
+    },
+    {
+      "iteration": 166,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.36258830000000003,
+        "surrogate_cost": 89001149
+      },
+      "task_ids": [
+        "R000158",
+        "R000186",
+        "R000234",
+        "R000241",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000462",
+        "R000470",
+        "R000516",
+        "R000575",
+        "R000606",
+        "R000635",
+        "R000683",
+        "R069326",
+        "R070214",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0057013,
+          "transport_candidates": 20,
+          "relay_options": 37
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0162846,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000470",
+        "R000516",
+        "R000575",
+        "R000635",
+        "R000683",
+        "R069326",
+        "R070214"
+      ]
+    },
+    {
+      "iteration": 167,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.35673160000000004,
+        "surrogate_cost": 89001169
+      },
+      "task_ids": [
+        "R000158",
+        "R000185",
+        "R000234",
+        "R000241",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000462",
+        "R000470",
+        "R000516",
+        "R000575",
+        "R000606",
+        "R000636",
+        "R000683",
+        "R069326",
+        "R070214",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0058671,
+          "transport_candidates": 20,
+          "relay_options": 37
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0157863,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000470",
+        "R000516",
+        "R000575",
+        "R000636",
+        "R000683",
+        "R069326",
+        "R070214"
+      ]
+    },
+    {
+      "iteration": 168,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.3452212,
+        "surrogate_cost": 89001196
+      },
+      "task_ids": [
+        "R000158",
+        "R000187",
+        "R000234",
+        "R000241",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000443",
+        "R000489",
+        "R000516",
+        "R000575",
+        "R000606",
+        "R000634",
+        "R000683",
+        "R069326",
+        "R070214",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0058973,
+          "transport_candidates": 20,
+          "relay_options": 37
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0157948,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000489",
+        "R000516",
+        "R000575",
+        "R000634",
+        "R000683",
+        "R069326",
+        "R070214"
+      ]
+    },
+    {
+      "iteration": 169,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.3941428,
+        "surrogate_cost": 89001208
+      },
+      "task_ids": [
+        "R000158",
+        "R000192",
+        "R000234",
+        "R000241",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000462",
+        "R000470",
+        "R000516",
+        "R000575",
+        "R000606",
+        "R000621",
+        "R000683",
+        "R069326",
+        "R070214",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0060657,
+          "transport_candidates": 20,
+          "relay_options": 37
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.016319,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000470",
+        "R000516",
+        "R000575",
+        "R000621",
+        "R000683",
+        "R069326",
+        "R070214"
+      ]
+    },
+    {
+      "iteration": 170,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.3995983,
+        "surrogate_cost": 89001211
+      },
+      "task_ids": [
+        "R000158",
+        "R000194",
+        "R000234",
+        "R000241",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000443",
+        "R000489",
+        "R000516",
+        "R000575",
+        "R000606",
+        "R000619",
+        "R000683",
+        "R069326",
+        "R070214",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.005566300000000001,
+          "transport_candidates": 20,
+          "relay_options": 37
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.015672500000000002,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000489",
+        "R000516",
+        "R000575",
+        "R000619",
+        "R000683",
+        "R069326",
+        "R070214"
+      ]
+    },
+    {
+      "iteration": 171,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.4912263,
+        "surrogate_cost": 89001226
+      },
+      "task_ids": [
+        "R000158",
+        "R000193",
+        "R000234",
+        "R000241",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000443",
+        "R000489",
+        "R000516",
+        "R000575",
+        "R000606",
+        "R000620",
+        "R000683",
+        "R069326",
+        "R070214",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0067789,
+          "transport_candidates": 20,
+          "relay_options": 37
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0153653,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000489",
+        "R000516",
+        "R000575",
+        "R000620",
+        "R000683",
+        "R069326",
+        "R070214"
+      ]
+    },
+    {
+      "iteration": 172,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.3947783,
+        "surrogate_cost": 89001235
+      },
+      "task_ids": [
+        "R000158",
+        "R000186",
+        "R000234",
+        "R000241",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000443",
+        "R000489",
+        "R000516",
+        "R000575",
+        "R000606",
+        "R000635",
+        "R000683",
+        "R069326",
+        "R070214",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.006316400000000001,
+          "transport_candidates": 20,
+          "relay_options": 37
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.016963600000000002,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000489",
+        "R000516",
+        "R000575",
+        "R000635",
+        "R000683",
+        "R069326",
+        "R070214"
+      ]
+    },
+    {
+      "iteration": 173,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.3787086,
+        "surrogate_cost": 89001255
+      },
+      "task_ids": [
+        "R000158",
+        "R000185",
+        "R000234",
+        "R000241",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000443",
+        "R000489",
+        "R000516",
+        "R000575",
+        "R000606",
+        "R000636",
+        "R000683",
+        "R069326",
+        "R070214",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.005774700000000001,
+          "transport_candidates": 20,
+          "relay_options": 37
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.017142900000000003,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000489",
+        "R000516",
+        "R000575",
+        "R000636",
+        "R000683",
+        "R069326",
+        "R070214"
+      ]
+    },
+    {
+      "iteration": 174,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.41994640000000005,
+        "surrogate_cost": 89001294
+      },
+      "task_ids": [
+        "R000158",
+        "R000192",
+        "R000234",
+        "R000241",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000443",
+        "R000489",
+        "R000516",
+        "R000575",
+        "R000606",
+        "R000621",
+        "R000683",
+        "R069326",
+        "R070214",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0071938,
+          "transport_candidates": 20,
+          "relay_options": 37
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.018362100000000003,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000489",
+        "R000516",
+        "R000575",
+        "R000621",
+        "R000683",
+        "R069326",
+        "R070214"
+      ]
+    },
+    {
+      "iteration": 175,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.41714700000000005,
+        "surrogate_cost": 89002655
+      },
+      "task_ids": [
+        "R000158",
+        "R000193",
+        "R000234",
+        "R000255",
+        "R000262",
+        "R000438",
+        "R000462",
+        "R000470",
+        "R000516",
+        "R000575",
+        "R000606",
+        "R000618",
+        "R000683",
+        "R005301",
+        "R039657",
+        "R069326",
+        "R070214",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0082073,
+          "transport_candidates": 20,
+          "relay_options": 37
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0235887,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000470",
+        "R000516",
+        "R000575",
+        "R000618",
+        "R000683",
+        "R069326",
+        "R070214"
+      ]
+    },
+    {
+      "iteration": 176,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.48002490000000003,
+        "surrogate_cost": 89002734
+      },
+      "task_ids": [
+        "R000158",
+        "R000194",
+        "R000234",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000462",
+        "R000470",
+        "R000516",
+        "R000575",
+        "R000606",
+        "R000683",
+        "R005291",
+        "R066347",
+        "R069326",
+        "R070214",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0058141,
+          "transport_candidates": 20,
+          "relay_options": 37
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0159268,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000470",
+        "R000516",
+        "R000575",
+        "R000683",
+        "R066347",
+        "R069326",
+        "R070214"
+      ]
+    },
+    {
+      "iteration": 177,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.3863689,
+        "surrogate_cost": 89002741
+      },
+      "task_ids": [
+        "R000158",
+        "R000193",
+        "R000234",
+        "R000255",
+        "R000262",
+        "R000438",
+        "R000443",
+        "R000489",
+        "R000516",
+        "R000575",
+        "R000606",
+        "R000618",
+        "R000683",
+        "R005301",
+        "R039657",
+        "R069326",
+        "R070214",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.006655100000000001,
+          "transport_candidates": 20,
+          "relay_options": 37
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0168825,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000489",
+        "R000516",
+        "R000575",
+        "R000618",
+        "R000683",
+        "R069326",
+        "R070214"
+      ]
+    },
+    {
+      "iteration": 178,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.3895188,
+        "surrogate_cost": 89002820
+      },
+      "task_ids": [
+        "R000158",
+        "R000194",
+        "R000234",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000443",
+        "R000489",
+        "R000516",
+        "R000575",
+        "R000606",
+        "R000683",
+        "R005291",
+        "R066347",
+        "R069326",
+        "R070214",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0062494000000000004,
+          "transport_candidates": 20,
+          "relay_options": 37
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.017234000000000003,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000489",
+        "R000516",
+        "R000575",
+        "R000683",
+        "R066347",
+        "R069326",
+        "R070214"
+      ]
+    },
+    {
+      "iteration": 179,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.3820217,
+        "surrogate_cost": 89002910
+      },
+      "task_ids": [
+        "R000158",
+        "R000194",
+        "R000234",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000462",
+        "R000470",
+        "R000516",
+        "R000575",
+        "R000606",
+        "R000683",
+        "R005292",
+        "R066343",
+        "R069326",
+        "R070214",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.007295,
+          "transport_candidates": 20,
+          "relay_options": 37
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.015558700000000002,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000470",
+        "R000516",
+        "R000575",
+        "R000683",
+        "R066343",
+        "R069326",
+        "R070214"
+      ]
+    },
+    {
+      "iteration": 180,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.40208320000000003,
+        "surrogate_cost": 89002973
+      },
+      "task_ids": [
+        "R000158",
+        "R000193",
+        "R000234",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000462",
+        "R000470",
+        "R000516",
+        "R000575",
+        "R000606",
+        "R000683",
+        "R005301",
+        "R066342",
+        "R069326",
+        "R070214",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0064583,
+          "transport_candidates": 20,
+          "relay_options": 37
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0170479,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000470",
+        "R066342",
+        "R069326",
+        "R070214"
+      ]
+    },
+    {
+      "iteration": 181,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.3912591,
+        "surrogate_cost": 89002996
+      },
+      "task_ids": [
+        "R000158",
+        "R000194",
+        "R000234",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000443",
+        "R000489",
+        "R000516",
+        "R000575",
+        "R000606",
+        "R000683",
+        "R005292",
+        "R066343",
+        "R069326",
+        "R070214",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.006209,
+          "transport_candidates": 20,
+          "relay_options": 37
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.020735100000000003,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000489",
+        "R000516",
+        "R000575",
+        "R000683",
+        "R066343",
+        "R069326",
+        "R070214"
+      ]
+    },
+    {
+      "iteration": 182,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.4273924,
+        "surrogate_cost": 89003028
+      },
+      "task_ids": [
+        "R000158",
+        "R000194",
+        "R000234",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000462",
+        "R000470",
+        "R000516",
+        "R000575",
+        "R000606",
+        "R000683",
+        "R005292",
+        "R066344",
+        "R069326",
+        "R070214",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0088315,
+          "transport_candidates": 20,
+          "relay_options": 37
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0172561,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000470",
+        "R066344",
+        "R069326",
+        "R070214"
+      ]
+    },
+    {
+      "iteration": 183,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.45227940000000005,
+        "surrogate_cost": 89003059
+      },
+      "task_ids": [
+        "R000158",
+        "R000193",
+        "R000234",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000443",
+        "R000489",
+        "R000516",
+        "R000575",
+        "R000606",
+        "R000683",
+        "R005301",
+        "R066342",
+        "R069326",
+        "R070214",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0066844,
+          "transport_candidates": 20,
+          "relay_options": 37
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0199024,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000489",
+        "R066342",
+        "R069326",
+        "R070214"
+      ]
+    },
+    {
+      "iteration": 184,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.4022911,
+        "surrogate_cost": 89003114
+      },
+      "task_ids": [
+        "R000158",
+        "R000194",
+        "R000234",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000443",
+        "R000489",
+        "R000516",
+        "R000575",
+        "R000606",
+        "R000683",
+        "R005292",
+        "R066344",
+        "R069326",
+        "R070214",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0057803,
+          "transport_candidates": 20,
+          "relay_options": 37
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0173721,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000489",
+        "R066344",
+        "R069326",
+        "R070214"
+      ]
+    },
+    {
+      "iteration": 185,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.3934868,
+        "surrogate_cost": 89003610
+      },
+      "task_ids": [
+        "R000158",
+        "R000187",
+        "R000234",
+        "R000255",
+        "R000262",
+        "R000438",
+        "R000462",
+        "R000470",
+        "R000516",
+        "R000575",
+        "R000606",
+        "R000683",
+        "R005315",
+        "R039657",
+        "R066345",
+        "R069326",
+        "R070214",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0057286,
+          "transport_candidates": 20,
+          "relay_options": 37
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.016537800000000002,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000470",
+        "R000516",
+        "R000575",
+        "R000683",
+        "R066345",
+        "R069326",
+        "R070214"
+      ]
+    },
+    {
+      "iteration": 186,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.43572710000000003,
+        "surrogate_cost": 89003696
+      },
+      "task_ids": [
+        "R000158",
+        "R000187",
+        "R000234",
+        "R000255",
+        "R000262",
+        "R000438",
+        "R000443",
+        "R000489",
+        "R000516",
+        "R000575",
+        "R000606",
+        "R000683",
+        "R005315",
+        "R039657",
+        "R066345",
+        "R069326",
+        "R070214",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0065101000000000004,
+          "transport_candidates": 20,
+          "relay_options": 37
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.017569500000000002,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000489",
+        "R000516",
+        "R000575",
+        "R000683",
+        "R066345",
+        "R069326",
+        "R070214"
+      ]
+    },
+    {
+      "iteration": 187,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.3732799,
+        "surrogate_cost": 89003861
+      },
+      "task_ids": [
+        "R000158",
+        "R000187",
+        "R000234",
+        "R000255",
+        "R000262",
+        "R000438",
+        "R000462",
+        "R000470",
+        "R000516",
+        "R000575",
+        "R000606",
+        "R000683",
+        "R005315",
+        "R039657",
+        "R066346",
+        "R069326",
+        "R070214",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0064197,
+          "transport_candidates": 20,
+          "relay_options": 37
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.017688000000000002,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000470",
+        "R066346",
+        "R069326",
+        "R070214"
+      ]
+    },
+    {
+      "iteration": 188,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.3959613,
+        "surrogate_cost": 89003947
+      },
+      "task_ids": [
+        "R000158",
+        "R000187",
+        "R000234",
+        "R000255",
+        "R000262",
+        "R000438",
+        "R000443",
+        "R000489",
+        "R000516",
+        "R000575",
+        "R000606",
+        "R000683",
+        "R005315",
+        "R039657",
+        "R066346",
+        "R069326",
+        "R070214",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0064961,
+          "transport_candidates": 20,
+          "relay_options": 37
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.017729,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000489",
+        "R066346",
+        "R069326",
+        "R070214"
+      ]
+    },
+    {
+      "iteration": 189,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.3720892,
+        "surrogate_cost": 89013134
+      },
+      "task_ids": [
+        "R000150",
+        "R000234",
+        "R000236",
+        "R000239",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000462",
+        "R000470",
+        "R000543",
+        "R000575",
+        "R000606",
+        "R000637",
+        "R000683",
+        "R069326",
+        "R070214",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.005906300000000001,
+          "transport_candidates": 20,
+          "relay_options": 37
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0169486,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000470",
+        "R000543",
+        "R000575",
+        "R000637",
+        "R000683",
+        "R069326",
+        "R070214"
+      ]
+    },
+    {
+      "iteration": 190,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.40434050000000005,
+        "surrogate_cost": 89013189
+      },
+      "task_ids": [
+        "R000150",
+        "R000187",
+        "R000234",
+        "R000241",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000462",
+        "R000470",
+        "R000543",
+        "R000575",
+        "R000606",
+        "R000634",
+        "R000683",
+        "R069326",
+        "R070214",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0062367,
+          "transport_candidates": 20,
+          "relay_options": 37
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.017551300000000002,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000470",
+        "R000543",
+        "R000575",
+        "R000634",
+        "R000683",
+        "R069326",
+        "R070214"
+      ]
+    },
+    {
+      "iteration": 191,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.3772298,
+        "surrogate_cost": 89013204
+      },
+      "task_ids": [
+        "R000150",
+        "R000194",
+        "R000234",
+        "R000241",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000462",
+        "R000470",
+        "R000543",
+        "R000575",
+        "R000606",
+        "R000619",
+        "R000683",
+        "R069326",
+        "R070214",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.006217800000000001,
+          "transport_candidates": 20,
+          "relay_options": 37
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0171364,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000470",
+        "R000543",
+        "R000575",
+        "R000619",
+        "R000683",
+        "R069326",
+        "R070214"
+      ]
+    },
+    {
+      "iteration": 192,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.35684950000000004,
+        "surrogate_cost": 89013219
+      },
+      "task_ids": [
+        "R000150",
+        "R000193",
+        "R000234",
+        "R000241",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000462",
+        "R000470",
+        "R000543",
+        "R000575",
+        "R000606",
+        "R000620",
+        "R000683",
+        "R069326",
+        "R070214",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0065138,
+          "transport_candidates": 20,
+          "relay_options": 37
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.018041500000000002,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000470",
+        "R000543",
+        "R000575",
+        "R000620",
+        "R000683",
+        "R069326",
+        "R070214"
+      ]
+    },
+    {
+      "iteration": 193,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.3533562,
+        "surrogate_cost": 89013220
+      },
+      "task_ids": [
+        "R000150",
+        "R000234",
+        "R000236",
+        "R000239",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000443",
+        "R000489",
+        "R000543",
+        "R000575",
+        "R000606",
+        "R000637",
+        "R000683",
+        "R069326",
+        "R070214",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.006751900000000001,
+          "transport_candidates": 20,
+          "relay_options": 37
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.021980700000000002,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000489",
+        "R000543",
+        "R000575",
+        "R000637",
+        "R000683",
+        "R069326",
+        "R070214"
+      ]
+    },
+    {
+      "iteration": 194,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.3709103,
+        "surrogate_cost": 89013228
+      },
+      "task_ids": [
+        "R000150",
+        "R000186",
+        "R000234",
+        "R000241",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000462",
+        "R000470",
+        "R000543",
+        "R000575",
+        "R000606",
+        "R000635",
+        "R000683",
+        "R069326",
+        "R070214",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0061736000000000004,
+          "transport_candidates": 20,
+          "relay_options": 37
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.017470700000000002,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000470",
+        "R000543",
+        "R000575",
+        "R000635",
+        "R000683",
+        "R069326",
+        "R070214"
+      ]
+    },
+    {
+      "iteration": 195,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.34136320000000003,
+        "surrogate_cost": 89013248
+      },
+      "task_ids": [
+        "R000150",
+        "R000185",
+        "R000234",
+        "R000241",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000462",
+        "R000470",
+        "R000543",
+        "R000575",
+        "R000606",
+        "R000636",
+        "R000683",
+        "R069326",
+        "R070214",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0067555,
+          "transport_candidates": 20,
+          "relay_options": 37
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0307656,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000470",
+        "R000543",
+        "R000575",
+        "R000636",
+        "R000683",
+        "R069326",
+        "R070214"
+      ]
+    },
+    {
+      "iteration": 196,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.3539966,
+        "surrogate_cost": 89013275
+      },
+      "task_ids": [
+        "R000150",
+        "R000187",
+        "R000234",
+        "R000241",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000443",
+        "R000489",
+        "R000543",
+        "R000575",
+        "R000606",
+        "R000634",
+        "R000683",
+        "R069326",
+        "R070214",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.005696400000000001,
+          "transport_candidates": 20,
+          "relay_options": 37
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.016622500000000002,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000489",
+        "R000543",
+        "R000575",
+        "R000634",
+        "R000683",
+        "R069326",
+        "R070214"
+      ]
+    },
+    {
+      "iteration": 197,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.43491700000000005,
+        "surrogate_cost": 89013287
+      },
+      "task_ids": [
+        "R000150",
+        "R000192",
+        "R000234",
+        "R000241",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000462",
+        "R000470",
+        "R000543",
+        "R000575",
+        "R000606",
+        "R000621",
+        "R000683",
+        "R069326",
+        "R070214",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.005840000000000001,
+          "transport_candidates": 20,
+          "relay_options": 37
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.018897900000000002,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000470",
+        "R000543",
+        "R000575",
+        "R000621",
+        "R000683",
+        "R069326",
+        "R070214"
+      ]
+    },
+    {
+      "iteration": 198,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.43373900000000004,
+        "surrogate_cost": 89013290
+      },
+      "task_ids": [
+        "R000150",
+        "R000194",
+        "R000234",
+        "R000241",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000443",
+        "R000489",
+        "R000543",
+        "R000575",
+        "R000606",
+        "R000619",
+        "R000683",
+        "R069326",
+        "R070214",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.007490800000000001,
+          "transport_candidates": 20,
+          "relay_options": 37
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.018691000000000003,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000489",
+        "R000543",
+        "R000575",
+        "R000619",
+        "R000683",
+        "R069326",
+        "R070214"
+      ]
+    },
+    {
+      "iteration": 199,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.3474993,
+        "surrogate_cost": 89013305
+      },
+      "task_ids": [
+        "R000150",
+        "R000193",
+        "R000234",
+        "R000241",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000443",
+        "R000489",
+        "R000543",
+        "R000575",
+        "R000606",
+        "R000620",
+        "R000683",
+        "R069326",
+        "R070214",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.006300200000000001,
+          "transport_candidates": 20,
+          "relay_options": 37
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.016055200000000002,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000489",
+        "R000543",
+        "R000575",
+        "R000620",
+        "R000683",
+        "R069326",
+        "R070214"
+      ]
+    },
+    {
+      "iteration": 200,
+      "master": {
+        "status": "OPTIMAL",
+        "wall_time_s": 0.3764121,
+        "surrogate_cost": 89013314
+      },
+      "task_ids": [
+        "R000150",
+        "R000186",
+        "R000234",
+        "R000241",
+        "R000255",
+        "R000262",
+        "R000326",
+        "R000396",
+        "R000443",
+        "R000489",
+        "R000543",
+        "R000575",
+        "R000606",
+        "R000635",
+        "R000683",
+        "R069326",
+        "R070214",
+        "R071593",
+        "R071594",
+        "R071595"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.0061019,
+          "transport_candidates": 20,
+          "relay_options": 37
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.016762000000000003,
+          "transport_candidates": 20,
+          "relay_options": 136
+        }
+      ],
+      "feedback": "proven_infeasible_task_core",
+      "infeasible_core_task_ids": [
+        "R000489",
+        "R000543",
+        "R000575",
+        "R000635",
+        "R000683",
+        "R069326",
+        "R070214"
+      ]
     }
   ],
-  "proven_infeasible_task_sets": 100,
+  "proven_infeasible_task_sets": 200,
   "deferred_unknown_task_sets": 0,
   "input_sha256": {
     "q3_candidate_tasks.csv": "b23c4ffbd549f5a52284328075502202fff0417009eff72dea12169ded7bbc3e",
