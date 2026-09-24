@@ -1,0 +1,1356 @@
+可以。现在把 Q3 收敛成一个**“最小但题意完整”**的版本：不做任何增强模块，只实现题目明确要求的东西。
+
+新版 Step6 已经让 **5043 个 gap 全部存在单站完整覆盖位置，需切换中继位置的 gap 为 0**，所以 Step6 之后完全不用再考虑中继接力、站点切换、handover、partial-cover set cover 等复杂设计。
+
+同时，Q3 原题明确要求联合确定运输组批/访问顺序、运输资源与开始时刻，以及中继悬停位置、飞行海拔、服务时段和能源组件，并考虑及时性、联合完成时间、总能耗和架次数。
+
+因此，从 Step6 后面只需要做 **4 步**：
+
+$$
+\boxed{
+\text{Step7 中继作业参数}
+\rightarrow
+\text{Step8 联合CP-SAT}
+\rightarrow
+\text{Step9 最小多目标求解}
+\rightarrow
+\text{Step10 最终验证与输出}
+}
+$$
+
+---
+
+# Step 7：中继作业参数计算
+
+这一步回答：
+
+> Step6 说某个位置“通信可用”，但中继无人机到底能不能飞过去、什么时候能到、耗多少电？
+
+新增：
+
+```text
+code/src/q3/relay/operation_profile.py
+code/Q3_step7.py
+```
+
+输入直接使用：
+
+```text
+q3_relay_sites.csv
+q3_gap_relay_options.csv
+q3_task_comm_gaps.csv
+
+中继无人机_机型参数.csv
+中继无人机_清单.csv
+中继无人机_共享电池.csv
+
+DEM
+O01坐标与高程
+```
+
+题目规定中继无人机要从 O01 起飞，到悬停点、建链、提供服务，然后返回 O01；飞行、悬停、通信、返航电量、准备时间、建链时间、周转时间都要计算。
+
+## 7.1 对每个 Step6 中继站点计算往返飞行属性
+
+对中继候选点 \(p\)，已有：
+
+$$
+p=(x_p,y_p,h_p^{ground},h_p^{AGL})
+$$
+
+其绝对悬停高度：
+
+$$
+h_p=h_p^{ground}+h_p^{AGL}.
+$$
+
+O01 到 \(p\) 仍严格沿用题目统一飞行规则：
+
+$$
+\boxed{
+\text{爬升}\rightarrow
+\text{水平巡航}\rightarrow
+\text{下降}
+}
+$$
+
+巡航高度：
+
+$$
+H_p=
+\max
+\left\{
+h_{O01},
+h_p,
+h_{\max}^{DEM}(O01,p)+50
+\right\}.
+$$
+
+然后计算：
+
+$$
+T_p^{out},\qquad T_p^{back}
+$$
+
+和：
+
+$$
+E_p^{out},\qquad E_p^{back}.
+$$
+
+中继参数当前就是：
+
+$$
+v_c=15\,m/s,\quad
+v_\uparrow=4\,m/s,\quad
+v_\downarrow=3\,m/s.
+$$
+
+爬升能耗：
+
+$$
+E^{up}
+=
+\frac{Mg\Delta h}
+{3.6\times10^6\eta_{up}}
+$$
+
+水平能耗：
+
+$$
+E^{cruise}
+=
+P^{cruise}\frac{T^{cruise}}{3600}.
+$$
+
+下降能耗按当前附件参数：
+
+$$
+E^{down}=0.
+$$
+
+---
+
+## 7.2 计算中继提前到位时间
+
+现在：
+
+$$
+T^{prep}=180s
+$$
+
+$$
+T^{link}=30s.
+$$
+
+所以站点 \(p\) 的提前量为：
+
+$$
+\boxed{
+L_p
+=
+T^{prep}+T_p^{out}+T^{link}
+}
+$$
+
+以后如果运输任务的通信缺口在：
+
+$$
+t_g^s
+$$
+
+开始，则中继必须最迟在：
+
+$$
+t_g^s-L_p
+$$
+
+开始准备。
+
+这条是硬约束。
+
+---
+
+## 7.3 把每个 Gap–Relay 组合变成真正的可执行中继任务
+
+这里**只用新版 Step6 的单点 full-cover option**。
+
+对于 gap \(g\)：
+
+$$
+[\tau_g^s,\tau_g^e]
+$$
+
+注意：
+
+$$
+\boxed{
+\text{这里使用 }tau\_start,tau\_end
+}
+$$
+
+不要再用旧的：
+
+```text
+coverage_start
+coverage_end
+```
+
+因为新版 Step6 已经明确：
+
+$$
+\boxed{\text{只对 direct=0 的 outage 区间要求中继}}
+$$
+
+before/after 只用于边界检查，不再强制覆盖。
+
+---
+
+假设 gap \(g\) 选择站点 \(p\)，服务时长：
+
+$$
+T_g^{service}
+=
+\tau_g^e-\tau_g^s.
+$$
+
+则中继任务能耗：
+
+$$
+\boxed{
+E_{gp}^{R}
+=
+E_p^{out}
++
+E_p^{back}
++
+(P^{hover}+P^{comm})
+(T^{link}+T_g^{service})/3600
+}
+$$
+
+这里把建链期间也按悬停+通信功率计，属于保守口径。
+
+当前：
+
+$$
+P^{hover}=1.05kW
+$$
+
+$$
+P^{comm}=0.05kW.
+$$
+
+---
+
+## 7.4 电量硬筛选
+
+中继能源组件：
+
+$$
+E_R^{use}=3.2kWh
+$$
+
+返航安全余量：
+
+$$
+\rho_R=20\%.
+$$
+
+所以：
+
+$$
+\boxed{
+E_{gp}^{R}\le0.8\times3.2=2.56kWh
+}
+$$
+
+不满足的 `(gap_id, candidate_id)`：
+
+$$
+\boxed{\text{直接删除}}
+$$
+
+无需进入优化器。
+
+---
+
+## 7.5 计算中继能源组件充电时间
+
+任务完成后：
+
+$$
+SOC_{gp}
+=
+1-\frac{E_{gp}^{R}}{3.2}.
+$$
+
+直接复用：
+
+```python
+src/q2/battery.py
+```
+
+中的：
+
+```python
+charge_time_to_full()
+```
+
+因为题目明确规定运输电池与中继能源组件使用同一种两阶段充电规则，而且再次使用前必须充至 100%。
+
+---
+
+Step7 最后输出：
+
+```text
+q3_relay_operation_profiles.csv
+```
+
+记录：
+
+```text
+candidate_id
+outbound_time_s
+return_time_s
+outbound_energy_kWh
+return_energy_kWh
+lead_time_s
+```
+
+以及：
+
+```text
+q3_relay_job_options.csv
+```
+
+记录：
+
+```text
+gap_id
+task_id
+candidate_id
+tau_start_s
+tau_end_s
+service_duration_s
+relay_energy_kWh
+end_soc
+charge_time_s
+lead_time_s
+return_time_s
+```
+
+**不要再做 Top-K。**
+
+Step6 已经把优化站点压到约 414 个、gap alternatives 压到约 49177 个，再人为 Top-K 会进一步缩小可行域，没有必要。
+
+---
+
+# Step 8：建立真正的 Q3 联合 CP-SAT
+
+新增：
+
+```text
+code/src/q3/joint_scheduler.py
+```
+
+这是 Q3 最核心的新增模块。
+
+这里和我们之前 MVP 最大的区别是：
+
+$$
+\boxed{\text{不固定某一个Q2 Pareto方案}}
+$$
+
+因为题目明确要求 Q3 **联合确定货箱组批和访问顺序**。
+
+但也不重新生成路线。
+
+直接使用你现在已经有的：
+
+```text
+q3_candidate_tasks.csv
+q3_candidate_deliveries.csv
+```
+
+即可。
+
+当前每个 candidate 已经固定好了：
+
+```text
+task_id
+货箱组合
+uav_type
+visit_order
+duration_s
+energy_kWh
+delivery_offset
+```
+
+因此 Q3 通过**选择哪个 candidate**，就等价于决定：
+
+$$
+\boxed{
+\text{组批}
++
+\text{访问顺序}
++
+\text{机型}
+}
+$$
+
+不用再引入更复杂的路径变量。
+
+---
+
+# Step 8.1 三类核心决策变量
+
+只需要三类。
+
+### 运输任务选择
+
+$$
+x_r\in\{0,1\}
+$$
+
+表示候选运输任务 \(r\) 是否执行。
+
+### 运输开始时间
+
+$$
+s_r\in\mathbb Z_{\ge0}
+$$
+
+### Gap 中继站点选择
+
+对于 gap \(g\) 和可用站点 \(p\)：
+
+$$
+y_{gp}\in\{0,1\}.
+$$
+
+就这些。
+
+不需要：
+
+* MOEA/D 个体；
+* ALNS 路径变量；
+* 中继切换变量；
+* relay handover；
+* 多跳变量。
+
+---
+
+# Step 8.2 货箱唯一覆盖
+
+直接继承 Q2 set partition：
+
+对于每个货箱 \(b\)：
+
+$$
+\boxed{
+\sum_{r:b\in B_r}x_r=1
+}
+$$
+
+这样自动完成货箱组批选择。
+
+---
+
+# Step 8.3 运输载荷/体积/飞行能耗不用再在 CP-SAT 里重复计算
+
+因为：
+
+```text
+q3_candidate_tasks.csv
+```
+
+本身就是 Q2 物理模型筛过的可行任务。
+
+所以：
+
+$$
+\boxed{
+\text{质量、体积、运输能量属于candidate生成阶段硬约束}
+}
+$$
+
+Q3 solver 不需要重新建立非线性物理模型。
+
+这可以大幅简化模型。
+
+最终 validator 再核对一次即可。
+
+---
+
+# Step 8.4 硬配送时限
+
+对于任务 \(r\) 中货箱 \(b\)：
+
+$$
+t_b=s_r+\delta_{rb}.
+$$
+
+医疗物资和首批保障货箱仍然是硬约束：
+
+$$
+\boxed{
+s_r+\delta_{rb}\le D_b
+}
+$$
+
+如果：
+
+$$
+x_r=1.
+$$
+
+直接复用 Q2 当前的 deadline 数据和逻辑。
+
+---
+
+# Step 8.5 运输无人机资源
+
+完全复用 Q2 CP-SAT。
+
+运输 interval：
+
+$$
+I_r^T
+=
+[s_r,s_r+D_r)
+$$
+
+presence：
+
+$$
+x_r.
+$$
+
+对各机型：
+
+$$
+\boxed{
+\operatorname{Cumulative}
+(I_r^T,1,n_k^U)
+}
+$$
+
+不要重新写一套运输调度逻辑。
+
+---
+
+# Step 8.6 运输共享电池
+
+同样完全复用 Q2：
+
+$$
+SOC_r
+=
+1-\frac{E_r^T}{E_k^{use}}
+$$
+
+得到充电时间：
+
+$$
+C_r^T.
+$$
+
+共享电池占用：
+
+$$
+I_r^{BT}
+=
+[s_r,\,
+s_r+D_r+C_r^T).
+$$
+
+然后：
+
+$$
+\boxed{
+\operatorname{Cumulative}
+(I_r^{BT},1,n_k^B)
+}
+$$
+
+---
+
+# Step 8.7 直连任务什么都不用做
+
+如果：
+
+```text
+needs_relay = 0
+```
+
+则：
+
+$$
+\boxed{\text{没有任何中继变量}}
+$$
+
+这非常重要，可以明显缩小模型。
+
+---
+
+# Step 8.8 有 Gap 的任务必须选择中继
+
+假设 gap \(g\) 属于任务 \(r\)。
+
+则：
+
+$$
+\boxed{
+\sum_{p\in P_g}y_{gp}=x_r
+}
+$$
+
+含义非常简单：
+
+如果：
+
+$$
+x_r=0
+$$
+
+则：
+
+$$
+y_{gp}=0.
+$$
+
+如果：
+
+$$
+x_r=1
+$$
+
+则该 gap 必须：
+
+$$
+\boxed{\text{且只能选一个中继站点}}
+$$
+
+因为新版 Step6 已经证明每个 gap 都有单站完整覆盖候选，所以不需要站点组合。
+
+---
+
+# Step 8.9 中继服务时间直接由运输开始时间决定
+
+gap 的相对时间：
+
+$$
+[\tau_g^s,\tau_g^e].
+$$
+
+如果运输任务从：
+
+$$
+s_r
+$$
+
+开始，则：
+
+$$
+T_{g,start}
+=
+s_r+\tau_g^s
+$$
+
+$$
+T_{g,end}
+=
+s_r+\tau_g^e.
+$$
+
+也就是说：
+
+$$
+\boxed{
+\text{中继服务时段不是自由变量}
+}
+$$
+
+它由运输调度自动产生。
+
+这反而让模型非常简单。
+
+---
+
+# Step 8.10 中继必须提前出发
+
+选中站点 \(p\) 时：
+
+$$
+d_{gp}
+=
+s_r+\tau_g^s-L_p.
+$$
+
+必须：
+
+$$
+\boxed{
+d_{gp}\ge0
+}
+$$
+
+也可以等价写成：
+
+$$
+\boxed{
+s_r\ge L_p-\tau_g^s
+}
+$$
+
+OnlyEnforceIf：
+
+$$
+y_{gp}=1.
+$$
+
+这样自然保证：
+
+```text
+准备
+→ 飞到中继点
+→ 建链
+→ gap开始
+```
+
+时间顺序正确。
+
+---
+
+# Step 8.11 中继无人机占用 interval
+
+从开始准备：
+
+$$
+d_{gp}
+$$
+
+一直到：
+
+```text
+服务结束
+→ 返回 O01
+→ 周转结束
+```
+
+所以：
+
+$$
+D_{gp}^{RUAV}
+=
+L_p
++
+T_g^{service}
++
+T_p^{back}
++
+T^{turn}.
+$$
+
+建立 optional interval：
+
+$$
+I_{gp}^{RUAV}
+$$
+
+presence：
+
+$$
+y_{gp}.
+$$
+
+---
+
+# Step 8.12 只有2架中继无人机
+
+附件当前是：
+
+```text
+R01
+R02
+```
+
+因此：
+
+$$
+\boxed{
+\operatorname{Cumulative}
+(I_{gp}^{RUAV},1,2)
+}
+$$
+
+这是硬约束。
+
+---
+
+# Step 8.13 中继能源组件 interval
+
+能源组件从任务准备开始占用。
+
+一直到：
+
+```text
+中继返航
++
+能源组件重新充满
+```
+
+所以：
+
+$$
+D_{gp}^{RB}
+=
+L_p
++
+T_g^{service}
++
+T_p^{back}
++
+C_{gp}^{R}.
+$$
+
+建立：
+
+$$
+I_{gp}^{RB}.
+$$
+
+附件共有：
+
+$$
+6
+$$
+
+组能源组件，因此：
+
+$$
+\boxed{
+\operatorname{Cumulative}
+(I_{gp}^{RB},1,6)
+}
+$$
+
+题目明确要求能源资源的任务占用和充电时段不得重叠。
+
+---
+
+# Step 8.14 不允许任何多跳
+
+这一点模型里不需要新增变量，因为 Step6 已经只计算：
+
+$$
+\boxed{
+Transport
+\rightarrow
+Relay
+\rightarrow
+G01
+}
+$$
+
+题目明确禁止：
+
+$$
+Relay_1\rightarrow Relay_2\rightarrow G01.
+$$
+
+
+
+所以后续不要再加入 relay-relay link。
+
+---
+
+# Step 9：最小多目标实现
+
+这里也不需要 MOEA/D。
+
+但是题目要求：
+
+$$
+\boxed{
+\text{综合考虑4个指标，并说明权衡}
+}
+$$
+
+所以完全只优化一个目标不够。
+
+最小实现只跑：
+
+$$
+\boxed{
+4个单目标锚点
++
+1个综合折中解
+}
+$$
+
+共 5 次 CP-SAT。
+
+---
+
+## 目标1：配送及时性
+
+医疗和首批本来已经是硬约束。
+
+其他货箱按期望送达时间计算延迟：
+
+$$
+L_b
+=
+\max
+\{0,t_b-T_b^{exp}\}.
+$$
+
+定义：
+
+$$
+\boxed{
+F_1=\sum_b L_b
+}
+$$
+
+先不要人为加优先级权重，避免新增不必要参数。
+
+---
+
+## 目标2：联合任务完成时间
+
+运输任务：
+
+$$
+C_r^T=s_r+D_r.
+$$
+
+中继任务真正完成时间只算到返回 O01：
+
+$$
+C_{gp}^{R}
+=
+d_{gp}
++
+L_p
++
+T_g^{service}
++
+T_p^{back}.
+$$
+
+因此：
+
+$$
+\boxed{
+F_2=C_{\max}^{joint}
+=
+\max
+\left\{
+\max_r C_r^T,
+\max_{gp} C_{gp}^R
+\right\}
+}
+$$
+
+题目明确说联合任务完成时间是运输和中继无人机最后一个架次返回 O01 的最晚时间。
+
+所以：
+
+$$
+\boxed{\text{充电完成时间不计入 }C_{\max}}
+$$
+
+但充电仍影响下一次资源使用。
+
+---
+
+## 目标3：联合总能耗
+
+$$
+\boxed{
+F_3=
+\sum_rE_r^Tx_r
++
+\sum_{g,p}E_{gp}^Ry_{gp}
+}
+$$
+
+---
+
+## 目标4：两类无人机总架次
+
+最小实现中采用：
+
+$$
+\boxed{\text{一个 gap 对应一个中继架次}}
+$$
+
+所以：
+
+$$
+N_T=\sum_rx_r
+$$
+
+$$
+N_R=
+\sum_g x_{r(g)}
+$$
+
+最终：
+
+$$
+\boxed{
+F_4=N_T+N_R
+}
+$$
+
+这是一个保守但完整可执行的调度口径。
+
+本轮不做 gap 合并和 Service Block。
+
+---
+
+# Step 9.1 四个锚点
+
+依次求：
+
+```text
+Q3-Timely
+Q3-Cmax
+Q3-Energy
+Q3-Sorties
+```
+
+得到：
+
+$$
+S_1,S_2,S_3,S_4.
+$$
+
+---
+
+# Step 9.2 一个综合解
+
+根据四个锚点得到每个目标的尺度：
+
+$$
+z_j^{min},z_j^{max}.
+$$
+
+归一化：
+
+$$
+\bar F_j
+=
+\frac{F_j-z_j^{min}}
+{z_j^{max}-z_j^{min}}.
+$$
+
+综合解：
+
+$$
+\boxed{
+\min
+\left(
+\bar F_1+\bar F_2+\bar F_3+\bar F_4
+\right)
+}
+$$
+
+四个目标等权。
+
+这样不需要：
+
+* MOEA/D；
+* NSGA-II；
+* ε 网格；
+* 人为调很多参数。
+
+但已经能够给论文一张：
+
+| 方案          | 及时性 | 联合完成时间 | 总能耗 | 总架次 |
+| ----------- | --: | -----: | --: | --: |
+| Timely-opt  |     |        |     |     |
+| Cmax-opt    |     |        |     |     |
+| Energy-opt  |     |        |     |     |
+| Sorties-opt |     |        |     |     |
+| Compromise  |     |        |     |     |
+
+足以说明权衡关系。
+
+---
+
+# Step 10：最终验证
+
+新增：
+
+```text
+code/src/q3/final_validator.py
+```
+
+这一步不是可选增强，因为题目要求的是：
+
+$$
+\boxed{\text{连续通信}}
+$$
+
+而 Step3–Step6 当前是离散采样。
+
+因此最终的 5 个解，至少尤其是 `Compromise`，重新按：
+
+$$
+\boxed{\Delta t=1s}
+$$
+
+生成实际运输轨迹。
+
+---
+
+## 每秒验证
+
+对于每个运输 UAV：
+
+如果：
+
+$$
+A_{r,G01}(t)=1
+$$
+
+则 PASS。
+
+否则必须有当前实际执行的中继任务 \(p\)，并同时：
+
+$$
+A_{r,p}(t)=1
+$$
+
+和：
+
+$$
+A_{p,G01}(t)=1.
+$$
+
+题目明确要求两跳链路在**同一时刻同时可用**。
+
+最终：
+
+$$
+\boxed{
+communication\_interruptions=0
+}
+$$
+
+才允许输出。
+
+如果某个：
+
+```text
+gap_id + candidate_id
+```
+
+在 1 秒终验中出现中断：
+
+$$
+\boxed{
+\text{删除这个 option}
+\rightarrow
+\text{重新运行CP-SAT}
+}
+$$
+
+即可。
+
+不需要构建更复杂的反馈算法。
+
+---
+
+# Step 10 还要统一验证这些硬约束
+
+最终 validator 需要全部为 PASS：
+
+$$
+\boxed{
+\text{80个货箱恰好交付1次}
+}
+$$
+
+$$
+\boxed{
+\text{医疗/首批硬时限违反}=0
+}
+$$
+
+$$
+\boxed{
+\text{运输UAV峰值}\le\text{库存}
+}
+$$
+
+$$
+\boxed{
+\text{运输电池峰值}\le\text{库存}
+}
+$$
+
+$$
+\boxed{
+\text{Relay UAV峰值}\le2
+}
+$$
+
+$$
+\boxed{
+\text{Relay能源组件峰值}\le6
+}
+$$
+
+$$
+\boxed{
+E_{gp}^R\le2.56kWh
+}
+$$
+
+$$
+\boxed{
+\text{所有选中站点AGL}\le300m
+}
+$$
+
+$$
+\boxed{
+\text{连续通信中断}=0
+}
+$$
+
+---
+
+# 最小代码结构
+
+最终先只新增这几个文件：
+
+```text
+code/
+├── Q3_step7.py
+├── Q3_joint.py
+│
+└── src/q3/
+    ├── relay/
+    │   └── operation_profile.py
+    │
+    ├── joint_scheduler.py
+    └── final_validator.py
+```
+
+不再增加其他模块。
+
+---
+
+# 最终数据流
+
+整个 Q3 最小版本就是：
+
+```text
+Q1公共物理模型
+        ↓
+Q2候选运输任务
+        ↓
+Q3 Step3
+运输轨迹 + G01直连状态
+        ↓
+Q3 Step4
+通信感知候选运输任务
+        ↓
+Q3 Step5
+通信gap
+        ↓
+Q3 Step6
+单站完整中继位置
+        ↓
+Q3 Step7
+中继往返时间
+中继飞行能耗
+中继服务能耗
+中继充电时间
+        ↓
+Q3 Joint CP-SAT
+        │
+        ├─ 选择运输task
+        ├─ 运输开始时间
+        ├─ 运输UAV
+        ├─ 运输电池
+        ├─ gap选择relay site
+        ├─ 2架relay资源
+        └─ 6组能源组件
+        ↓
+4个目标锚点
++ 1个综合解
+        ↓
+1秒连续通信终验
+        ↓
+Q3最终联合调度方案
+```
+
+---
+
+## 最后一个前置问题要先处理
+
+我重新检查了当前 GitHub：
+
+`coverage_library.py` 已经是新的：
+
+```python
+ids = grouped[gap.gap_id]
+```
+
+也就是正确的 **outage-only** 逻辑。
+
+但仓库里的：
+
+```text
+code/data/q3_step6_manifest.json
+```
+
+目前仍记录旧结果：
+
+```text
+gap_policy = before + outage + after
+final_relay_sites = 2149
+gap_options = 76805
+```
+
+而你刚才本地新运行结果已经是：
+
+$$
+5043/5043\text{ single-site full cover}
+$$
+
+$$
+0\text{ switching}
+$$
+
+$$
+414\text{ relay sites}
+$$
+
+$$
+49177\text{ options}.
+$$
+
+
+
+所以**写 Step7 前第一件事**不是继续改模型，而是把新版 Step6 生成的：
+
+```text
+q3_step6_manifest.json
+q3_relay_sites.csv
+q3_gap_relay_options.csv
+q3_gap_relay_summary.csv
+q3_state_relay_coverage.csv
+```
+
+全部同步到当前代码仓库。
+
+然后就直接开始 **Step7 `operation_profile.py`**。这一步完成后，Q3 剩下就只有一个联合 CP-SAT，不再引入别的算法。

@@ -1,0 +1,79 @@
+{
+  "step": "Q3 Step6 sparse state-relay dual-link coverage",
+  "run_command": "python code/Q3_step6.py",
+  "runtime": {
+    "python": "3.11.7",
+    "numpy": "2.4.4",
+    "pandas": "3.0.5"
+  },
+  "coverage_definition": "B_sp=1 iff access and relay-G01 links are both available",
+  "access_policy": "FSPL>limit impossible; FSPL+obstruction<=limit guaranteed; every uncertain pair is checked with actual DEM LOS",
+  "gap_policy": "outage samples only (direct=0); before/after direct states retained for boundary verification only, not mandatory for relay coverage",
+  "output_roles": {
+    "cache/q3_step6_physical_coverage.npz": "full physical feasibility matrix B_sp (all sites × all states)",
+    "q3_state_relay_coverage.csv": "sparse physical coverage over retained optimization candidate sites",
+    "q3_gap_relay_options.csv": "reduced gap-level optimization alternatives"
+  },
+  "outage_states": 12792,
+  "boundary_states": 407,
+  "required_states": 13199,
+  "unique_gap_signatures": 1025,
+  "site_generation": {
+    "raw_spatial_sites": 27881,
+    "raw_height_candidates": 418215,
+    "backhaul_available_candidates": 136564,
+    "retained_backhaul_candidates": 136564,
+    "height_layers_m": [
+      20.0,
+      40.0,
+      60.0,
+      80.0,
+      100.0,
+      120.0,
+      140.0,
+      160.0,
+      180.0,
+      200.0,
+      220.0,
+      240.0,
+      260.0,
+      280.0,
+      300.0
+    ],
+    "access_fspl_radius_m": 6270.3063283438105
+  },
+  "access_coverage": {
+    "access_pairs_possible": 810641485,
+    "access_pairs_guaranteed": 110959297,
+    "access_pairs_dem_checked": 699682188,
+    "access_pairs_dem_available": 483641502,
+    "access_pairs_final": 594600799,
+    "unique_state_geometries": 7387
+  },
+  "coverage_signatures": 119828,
+  "physical_relay_sites": 136564,
+  "final_relay_sites": 414,
+  "state_relay_pairs": 2780803,
+  "gap_options": 49177,
+  "gaps": 5043,
+  "gaps_single_site_full_cover": 5043,
+  "gaps_require_relay_switching": 0,
+  "uncovered_required_states": 0,
+  "gaps_failing_union_coverage": 0,
+  "input_sha256": {
+    "q3_outage_states.csv": "dc720bd235f8690952e0dfe4cdcd2c322d0a9a89e282fa0eab3385fcb090b281",
+    "q3_task_comm_gaps.csv": "e21dc73721a1144c93bc060680e5e3cfa0814414f471142e96ae78d123ff8f20",
+    "q3_task_gap_states.csv": "5e990302ca5416e682f4a0c6264a38ee1daafd42b427fa6ce11709dae314d035",
+    "q3_comm_gap_manifest.json": "af878a2b9bd83b57a81a2de837446ca483dbff939090998551550b3b97d22af5",
+    "镇龙乡及周边30米DEM.tif": "741fe6de0b2bcaffd0f4007f574ee698d46197094f52cc954b532c4f90fc7c03",
+    "通信链路参数.xlsx": "1860d153199e7ae460ba36e83b673374e640e19de91ea167f2877271001f5f81",
+    "中继无人机数据.xlsx": "be52643ff29419233e6a141dca03a04160a8af551cab36d8c49b51bb836bea04"
+  },
+  "output_sha256": {
+    "q3_boundary_states.csv": "cdb9e23affc133172e5fb737584a1a225879c4afb50dd0173fd4f8298e1675d7",
+    "q3_relay_sites.csv": "341c8a6b6f4c91a03cdd4e808abca7ebf5c6648331b7ea085e2888e8939ebfc7",
+    "q3_state_relay_coverage.csv": "b9708be91e5c04e70e3be10d474e9603e4ed88678051f0ef73b01021dd56e0b2",
+    "q3_gap_relay_options.csv": "cc1b50137ca18440e414891095a822be421bc5c341cc0ce2916d7ec977337d28",
+    "q3_gap_relay_summary.csv": "a08c4b044f11fb37d4975e47f252693d53fdbec3bd3a1fbfd826e05a52dfe1bf"
+  }
+}
