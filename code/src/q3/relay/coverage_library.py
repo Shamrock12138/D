@@ -39,6 +39,7 @@ MANIFEST_PATH = DATA / "q3_step6_manifest.json"
 PHYSICAL_CACHE_NPZ = CACHE_DIR / "q3_step6_physical_coverage.npz"
 PHYSICAL_MANIFEST = CACHE_DIR / "q3_step6_physical_manifest.json"
 PHYSICAL_SITES_PATH = CACHE_DIR / "q3_step6_physical_sites.csv"
+PHYSICAL_CACHE_VERSION = 2
 
 
 def _sha256(path: Path):
@@ -293,7 +294,7 @@ def _pareto_filter_sites(indices, sites):
 
 
 def _select_style_representatives(eligible, sites, max_per_style=5):
-    u"""从合格站点中按多种风格代表选择（不重复）。"""
+    u"""从合格站点中按多种风格代表选择（不重复，每种风格严格 max_per_style 个）。"""
     result = []
     styles = [
         (sites.relay_g01_margin_db.to_numpy(), False),
@@ -304,10 +305,12 @@ def _select_style_representatives(eligible, sites, max_per_style=5):
         order = eligible[np.argsort(values[eligible], kind="stable")]
         if not ascending:
             order = order[::-1]
+        picked_this_style = 0
         for pick in order:
             if pick not in result:
                 result.append(int(pick))
-            if sum(1 for x in result if x in eligible) >= max_per_style:
+                picked_this_style += 1
+            if picked_this_style >= max_per_style:
                 break
     return list(dict.fromkeys(result))
 
@@ -340,10 +343,29 @@ def _gap_alternatives(sequence, packed, sites, states, parameters, max_style=5):
         positive = np.flatnonzero(counts)
         if not len(positive):
             return []
-        eligible = _pareto_filter_sites(positive, sites)
-        pool = np.asarray(sorted(set(eligible.tolist())), dtype=int)
-        if not len(pool):
-            pool = positive
+
+        # 安全 per-state pool: 每个 required state 保留
+        # distance 最近/margin 最大/height 最低 各 Top-k
+        # 确保 greedy set cover 前不因静态 Pareto 误删唯一覆盖 RP
+        safe_pool = set()
+        for column in columns:
+            choices = np.flatnonzero(column)
+            if not len(choices):
+                continue
+            dist_order = choices[np.argsort(
+                sites.horizontal_distance_to_O01_m.to_numpy()[choices]
+            )]
+            safe_pool.update(map(int, dist_order[:max_style]))
+            height_order = choices[np.argsort(
+                sites.agl_height.to_numpy()[choices]
+            )]
+            safe_pool.update(map(int, height_order[:max_style]))
+            margin_order = choices[
+                np.argsort(sites.relay_g01_margin_db.to_numpy()[choices])
+            ][::-1]
+            safe_pool.update(map(int, margin_order[:max_style]))
+
+        pool = np.asarray(sorted(safe_pool), dtype=int)
         matrix = np.column_stack([column[pool] for column in columns])
         uncovered = np.ones(n_required, dtype=bool)
         while uncovered.any():
@@ -438,9 +460,12 @@ def run_step6():
         current_hashes = {name: _sha256(path) for name, path in sources.items()}
 
         cache_valid = False
-        if PHYSICAL_CACHE_NPZ.exists() and PHYSICAL_MANIFEST.exists():
+        if all(path.exists() for path in (PHYSICAL_CACHE_NPZ, PHYSICAL_MANIFEST, PHYSICAL_SITES_PATH)):
             cached_manifest = json.loads(PHYSICAL_MANIFEST.read_text(encoding="utf-8"))
-            cache_valid = cached_manifest.get("input_sha256", {}) == current_hashes
+            cache_valid = (
+                cached_manifest.get("cache_version") == PHYSICAL_CACHE_VERSION
+                and cached_manifest.get("input_sha256", {}) == current_hashes
+            )
 
         if cache_valid:
             print("发现有效物理覆盖缓存，跳过 DEM LOS 计算", flush=True)
@@ -465,6 +490,7 @@ def run_step6():
             CACHE_DIR.mkdir(parents=True, exist_ok=True)
             np.savez_compressed(PHYSICAL_CACHE_NPZ, packed=packed)
             cache_manifest = {
+                "cache_version": PHYSICAL_CACHE_VERSION,
                 "input_sha256": current_hashes,
                 "site_stats": site_stats,
                 "access_stats": access_stats,
@@ -616,7 +642,8 @@ def run_step6():
     # ═══════════════════════════════════════════════════════════
     # 最终断言
     # ═══════════════════════════════════════════════════════════
-    assert len(states) == 13199, f"expected 13199 states, got {len(states)}"
+    assert len(states) == len(outage) + len(boundary), \
+        f"state count mismatch: {len(states)} != {len(outage)} outage + {len(boundary)} boundary"
     assert summaries["union_cover_pass"].eq(1).all(), "存在 union 覆盖失败的 gap"
     assert set(states["state_id"]).issubset(
         set(pair_frame["state_id"])
@@ -659,8 +686,9 @@ def run_step6():
         ),
         "gap_policy": "before + outage samples + after; alternatives retain contiguous sample ranges",
         "output_roles": {
-            "q3_state_relay_coverage.csv": "physical feasibility library",
-            "q3_gap_relay_options.csv": "reduced optimization candidate library",
+            "cache/q3_step6_physical_coverage.npz": "full physical feasibility matrix B_sp (all sites × all states)",
+            "q3_state_relay_coverage.csv": "sparse physical coverage over retained optimization candidate sites",
+            "q3_gap_relay_options.csv": "reduced gap-level optimization alternatives",
         },
         "outage_states": len(outage), "boundary_states": len(boundary),
         "required_states": len(states), "unique_gap_signatures": len(signature_to_gaps),
