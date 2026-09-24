@@ -1,0 +1,9 @@
+﻿task_id,task_type,n_uavs,latest_start_s,assigned_start_s,gap_s,reason
+R051122,C,2,2113.0,2247.4,134.4,all UAVs occupied past latest_start
+R070770,C,2,2295.3,2480.3,185.0,all UAVs occupied past latest_start
+R000438,C,2,2343.3,4631.9,2288.6,all UAVs occupied past latest_start
+R053046,C,2,2367.8,4957.2,2589.4,all UAVs occupied past latest_start
+R071208,C,2,5316.3,6177.4,861.1,all UAVs occupied past latest_start
+R000575,C,2,5707.8,7896.3,2188.5,all UAVs occupied past latest_start
+R000543,C,2,5737.6,8765.3,3027.7,all UAVs occupied past latest_start
+R063414,C,2,9011.1,10084.5,1073.4,all UAVs occupied past latest_start

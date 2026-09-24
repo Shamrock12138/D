@@ -1,0 +1,42 @@
+{
+  "step": "Q3 Step 3 transport UAV to G01 direct link",
+  "run_command": "python -m src.q3.communication.checker",
+  "coordinate_system": "EPSG:4326 lon/lat degrees; z is absolute elevation in meters",
+  "gateway": {
+    "x": 109.2308517,
+    "y": 23.0085095,
+    "z": 147.7
+  },
+  "terrain_sample_step_m": 15.0,
+  "threshold_rule": "effective sensitivity = Psens + M; bidirectional limit = min(uplink, downlink)",
+  "availability_rule": "FSPL + Lobs * terrain_blocked <= bidirectional limit",
+  "input_sha256": {
+    "q3_trajectories.csv": "a08189abda26062fb054fe417ba24fa44de201d701bd8de86d1adf7b6213c02e",
+    "镇龙乡及周边30米DEM.tif": "741fe6de0b2bcaffd0f4007f574ee698d46197094f52cc954b532c4f90fc7c03",
+    "通信链路参数.xlsx": "1860d153199e7ae460ba36e83b673374e640e19de91ea167f2877271001f5f81"
+  },
+  "counts": {
+    "points": 3495,
+    "direct": 2448,
+    "blocked": 1662,
+    "flight_1": 122,
+    "flight_2": 122,
+    "flight_3": 122,
+    "flight_4": 197,
+    "flight_5": 155,
+    "flight_6": 156,
+    "flight_7": 167,
+    "flight_8": 196,
+    "flight_9": 163,
+    "flight_10": 199,
+    "flight_11": 117,
+    "flight_12": 258,
+    "flight_13": 145,
+    "flight_14": 257,
+    "flight_15": 227,
+    "flight_16": 253,
+    "flight_17": 153,
+    "flight_18": 258,
+    "flight_19": 228
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "inputs": {
+    "route_parameter_all.csv": "a4fadcc0a00e024bd80ae5db365f0e41dcd95b76aa8d88a196b552c39df0aa7e",
+    "distance_matrix.csv": "f93a10fc8ec090866b4ea02a4010ae42e81f0078616ec20fb074365fcafd65c3",
+    "climb_height_matrix.csv": "88ad466b25b7e897b9b372c6b9da9368efb1926f638ff33bbca235ebeeae307e",
+    "descent_height_matrix.csv": "6d476735cc418d78c271f3c6442ae0d852d9240951cbd97de128a4adc0e3bd09",
+    "物资需求.csv": "bbc22fa4df3ba1202471d050ddf3fb1caba027767735227a2b6ec89d44e63c2d",
+    "运输无人机_机型参数.csv": "fa420411e1fd5e4006a8d21bca99f7ec000e1109ef14a6276284f291707de739"
+  }
+}

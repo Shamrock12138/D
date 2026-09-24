@@ -7,14 +7,14 @@
     "T-opt": "min cumulative T, then E, then N"
   },
   "scope": "O01-service-O01; indivisible boxes; A/B/C per sortie; safe payload, volume and available energy enforced; fleet scheduling, shared batteries and deadlines excluded",
-  "python_version": "3.12.13",
+  "python_version": "3.11.7",
   "input_sha256": {
     "data/物资需求.csv": "bbc22fa4df3ba1202471d050ddf3fb1caba027767735227a2b6ec89d44e63c2d",
     "data/运输无人机_机型参数.csv": "fa420411e1fd5e4006a8d21bca99f7ec000e1109ef14a6276284f291707de739",
-    "data/Q1_fixed_max_payload.csv": "fca56d46f9eadeff364edb1279c1f3a02c98d361778bae7f15b1f9dfb4c7f96d",
-    "data/Q1_fixed_single_objective.csv": "86c0052ce5642b701a7f16c523df09779a2d5434014a5d411db165c6bce9d6c7",
+    "data/Q1_fixed_max_payload.csv": "d81b161d774935573f74e7201729211d4804afa3505b2fb0833f732bc7fb227c",
+    "data/Q1_fixed_single_objective.csv": "0ae5719b18f4c0333f59c5987a9dcf7271659a49200fcc730955f107fa677690",
     "data/distance_matrix.csv": "f93a10fc8ec090866b4ea02a4010ae42e81f0078616ec20fb074365fcafd65c3",
-    "data/climb_height_matrix.csv": "74e9ccb22a12ca66b2b5f266d988f41f42a4e7f1cdbda37ae337246abfe9a2a4",
-    "data/descent_height_matrix.csv": "6bbbbd13c51e319548d2bacec43d24d87ea79ff27807d4bfb924bf17148d3ce2"
+    "data/climb_height_matrix.csv": "88ad466b25b7e897b9b372c6b9da9368efb1926f638ff33bbca235ebeeae307e",
+    "data/descent_height_matrix.csv": "6d476735cc418d78c271f3c6442ae0d852d9240951cbd97de128a4adc0e3bd09"
   }
 }

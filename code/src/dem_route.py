@@ -151,48 +151,86 @@ class DEMRouteAnalyzer:
         return R * 2 * np.arctan2(np.sqrt(a), np.sqrt(1 - a))
 
     def _grid_cells_along_line(self, p1, p2):
-        x0, y0 = p1
-        x1, y1 = p2
+        # 在连续像素坐标中逐一跨越网格边界；角点同时纳入两侧像元。
+        inverse = ~self.src.transform
+        c0, r0 = inverse @ p1
+        c1, r1 = inverse @ p2
+        if not all(np.isfinite(v) for v in (r0, c0, r1, c1)):
+            raise ValueError("航线坐标无效")
 
-        r0, c0 = self.src.index(x0, y0)
-        r1, c1 = self.src.index(x1, y1)
-
-        cells = set()
-        dr = abs(r1 - r0)
-        dc = abs(c1 - c0)
-        sr = 1 if r1 > r0 else -1
-        sc = 1 if c1 > c0 else -1
+        r, c = int(np.floor(r0)), int(np.floor(c0))
+        end_r, end_c = int(np.floor(r1)), int(np.floor(c1))
         nrows, ncols = self.dem.shape
+        if not (0 <= r < nrows and 0 <= c < ncols
+                and 0 <= end_r < nrows and 0 <= end_c < ncols):
+            raise ValueError("航线端点超出DEM范围")
 
-        if dc > dr:
-            err = dc / 2.0
-            c = c0
-            row_range = range(r0, r1 + sr, sr) if sr > 0 else range(r0, r1 - 1, -1)
-            for r in row_range:
-                if 0 <= r < nrows and 0 <= c < ncols:
-                    cells.add((r, c))
-                err -= dr
-                if err < 0:
-                    c += sc
-                    err += dc
+        cells = []
+        seen = set()
+
+        def add_cell(rr, cc):
+            if 0 <= rr < nrows and 0 <= cc < ncols and (rr, cc) not in seen:
+                cells.append((rr, cc))
+                seen.add((rr, cc))
+
+        dc, dr = c1 - c0, r1 - r0
+        step_c = (dc > 0) - (dc < 0)
+        step_r = (dr > 0) - (dr < 0)
+        delta_c = np.inf if step_c == 0 else 1.0 / abs(dc)
+        delta_r = np.inf if step_r == 0 else 1.0 / abs(dr)
+        next_c = ((c + 1) - c0) / dc if step_c > 0 else (
+            (c0 - c) / -dc if step_c < 0 else np.inf
+        )
+        next_r = ((r + 1) - r0) / dr if step_r > 0 else (
+            (r0 - r) / -dr if step_r < 0 else np.inf
+        )
+
+        add_cell(r, c)
+        # 恰好沿网格线飞行时，两侧像元都与航线相交。
+        on_col_edge = step_c == 0 and np.isclose(c0, round(c0), atol=1e-12, rtol=0)
+        on_row_edge = step_r == 0 and np.isclose(r0, round(r0), atol=1e-12, rtol=0)
+
+        def add_edge_neighbors():
+            if on_col_edge:
+                add_cell(r, c - 1)
+            if on_row_edge:
+                add_cell(r - 1, c)
+            if on_col_edge and on_row_edge:
+                add_cell(r - 1, c - 1)
+
+        add_edge_neighbors()
+        limit = 3 * (abs(end_r - r) + abs(end_c - c) + 10)
+        for _ in range(limit):
+            if (r, c) == (end_r, end_c):
+                break
+            if next_c < next_r - 1e-12:
+                c += step_c
+                next_c += delta_c
+            elif next_r < next_c - 1e-12:
+                r += step_r
+                next_r += delta_r
+            else:
+                add_cell(r, c + step_c)
+                add_cell(r + step_r, c)
+                c += step_c
+                r += step_r
+                next_c += delta_c
+                next_r += delta_r
+            add_cell(r, c)
+            add_edge_neighbors()
         else:
-            err = dr / 2.0
-            r = r0
-            col_range = range(c0, c1 + sc, sc) if sc > 0 else range(c0, c1 - 1, -1)
-            for c in col_range:
-                if 0 <= r < nrows and 0 <= c < ncols:
-                    cells.add((r, c))
-                err -= dc
-                if err < 0:
-                    r += sr
-                    err += dr
+            raise RuntimeError("DEM栅格穿越未到达终点")
 
-        if 0 <= r0 < nrows and 0 <= c0 < ncols:
-            cells.add((r0, c0))
-        if 0 <= r1 < nrows and 0 <= c1 < ncols:
-            cells.add((r1, c1))
+        return cells
 
-        return list(cells)
+    def _valid_route_elevations(self, cells):
+        elevations = np.asarray([self.dem[r, c] for r, c in cells], dtype=float)
+        valid = np.isfinite(elevations)
+        if self.src.nodata is not None:
+            valid &= elevations != self.src.nodata
+        if not np.any(valid):
+            raise ValueError("航线经过的DEM栅格全部为NoData")
+        return elevations, valid
 
     def get_single_point_height(self, lon, lat):
         r, c = self.src.index(lon, lat)
@@ -220,8 +258,8 @@ class DEMRouteAnalyzer:
         cells = self._grid_cells_along_line(p1, p2)
         if not cells:
             raise ValueError("航线上无有效DEM栅格")
-        elevations = [self.dem[r, c] for r, c in cells]
-        return float(np.max(elevations))
+        elevations, valid = self._valid_route_elevations(cells)
+        return float(np.max(elevations[valid]))
 
     def get_cruise_height(self, p1, p2, safety_margin=50.0):
         h_max = self.get_max_dem_along_route(p1, p2)
@@ -233,16 +271,16 @@ class DEMRouteAnalyzer:
             raise ValueError("航线上无有效DEM栅格")
 
         rows, cols = zip(*cells)
-        elevations = [self.dem[r, c] for r, c in cells]
+        elevations, valid = self._valid_route_elevations(cells)
         xs, ys = zip(*[self.src.xy(r, c) for r, c in cells])
 
         return {
             "cells": cells,
-            "elevations": elevations,
+            "elevations": elevations.tolist(),
             "lons": list(xs),
             "lats": list(ys),
-            "h_max": float(np.max(elevations)),
-            "h_min": float(np.min(elevations)),
+            "h_max": float(np.max(elevations[valid])),
+            "h_min": float(np.min(elevations[valid])),
         }
 
     def get_route_parameter(self, p1, p2, node1_ground=None, node1_op=None,

@@ -1,0 +1,391 @@
+[
+  {
+    "flight_id": 1,
+    "uav_id": "U01",
+    "uav_type": "A",
+    "route": [
+      "O01",
+      "S001",
+      "O01"
+    ],
+    "cargo_ids": [
+      "B008"
+    ],
+    "start_time": 0.0,
+    "end_time": 1179.5,
+    "battery_id": "BAT_A01",
+    "source_task_id": "R073074"
+  },
+  {
+    "flight_id": 2,
+    "uav_id": "U02",
+    "uav_type": "A",
+    "route": [
+      "O01",
+      "S001",
+      "O01"
+    ],
+    "cargo_ids": [
+      "B009"
+    ],
+    "start_time": 0.0,
+    "end_time": 1179.5,
+    "battery_id": "BAT_A02",
+    "source_task_id": "R073075"
+  },
+  {
+    "flight_id": 3,
+    "uav_id": "U03",
+    "uav_type": "A",
+    "route": [
+      "O01",
+      "S001",
+      "O01"
+    ],
+    "cargo_ids": [
+      "B010"
+    ],
+    "start_time": 0.0,
+    "end_time": 1179.5,
+    "battery_id": "BAT_A03",
+    "source_task_id": "R073076"
+  },
+  {
+    "flight_id": 4,
+    "uav_id": "U05",
+    "uav_type": "B",
+    "route": [
+      "O01",
+      "S002",
+      "O01"
+    ],
+    "cargo_ids": [
+      "B016",
+      "B021",
+      "B022"
+    ],
+    "start_time": 0.0,
+    "end_time": 1918.8,
+    "battery_id": "BAT_B01",
+    "source_task_id": "R000144"
+  },
+  {
+    "flight_id": 5,
+    "uav_id": "U05",
+    "uav_type": "B",
+    "route": [
+      "O01",
+      "S013",
+      "O01"
+    ],
+    "cargo_ids": [
+      "B072",
+      "B073",
+      "B074"
+    ],
+    "start_time": 1918.8,
+    "end_time": 3426.3,
+    "battery_id": "BAT_B02",
+    "source_task_id": "R000255"
+  },
+  {
+    "flight_id": 6,
+    "uav_id": "U05",
+    "uav_type": "B",
+    "route": [
+      "O01",
+      "S010",
+      "O01"
+    ],
+    "cargo_ids": [
+      "B063",
+      "B064",
+      "B065"
+    ],
+    "start_time": 3426.3,
+    "end_time": 4950.8,
+    "battery_id": "BAT_B03",
+    "source_task_id": "R000234"
+  },
+  {
+    "flight_id": 7,
+    "uav_id": "U05",
+    "uav_type": "B",
+    "route": [
+      "O01",
+      "S009",
+      "O01"
+    ],
+    "cargo_ids": [
+      "B060",
+      "B061",
+      "B062"
+    ],
+    "start_time": 4950.8,
+    "end_time": 6582.2,
+    "battery_id": "BAT_B04",
+    "source_task_id": "R000227"
+  },
+  {
+    "flight_id": 8,
+    "uav_id": "U06",
+    "uav_type": "B",
+    "route": [
+      "O01",
+      "S012",
+      "O01"
+    ],
+    "cargo_ids": [
+      "B069",
+      "B070",
+      "B071"
+    ],
+    "start_time": 3682.9,
+    "end_time": 5600.8,
+    "battery_id": "BAT_B01",
+    "source_task_id": "R000248"
+  },
+  {
+    "flight_id": 9,
+    "uav_id": "U06",
+    "uav_type": "B",
+    "route": [
+      "O01",
+      "S014",
+      "O01"
+    ],
+    "cargo_ids": [
+      "B075",
+      "B076",
+      "B077"
+    ],
+    "start_time": 5600.8,
+    "end_time": 7180.9,
+    "battery_id": "BAT_B02",
+    "source_task_id": "R000262"
+  },
+  {
+    "flight_id": 10,
+    "uav_id": "U06",
+    "uav_type": "B",
+    "route": [
+      "O01",
+      "S003",
+      "O01"
+    ],
+    "cargo_ids": [
+      "B024",
+      "B029",
+      "B030"
+    ],
+    "start_time": 7180.9,
+    "end_time": 9132.2,
+    "battery_id": "BAT_B03",
+    "source_task_id": "R000158"
+  },
+  {
+    "flight_id": 11,
+    "uav_id": "U06",
+    "uav_type": "B",
+    "route": [
+      "O01",
+      "S011",
+      "O01"
+    ],
+    "cargo_ids": [
+      "B066",
+      "B067",
+      "B068"
+    ],
+    "start_time": 9132.2,
+    "end_time": 10264.9,
+    "battery_id": "BAT_B01",
+    "source_task_id": "R000241"
+  },
+  {
+    "flight_id": 12,
+    "uav_id": "U07",
+    "uav_type": "C",
+    "route": [
+      "O01",
+      "S001",
+      "S002",
+      "O01"
+    ],
+    "cargo_ids": [
+      "B001",
+      "B002",
+      "B017",
+      "B018",
+      "B019",
+      "B020",
+      "B023"
+    ],
+    "start_time": 0.0,
+    "end_time": 2510.2,
+    "battery_id": "BAT_C01",
+    "source_task_id": "R010788"
+  },
+  {
+    "flight_id": 13,
+    "uav_id": "U07",
+    "uav_type": "C",
+    "route": [
+      "O01",
+      "S001",
+      "O01"
+    ],
+    "cargo_ids": [
+      "B003",
+      "B004",
+      "B005",
+      "B006",
+      "B007"
+    ],
+    "start_time": 2510.2,
+    "end_time": 3923.7,
+    "battery_id": "BAT_C02",
+    "source_task_id": "R000326"
+  },
+  {
+    "flight_id": 14,
+    "uav_id": "U07",
+    "uav_type": "C",
+    "route": [
+      "O01",
+      "S005",
+      "S008",
+      "O01"
+    ],
+    "cargo_ids": [
+      "B042",
+      "B043",
+      "B055",
+      "B056",
+      "B057",
+      "B058",
+      "B059"
+    ],
+    "start_time": 3923.7,
+    "end_time": 6410.1,
+    "battery_id": "BAT_C03",
+    "source_task_id": "R062263"
+  },
+  {
+    "flight_id": 15,
+    "uav_id": "U07",
+    "uav_type": "C",
+    "route": [
+      "O01",
+      "S003",
+      "O01"
+    ],
+    "cargo_ids": [
+      "B025",
+      "B026",
+      "B027",
+      "B028",
+      "B031"
+    ],
+    "start_time": 6410.1,
+    "end_time": 8621.7,
+    "battery_id": "BAT_C04",
+    "source_task_id": "R000516"
+  },
+  {
+    "flight_id": 16,
+    "uav_id": "U08",
+    "uav_type": "C",
+    "route": [
+      "O01",
+      "S007",
+      "S015",
+      "O01"
+    ],
+    "cargo_ids": [
+      "B050",
+      "B051",
+      "B052",
+      "B053",
+      "B054",
+      "B078",
+      "B079",
+      "B080"
+    ],
+    "start_time": 5029.8,
+    "end_time": 7506.7,
+    "battery_id": "BAT_C01",
+    "source_task_id": "R070770"
+  },
+  {
+    "flight_id": 17,
+    "uav_id": "U08",
+    "uav_type": "C",
+    "route": [
+      "O01",
+      "S006",
+      "O01"
+    ],
+    "cargo_ids": [
+      "B044",
+      "B045",
+      "B046",
+      "B047",
+      "B048",
+      "B049"
+    ],
+    "start_time": 7506.7,
+    "end_time": 8993.8,
+    "battery_id": "BAT_C02",
+    "source_task_id": "R000637"
+  },
+  {
+    "flight_id": 18,
+    "uav_id": "U08",
+    "uav_type": "C",
+    "route": [
+      "O01",
+      "S004",
+      "S005",
+      "O01"
+    ],
+    "cargo_ids": [
+      "B032",
+      "B033",
+      "B034",
+      "B035",
+      "B036",
+      "B037",
+      "B038"
+    ],
+    "start_time": 8993.8,
+    "end_time": 11505.9,
+    "battery_id": "BAT_C03",
+    "source_task_id": "R058194"
+  },
+  {
+    "flight_id": 19,
+    "uav_id": "U08",
+    "uav_type": "C",
+    "route": [
+      "O01",
+      "S001",
+      "S005",
+      "O01"
+    ],
+    "cargo_ids": [
+      "B011",
+      "B012",
+      "B013",
+      "B014",
+      "B015",
+      "B039",
+      "B040",
+      "B041"
+    ],
+    "start_time": 11505.9,
+    "end_time": 13734.1,
+    "battery_id": "BAT_C01",
+    "source_task_id": "R018936"
+  }
+]

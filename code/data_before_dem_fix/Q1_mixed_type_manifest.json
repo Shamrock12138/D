@@ -1,0 +1,21 @@
+{
+  "experiment": "Q1 mixed UAV type per sortie, three single objectives",
+  "run_command": "python code/Q1_mixed_type_experiment.py",
+  "solver": "exact subset dynamic programming; deterministic; no random seed",
+  "objectives": {
+    "E-opt": "min E, then N, then cumulative T",
+    "N-opt": "min N, then E, then cumulative T",
+    "T-opt": "min cumulative T, then E, then N"
+  },
+  "python_version": "3.11.7",
+  "scope": "O01-service-O01; indivisible boxes; each sortie chooses A/B/C; safe payload, volume and available energy enforced; no fleet scheduling, shared-battery or deadline constraints",
+  "input_sha256": {
+    "data/物资需求.csv": "bbc22fa4df3ba1202471d050ddf3fb1caba027767735227a2b6ec89d44e63c2d",
+    "data/运输无人机_机型参数.csv": "fa420411e1fd5e4006a8d21bca99f7ec000e1109ef14a6276284f291707de739",
+    "data/Q1_max_payload.csv": "fca56d46f9eadeff364edb1279c1f3a02c98d361778bae7f15b1f9dfb4c7f96d",
+    "data/Q1_single_objective.csv": "ebdbd30075ca84ce3ae7c7a7d25316f58392a739eed15b679e38fd14f2fe8f3e",
+    "data/distance_matrix.csv": "f93a10fc8ec090866b4ea02a4010ae42e81f0078616ec20fb074365fcafd65c3",
+    "data/climb_height_matrix.csv": "74e9ccb22a12ca66b2b5f266d988f41f42a4e7f1cdbda37ae337246abfe9a2a4",
+    "data/descent_height_matrix.csv": "6bbbbd13c51e319548d2bacec43d24d87ea79ff27807d4bfb924bf17148d3ce2"
+  }
+}

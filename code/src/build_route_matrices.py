@@ -120,6 +120,16 @@ def build_route_matrices(nodes, dem):
         "climb_height": climb_mat,
         "descent_height": descent_mat,
     }
+    for key in ("distance", "h_max", "cruise_height"):
+        if not np.allclose(matrices[key], matrices[key].T, rtol=0, atol=1e-8):
+            mismatches = np.argwhere(
+                ~np.isclose(matrices[key], matrices[key].T, rtol=0, atol=1e-8)
+            )
+            i, j = mismatches[0]
+            raise ValueError(
+                f"{key} 正反向不对称: {names[i]}->{names[j]}="
+                f"{matrices[key][i, j]}, 反向={matrices[key][j, i]}"
+            )
     return names, matrices
 
 

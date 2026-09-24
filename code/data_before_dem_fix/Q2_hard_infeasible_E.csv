@@ -1,0 +1,5 @@
+﻿task_id,task_type,n_uavs,latest_start_s,assigned_start_s,gap_s,reason
+R000234,B,2,2562.2,3426.3,864.1,all UAVs occupied past latest_start
+R000637,C,2,2427.8,2476.9,49.1,all UAVs occupied past latest_start
+R000326,C,2,2475.3,2510.2,34.9,all UAVs occupied past latest_start
+R000516,C,2,5803.6,6410.1,606.5,all UAVs occupied past latest_start

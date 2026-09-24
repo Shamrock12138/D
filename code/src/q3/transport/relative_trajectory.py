@@ -100,9 +100,11 @@ def _build_virtual_flight(
 
     TrajectoryGenerator 只需要 route、uav_type、cargo_ids、
     start_time、end_time 五个字段，其余填占位值。
+    flight_id 从 task_id 确定性推导（R010788 → 10788），避免 hash() 跨进程不确定性。
     """
+    numeric_id = int(template.task_id[1:])
     return FlightTask(
-        flight_id=hash(template.task_id) % 100000,
+        flight_id=numeric_id,
         uav_id="VIRTUAL",
         uav_type=template.uav_type,
         route=list(template.route),
@@ -121,6 +123,7 @@ def generate_relative_trajectories(
     route_params: Optional[Mapping] = None,
     uav_params_all: Optional[Mapping[str, dict]] = None,
     box_services: Optional[Mapping[str, str]] = None,
+    strict: bool = True,
     verbose: bool = True,
 ) -> List[RelativeTrajectory]:
     u"""批量生成候选任务的相对轨迹。
@@ -132,10 +135,14 @@ def generate_relative_trajectories(
         route_params: 有向航段 DEM 参数。默认从 data/route_parameter_all.csv 加载。
         uav_params_all: 各机型速度参数。默认从 data/运输无人机_机型参数.csv 加载。
         box_services: 货箱→服务区映射。默认从 data/物资需求.csv 加载。
+        strict: 若 True，任何模板生成失败均抛出异常；若 False，静默跳过。
         verbose: 是否打印进度。
 
     Returns:
         相对轨迹列表，与 templates 同序。
+
+    Raises:
+        RuntimeError: strict=True 且有模板生成失败。
     """
     if nodes is None:
         nodes = load_nodes()
@@ -148,7 +155,7 @@ def generate_relative_trajectories(
 
     generator = TrajectoryGenerator(nodes, route_params, dt=dt)
     trajectories: List[RelativeTrajectory] = []
-    skipped = 0
+    skipped_ids: List[str] = []
 
     for index, template in enumerate(templates):
         uav_params = uav_params_all.get(template.uav_type)
@@ -162,14 +169,22 @@ def generate_relative_trajectories(
                 virtual_flight, uav_params, box_services,
             )
         except ValueError as exc:
-            skipped += 1
-            if verbose and skipped <= 5:
+            skipped_ids.append(template.task_id)
+            if verbose and len(skipped_ids) <= 5:
                 print(f"  跳过 {template.task_id}: {exc}", flush=True)
+            if strict:
+                raise RuntimeError(
+                    f"候选任务 {template.task_id} 轨迹生成失败: {exc}"
+                ) from exc
             continue
 
         n = len(abs_points)
         if n == 0:
-            skipped += 1
+            skipped_ids.append(template.task_id)
+            if strict:
+                raise RuntimeError(
+                    f"候选任务 {template.task_id} 轨迹生成为空"
+                )
             continue
 
         traj = RelativeTrajectory(
@@ -190,14 +205,14 @@ def generate_relative_trajectories(
         if verbose and (index + 1) % 5000 == 0:
             print(
                 f"  相对轨迹: {index + 1}/{len(templates)} "
-                f"（已跳过 {skipped}）",
+                f"（已跳过 {len(skipped_ids)}）",
                 flush=True,
             )
 
     if verbose:
         print(
             f"相对轨迹完成: {len(trajectories)}/{len(templates)} "
-            f"（跳过 {skipped}）",
+            f"（跳过 {len(skipped_ids)}）",
             flush=True,
         )
     return trajectories

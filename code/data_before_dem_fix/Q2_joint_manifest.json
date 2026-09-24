@@ -1,0 +1,17 @@
+{
+  "model": "time-indexed joint set partition and heterogeneous resource scheduling MILP",
+  "run_command": "python -m src.q2.joint_scheduler",
+  "time_step_s": 300,
+  "horizon_s": 36000,
+  "candidate_reduction": "top 10 per box by energy, flight duration and candidate latest start, plus prior N/E/T selected tasks",
+  "optimality_scope": "optimal only within reduced candidate pool and 5-minute start grid; T-opt may be a time-limited incumbent",
+  "resource_logic": "same-type UAV and shared-battery capacities enforced at each slot; identities decoded after solve",
+  "hard_deadlines": "all first-batch boxes plus all medical boxes; checked at per-box arrival offsets",
+  "input_sha256": {
+    "Q2_candidate_tasks.csv": "87f0defb34048eb2473b28896c35613c0607a454a4239a3e8083bdd9e684135e",
+    "Q2_candidate_deliveries.csv": "7e8dcdea5b9a5b9170a88ff8af0068874ac625b56944ece2a6a35b679130d190",
+    "物资需求.csv": "bbc22fa4df3ba1202471d050ddf3fb1caba027767735227a2b6ec89d44e63c2d",
+    "运输无人机_清单.csv": "62dc51eb5be8a0af89110543f479ddcfa21a783ff160eae7faca4cb0a10a4a03",
+    "运输无人机_共享电池.csv": "033d4ca3da8a8de8d6ffd0840f52fa90f84ba97b249fd84e5e0618aa7941e64d"
+  }
+}
