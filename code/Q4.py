@@ -144,7 +144,9 @@ def relay_sessions(q3: dict) -> list[dict]:
     for index, row in enumerate(q3["relay"]):
         session_id = row.get("relay_session_id") or f"legacy-row-{index}"
         key = (str(row.get("relay_uav_id", "")), str(session_id))
-        item = grouped.setdefault(key, {"_sorties": set(), "dispatch_time_s": math.inf,
+        item = grouped.setdefault(key, {"relay_session_id": str(session_id),
+                                        "relay_uav_id": str(row.get("relay_uav_id", "")),
+                                        "_sorties": set(), "dispatch_time_s": math.inf,
                                         "uav_release_time_s": -math.inf,
                                         "energy_release_time_s": -math.inf})
         item["_sorties"].update(row["_sorties"])
@@ -192,14 +194,98 @@ def intervals(q3: dict, blocks: tuple) -> tuple[list[tuple[int, int, float, floa
                      (block, KINDS.index("TBAT_" + typ), start, charge)))
         weights[block] += end - start
     by_sortie = {row["sortie_id"]: row for row in q3["transport"]}
+    # A same-site relay session consumes one physical Relay UAV. Q3 still
+    # reserves an energy component independently for every protected gap,
+    # therefore REC intervals must remain gap-level to avoid undercounting.
     for row in relay_sessions(q3):
         block = site_block[by_sortie[row["_sorties"][0]]["_sites"][0]]
         start = float(row["dispatch_time_s"])
         end = float(row["uav_release_time_s"])
-        energy = float(row["energy_release_time_s"])
-        jobs.extend(((block, 6, start, end), (block, 7, start, energy)))
+        jobs.append((block, 6, start, end))
         weights[block] += end - start
+    for row in q3["relay"]:
+        block = site_block[by_sortie[row["_sorties"][0]]["_sites"][0]]
+        jobs.append((block, 7, float(row["dispatch_time_s"]),
+                     float(row["energy_release_time_s"])))
     return jobs, weights
+
+
+def shortage_peak_explanations(q3: dict, result: dict) -> list[dict]:
+    """Explain each inventory shortage by its peak interval and active jobs."""
+    rows = []
+    by_sortie = {row["sortie_id"]: row for row in q3["transport"]}
+    for k in (2, 3):
+        solution_set = result["solutions"][str(k)]
+        if solution_set["status"] != "EXACT":
+            continue
+        for scheme in ("shortage_first", "balance_first"):
+            solution = solution_set[scheme]
+            service_group = {site: (i, group) for i, group in enumerate(solution["groups"])
+                             for site in group["services"]}
+            jobs_by_group_kind = {}
+            for i, group in enumerate(solution["groups"]):
+                for kind in KINDS:
+                    jobs_by_group_kind[(i, kind)] = []
+            for task in q3["transport"]:
+                group_idx, _ = service_group[task["_sites"][0]]
+                typ = task["uav_type"]
+                start = float(task["start_time_s"])
+                end = float(task["end_time_s"])
+                release = float(task.get("uav_release_time_s") or end)
+                charge = float(task["charge_end_s"])
+                jobs_by_group_kind[(group_idx, "TUAV_"+typ)].append(
+                    (start, release, task["sortie_id"]))
+                jobs_by_group_kind[(group_idx, "TBAT_"+typ)].append(
+                    (start, charge, task["sortie_id"]))
+            for session in relay_sessions(q3):
+                group_idx, _ = service_group[by_sortie[session["_sorties"][0]]["_sites"][0]]
+                jobs_by_group_kind[(group_idx, "RUAV")].append((
+                    float(session["dispatch_time_s"]), float(session["uav_release_time_s"]),
+                    str(session.get("relay_session_id", "shared-session"))))
+            for task in q3["relay"]:
+                group_idx, _ = service_group[by_sortie[task["_sorties"][0]]["_sites"][0]]
+                jobs_by_group_kind[(group_idx, "REC")].append((
+                    float(task["dispatch_time_s"]), float(task["energy_release_time_s"]),
+                    str(task.get("gap_id", task.get("relay_session_id", "relay-gap")))))
+            for group_idx, group in enumerate(solution["groups"]):
+                for kind in KINDS:
+                    required_count = int(group["resources"][kind])
+                    inventory = INVENTORY[KINDS.index(kind)]
+                    aggregate_shortage = int(solution["shortage"][kind])
+                    if aggregate_shortage <= 0 or required_count <= 0:
+                        continue
+                    jobs = jobs_by_group_kind[(group_idx, kind)]
+                    events = {}
+                    for idx, (start, end, task_id) in enumerate(jobs):
+                        if end <= start:
+                            continue
+                        events.setdefault(start, {"end": [], "start": []})["start"].append(idx)
+                        events.setdefault(end, {"end": [], "start": []})["end"].append(idx)
+                    times = sorted(events)
+                    active = set()
+                    spans = []
+                    for pos, t in enumerate(times[:-1]):
+                        for idx in events[t]["end"]:
+                            active.discard(idx)
+                        for idx in events[t]["start"]:
+                            active.add(idx)
+                        next_t = times[pos+1]
+                        if len(active) == required_count and next_t > t:
+                            active_ids = tuple(sorted(jobs[idx][2] for idx in active))
+                            if spans and spans[-1][1] == t and spans[-1][2] == active_ids:
+                                spans[-1] = (spans[-1][0], next_t, active_ids)
+                            else:
+                                spans.append((t, next_t, active_ids))
+                    for start, end, task_ids in spans:
+                        rows.append({
+                            "K": k, "scheme": scheme, "group": group["group"],
+                            "resource": kind, "group_peak_count": required_count,
+                            "aggregate_required": int(solution["counts"][kind]),
+                            "inventory": inventory, "aggregate_shortage": aggregate_shortage,
+                            "peak_start_s": start, "peak_end_s": end,
+                            "active_tasks": ";".join(task_ids),
+                        })
+    return rows
 
 
 def minimum_pool(intervals_: list[tuple[float, float]]) -> tuple[int, list[int]]:
@@ -431,6 +517,15 @@ def main():
     if not validation["all_pass"]:
         raise AssertionError(f"Q4 validation failed: {validation['checks']}")
     OUT.mkdir(parents=True, exist_ok=True)
+    explanations = shortage_peak_explanations(q3, result)
+    explanation_path = OUT / "q4_shortage_peak_explanations.csv"
+    with explanation_path.open("w", encoding="utf-8-sig", newline="") as stream:
+        columns = ("K", "scheme", "group", "resource", "group_peak_count",
+                   "aggregate_required", "inventory", "aggregate_shortage",
+                   "peak_start_s", "peak_end_s", "active_tasks")
+        writer = csv.DictWriter(stream, fieldnames=columns)
+        writer.writeheader()
+        writer.writerows(explanations)
     target = OUT / "q4_result.json"
     target.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     (OUT / "q4_validation.json").write_text(
@@ -478,6 +573,7 @@ def main():
     output_names = ("q4_result.json", "q4_validation.json", "q4_blocks.csv",
                     "Q4_partition_groups.csv", "Q4_comparison.csv",
                     "q4_pareto_K2.csv", "q4_pareto_K3.csv")
+    output_names = output_names + ("q4_shortage_peak_explanations.csv",)
     manifest = {"q3_input_sha256": q3["sha256"],
                 "outputs_sha256": {name: digest(OUT / name) for name in output_names},
                 "blocks": len(result["blocks"]),

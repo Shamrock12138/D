@@ -1,0 +1,13 @@
+{
+  "all_pass": true,
+  "checks": {
+    "frozen_q3_accepted": true,
+    "service_coverage": true,
+    "transport_dependencies": true,
+    "relay_dependencies": true,
+    "resource_minima_verified": true,
+    "inventory_gap_verified": true,
+    "partition_enumeration_complete": true,
+    "work_cv_verified": true
+  }
+}

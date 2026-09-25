@@ -1,0 +1,2627 @@
+{
+  "blocks": [
+    [
+      "S001",
+      "S006",
+      "S014"
+    ],
+    [
+      "S002",
+      "S004",
+      "S009",
+      "S012",
+      "S013"
+    ],
+    [
+      "S003"
+    ],
+    [
+      "S005"
+    ],
+    [
+      "S007",
+      "S015"
+    ],
+    [
+      "S008",
+      "S011"
+    ],
+    [
+      "S010"
+    ]
+  ],
+  "baseline": {
+    "TUAV_A": 1,
+    "TUAV_B": 2,
+    "TUAV_C": 2,
+    "TBAT_A": 1,
+    "TBAT_B": 4,
+    "TBAT_C": 4,
+    "RUAV": 2,
+    "REC": 5
+  },
+  "inventory": {
+    "TUAV_A": 4,
+    "TUAV_B": 2,
+    "TUAV_C": 2,
+    "TBAT_A": 6,
+    "TBAT_B": 4,
+    "TBAT_C": 4,
+    "RUAV": 2,
+    "REC": 6
+  },
+  "q3_sha256": {
+    "q3_joint_transport_schedule.csv": "a1bfcc78b7df0b81e6a9f2ec78b5af17f5fb0d80a3271e4a5342a9c6928a46b7",
+    "q3_joint_relay_schedule.csv": "18e74fb2d17e9016b44b1eadc81de269fce2bbf1b2e10032887f284848bb5c4f",
+    "q3_joint_delivery_schedule.csv": "154abaff931bef92ebb0b7d7ea1698400530899999f59007ebaf99e5238e7f72",
+    "q3_joint_resource_summary.csv": "ae99954b5aae22fe0c2bd550b534a837e4544975c3e64cfb5d61a264a1600790"
+  },
+  "solutions": {
+    "2": {
+      "status": "EXACT",
+      "partitions_checked": 63,
+      "pareto_count": 9,
+      "shortage_first": {
+        "K": 2,
+        "scheme": "shortage_first",
+        "groups": [
+          {
+            "group": "G1",
+            "services": [
+              "S001",
+              "S006",
+              "S014",
+              "S005",
+              "S007",
+              "S015",
+              "S008",
+              "S011"
+            ],
+            "resources": {
+              "TUAV_A": 0,
+              "TUAV_B": 1,
+              "TUAV_C": 2,
+              "TBAT_A": 0,
+              "TBAT_B": 1,
+              "TBAT_C": 3,
+              "RUAV": 1,
+              "REC": 2
+            },
+            "work_s": 24103.0,
+            "transport_sorties": 8,
+            "relay_tasks": 4,
+            "boxes": 46,
+            "mass_kg": 437.0
+          },
+          {
+            "group": "G2",
+            "services": [
+              "S002",
+              "S004",
+              "S009",
+              "S012",
+              "S013",
+              "S003",
+              "S010"
+            ],
+            "resources": {
+              "TUAV_A": 1,
+              "TUAV_B": 2,
+              "TUAV_C": 1,
+              "TBAT_A": 1,
+              "TBAT_B": 3,
+              "TBAT_C": 2,
+              "RUAV": 1,
+              "REC": 4
+            },
+            "work_s": 29672.0,
+            "transport_sorties": 9,
+            "relay_tasks": 5,
+            "boxes": 34,
+            "mass_kg": 321.0
+          }
+        ],
+        "counts": {
+          "TUAV_A": 1,
+          "TUAV_B": 3,
+          "TUAV_C": 3,
+          "TBAT_A": 1,
+          "TBAT_B": 4,
+          "TBAT_C": 5,
+          "RUAV": 2,
+          "REC": 6
+        },
+        "redundancy": {
+          "TUAV_A": 0,
+          "TUAV_B": 1,
+          "TUAV_C": 1,
+          "TBAT_A": 0,
+          "TBAT_B": 0,
+          "TBAT_C": 1,
+          "RUAV": 0,
+          "REC": 1
+        },
+        "shortage": {
+          "TUAV_A": 0,
+          "TUAV_B": 1,
+          "TUAV_C": 1,
+          "TBAT_A": 0,
+          "TBAT_B": 0,
+          "TBAT_C": 1,
+          "RUAV": 0,
+          "REC": 0
+        },
+        "inventory_surplus": {
+          "TUAV_A": 3,
+          "TUAV_B": 0,
+          "TUAV_C": 0,
+          "TBAT_A": 5,
+          "TBAT_B": 0,
+          "TBAT_C": 0,
+          "RUAV": 0,
+          "REC": 0
+        },
+        "total_resources": 25,
+        "total_shortage": 3,
+        "work_cv": 0.10356113435611343
+      },
+      "balance_first": {
+        "K": 2,
+        "scheme": "balance_first",
+        "groups": [
+          {
+            "group": "G1",
+            "services": [
+              "S001",
+              "S006",
+              "S014",
+              "S005",
+              "S007",
+              "S015",
+              "S008",
+              "S011",
+              "S010"
+            ],
+            "resources": {
+              "TUAV_A": 0,
+              "TUAV_B": 2,
+              "TUAV_C": 2,
+              "TBAT_A": 0,
+              "TBAT_B": 2,
+              "TBAT_C": 3,
+              "RUAV": 2,
+              "REC": 2
+            },
+            "work_s": 26976.0,
+            "transport_sorties": 9,
+            "relay_tasks": 5,
+            "boxes": 49,
+            "mass_kg": 462.0
+          },
+          {
+            "group": "G2",
+            "services": [
+              "S002",
+              "S004",
+              "S009",
+              "S012",
+              "S013",
+              "S003"
+            ],
+            "resources": {
+              "TUAV_A": 1,
+              "TUAV_B": 2,
+              "TUAV_C": 1,
+              "TBAT_A": 1,
+              "TBAT_B": 3,
+              "TBAT_C": 2,
+              "RUAV": 1,
+              "REC": 4
+            },
+            "work_s": 26799.0,
+            "transport_sorties": 8,
+            "relay_tasks": 4,
+            "boxes": 31,
+            "mass_kg": 296.0
+          }
+        ],
+        "counts": {
+          "TUAV_A": 1,
+          "TUAV_B": 4,
+          "TUAV_C": 3,
+          "TBAT_A": 1,
+          "TBAT_B": 5,
+          "TBAT_C": 5,
+          "RUAV": 3,
+          "REC": 6
+        },
+        "redundancy": {
+          "TUAV_A": 0,
+          "TUAV_B": 2,
+          "TUAV_C": 1,
+          "TBAT_A": 0,
+          "TBAT_B": 1,
+          "TBAT_C": 1,
+          "RUAV": 1,
+          "REC": 1
+        },
+        "shortage": {
+          "TUAV_A": 0,
+          "TUAV_B": 2,
+          "TUAV_C": 1,
+          "TBAT_A": 0,
+          "TBAT_B": 1,
+          "TBAT_C": 1,
+          "RUAV": 1,
+          "REC": 0
+        },
+        "inventory_surplus": {
+          "TUAV_A": 3,
+          "TUAV_B": 0,
+          "TUAV_C": 0,
+          "TBAT_A": 5,
+          "TBAT_B": 0,
+          "TBAT_C": 0,
+          "RUAV": 0,
+          "REC": 0
+        },
+        "total_resources": 28,
+        "total_shortage": 6,
+        "work_cv": 0.003291492329149233
+      },
+      "pareto": [
+        {
+          "K": 2,
+          "scheme": "pareto",
+          "groups": [
+            {
+              "group": "G1",
+              "services": [
+                "S001",
+                "S006",
+                "S014",
+                "S002",
+                "S004",
+                "S009",
+                "S012",
+                "S013",
+                "S003",
+                "S010"
+              ],
+              "resources": {
+                "TUAV_A": 1,
+                "TUAV_B": 2,
+                "TUAV_C": 2,
+                "TBAT_A": 1,
+                "TBAT_B": 4,
+                "TBAT_C": 3,
+                "RUAV": 2,
+                "REC": 5
+              },
+              "work_s": 40481.0
+            },
+            {
+              "group": "G2",
+              "services": [
+                "S005",
+                "S007",
+                "S015",
+                "S008",
+                "S011"
+              ],
+              "resources": {
+                "TUAV_A": 0,
+                "TUAV_B": 0,
+                "TUAV_C": 1,
+                "TBAT_A": 0,
+                "TBAT_B": 0,
+                "TBAT_C": 2,
+                "RUAV": 1,
+                "REC": 1
+              },
+              "work_s": 13294.0
+            }
+          ],
+          "counts": {
+            "TUAV_A": 1,
+            "TUAV_B": 2,
+            "TUAV_C": 3,
+            "TBAT_A": 1,
+            "TBAT_B": 4,
+            "TBAT_C": 5,
+            "RUAV": 3,
+            "REC": 6
+          },
+          "redundancy": {
+            "TUAV_A": 0,
+            "TUAV_B": 0,
+            "TUAV_C": 1,
+            "TBAT_A": 0,
+            "TBAT_B": 0,
+            "TBAT_C": 1,
+            "RUAV": 1,
+            "REC": 1
+          },
+          "shortage": {
+            "TUAV_A": 0,
+            "TUAV_B": 0,
+            "TUAV_C": 1,
+            "TBAT_A": 0,
+            "TBAT_B": 0,
+            "TBAT_C": 1,
+            "RUAV": 1,
+            "REC": 0
+          },
+          "inventory_surplus": {
+            "TUAV_A": 3,
+            "TUAV_B": 0,
+            "TUAV_C": 0,
+            "TBAT_A": 5,
+            "TBAT_B": 0,
+            "TBAT_C": 0,
+            "RUAV": 0,
+            "REC": 0
+          },
+          "total_resources": 25,
+          "total_shortage": 3,
+          "work_cv": 0.5055695025569502
+        },
+        {
+          "K": 2,
+          "scheme": "pareto",
+          "groups": [
+            {
+              "group": "G1",
+              "services": [
+                "S001",
+                "S006",
+                "S014",
+                "S002",
+                "S004",
+                "S009",
+                "S012",
+                "S013",
+                "S003",
+                "S005",
+                "S007",
+                "S015",
+                "S008",
+                "S011"
+              ],
+              "resources": {
+                "TUAV_A": 1,
+                "TUAV_B": 2,
+                "TUAV_C": 2,
+                "TBAT_A": 1,
+                "TBAT_B": 4,
+                "TBAT_C": 4,
+                "RUAV": 2,
+                "REC": 5
+              },
+              "work_s": 50902.0
+            },
+            {
+              "group": "G2",
+              "services": [
+                "S010"
+              ],
+              "resources": {
+                "TUAV_A": 0,
+                "TUAV_B": 1,
+                "TUAV_C": 0,
+                "TBAT_A": 0,
+                "TBAT_B": 1,
+                "TBAT_C": 0,
+                "RUAV": 1,
+                "REC": 1
+              },
+              "work_s": 2873.0
+            }
+          ],
+          "counts": {
+            "TUAV_A": 1,
+            "TUAV_B": 3,
+            "TUAV_C": 2,
+            "TBAT_A": 1,
+            "TBAT_B": 5,
+            "TBAT_C": 4,
+            "RUAV": 3,
+            "REC": 6
+          },
+          "redundancy": {
+            "TUAV_A": 0,
+            "TUAV_B": 1,
+            "TUAV_C": 0,
+            "TBAT_A": 0,
+            "TBAT_B": 1,
+            "TBAT_C": 0,
+            "RUAV": 1,
+            "REC": 1
+          },
+          "shortage": {
+            "TUAV_A": 0,
+            "TUAV_B": 1,
+            "TUAV_C": 0,
+            "TBAT_A": 0,
+            "TBAT_B": 1,
+            "TBAT_C": 0,
+            "RUAV": 1,
+            "REC": 0
+          },
+          "inventory_surplus": {
+            "TUAV_A": 3,
+            "TUAV_B": 0,
+            "TUAV_C": 0,
+            "TBAT_A": 5,
+            "TBAT_B": 0,
+            "TBAT_C": 0,
+            "RUAV": 0,
+            "REC": 0
+          },
+          "total_resources": 25,
+          "total_shortage": 3,
+          "work_cv": 0.8931473733147374
+        },
+        {
+          "K": 2,
+          "scheme": "pareto",
+          "groups": [
+            {
+              "group": "G1",
+              "services": [
+                "S001",
+                "S006",
+                "S014",
+                "S005",
+                "S007",
+                "S015",
+                "S008",
+                "S011"
+              ],
+              "resources": {
+                "TUAV_A": 0,
+                "TUAV_B": 1,
+                "TUAV_C": 2,
+                "TBAT_A": 0,
+                "TBAT_B": 1,
+                "TBAT_C": 3,
+                "RUAV": 1,
+                "REC": 2
+              },
+              "work_s": 24103.0
+            },
+            {
+              "group": "G2",
+              "services": [
+                "S002",
+                "S004",
+                "S009",
+                "S012",
+                "S013",
+                "S003",
+                "S010"
+              ],
+              "resources": {
+                "TUAV_A": 1,
+                "TUAV_B": 2,
+                "TUAV_C": 1,
+                "TBAT_A": 1,
+                "TBAT_B": 3,
+                "TBAT_C": 2,
+                "RUAV": 1,
+                "REC": 4
+              },
+              "work_s": 29672.0
+            }
+          ],
+          "counts": {
+            "TUAV_A": 1,
+            "TUAV_B": 3,
+            "TUAV_C": 3,
+            "TBAT_A": 1,
+            "TBAT_B": 4,
+            "TBAT_C": 5,
+            "RUAV": 2,
+            "REC": 6
+          },
+          "redundancy": {
+            "TUAV_A": 0,
+            "TUAV_B": 1,
+            "TUAV_C": 1,
+            "TBAT_A": 0,
+            "TBAT_B": 0,
+            "TBAT_C": 1,
+            "RUAV": 0,
+            "REC": 1
+          },
+          "shortage": {
+            "TUAV_A": 0,
+            "TUAV_B": 1,
+            "TUAV_C": 1,
+            "TBAT_A": 0,
+            "TBAT_B": 0,
+            "TBAT_C": 1,
+            "RUAV": 0,
+            "REC": 0
+          },
+          "inventory_surplus": {
+            "TUAV_A": 3,
+            "TUAV_B": 0,
+            "TUAV_C": 0,
+            "TBAT_A": 5,
+            "TBAT_B": 0,
+            "TBAT_C": 0,
+            "RUAV": 0,
+            "REC": 0
+          },
+          "total_resources": 25,
+          "total_shortage": 3,
+          "work_cv": 0.10356113435611343
+        },
+        {
+          "K": 2,
+          "scheme": "pareto",
+          "groups": [
+            {
+              "group": "G1",
+              "services": [
+                "S001",
+                "S006",
+                "S014",
+                "S002",
+                "S004",
+                "S009",
+                "S012",
+                "S013",
+                "S003"
+              ],
+              "resources": {
+                "TUAV_A": 1,
+                "TUAV_B": 2,
+                "TUAV_C": 2,
+                "TBAT_A": 1,
+                "TBAT_B": 4,
+                "TBAT_C": 3,
+                "RUAV": 2,
+                "REC": 4
+              },
+              "work_s": 37608.0
+            },
+            {
+              "group": "G2",
+              "services": [
+                "S005",
+                "S007",
+                "S015",
+                "S008",
+                "S011",
+                "S010"
+              ],
+              "resources": {
+                "TUAV_A": 0,
+                "TUAV_B": 1,
+                "TUAV_C": 1,
+                "TBAT_A": 0,
+                "TBAT_B": 1,
+                "TBAT_C": 2,
+                "RUAV": 1,
+                "REC": 1
+              },
+              "work_s": 16167.0
+            }
+          ],
+          "counts": {
+            "TUAV_A": 1,
+            "TUAV_B": 3,
+            "TUAV_C": 3,
+            "TBAT_A": 1,
+            "TBAT_B": 5,
+            "TBAT_C": 5,
+            "RUAV": 3,
+            "REC": 5
+          },
+          "redundancy": {
+            "TUAV_A": 0,
+            "TUAV_B": 1,
+            "TUAV_C": 1,
+            "TBAT_A": 0,
+            "TBAT_B": 1,
+            "TBAT_C": 1,
+            "RUAV": 1,
+            "REC": 0
+          },
+          "shortage": {
+            "TUAV_A": 0,
+            "TUAV_B": 1,
+            "TUAV_C": 1,
+            "TBAT_A": 0,
+            "TBAT_B": 1,
+            "TBAT_C": 1,
+            "RUAV": 1,
+            "REC": 0
+          },
+          "inventory_surplus": {
+            "TUAV_A": 3,
+            "TUAV_B": 0,
+            "TUAV_C": 0,
+            "TBAT_A": 5,
+            "TBAT_B": 0,
+            "TBAT_C": 0,
+            "RUAV": 0,
+            "REC": 1
+          },
+          "total_resources": 26,
+          "total_shortage": 5,
+          "work_cv": 0.3987168758716876
+        },
+        {
+          "K": 2,
+          "scheme": "pareto",
+          "groups": [
+            {
+              "group": "G1",
+              "services": [
+                "S001",
+                "S006",
+                "S014",
+                "S003",
+                "S005",
+                "S007",
+                "S015"
+              ],
+              "resources": {
+                "TUAV_A": 0,
+                "TUAV_B": 1,
+                "TUAV_C": 2,
+                "TBAT_A": 0,
+                "TBAT_B": 2,
+                "TBAT_C": 3,
+                "RUAV": 1,
+                "REC": 2
+              },
+              "work_s": 25679.0
+            },
+            {
+              "group": "G2",
+              "services": [
+                "S002",
+                "S004",
+                "S009",
+                "S012",
+                "S013",
+                "S008",
+                "S011",
+                "S010"
+              ],
+              "resources": {
+                "TUAV_A": 1,
+                "TUAV_B": 2,
+                "TUAV_C": 2,
+                "TBAT_A": 1,
+                "TBAT_B": 3,
+                "TBAT_C": 2,
+                "RUAV": 2,
+                "REC": 4
+              },
+              "work_s": 28096.0
+            }
+          ],
+          "counts": {
+            "TUAV_A": 1,
+            "TUAV_B": 3,
+            "TUAV_C": 4,
+            "TBAT_A": 1,
+            "TBAT_B": 5,
+            "TBAT_C": 5,
+            "RUAV": 3,
+            "REC": 6
+          },
+          "redundancy": {
+            "TUAV_A": 0,
+            "TUAV_B": 1,
+            "TUAV_C": 2,
+            "TBAT_A": 0,
+            "TBAT_B": 1,
+            "TBAT_C": 1,
+            "RUAV": 1,
+            "REC": 1
+          },
+          "shortage": {
+            "TUAV_A": 0,
+            "TUAV_B": 1,
+            "TUAV_C": 2,
+            "TBAT_A": 0,
+            "TBAT_B": 1,
+            "TBAT_C": 1,
+            "RUAV": 1,
+            "REC": 0
+          },
+          "inventory_surplus": {
+            "TUAV_A": 3,
+            "TUAV_B": 0,
+            "TUAV_C": 0,
+            "TBAT_A": 5,
+            "TBAT_B": 0,
+            "TBAT_C": 0,
+            "RUAV": 0,
+            "REC": 0
+          },
+          "total_resources": 28,
+          "total_shortage": 6,
+          "work_cv": 0.04494653649465365
+        },
+        {
+          "K": 2,
+          "scheme": "pareto",
+          "groups": [
+            {
+              "group": "G1",
+              "services": [
+                "S001",
+                "S006",
+                "S014",
+                "S005",
+                "S007",
+                "S015",
+                "S008",
+                "S011",
+                "S010"
+              ],
+              "resources": {
+                "TUAV_A": 0,
+                "TUAV_B": 2,
+                "TUAV_C": 2,
+                "TBAT_A": 0,
+                "TBAT_B": 2,
+                "TBAT_C": 3,
+                "RUAV": 2,
+                "REC": 2
+              },
+              "work_s": 26976.0
+            },
+            {
+              "group": "G2",
+              "services": [
+                "S002",
+                "S004",
+                "S009",
+                "S012",
+                "S013",
+                "S003"
+              ],
+              "resources": {
+                "TUAV_A": 1,
+                "TUAV_B": 2,
+                "TUAV_C": 1,
+                "TBAT_A": 1,
+                "TBAT_B": 3,
+                "TBAT_C": 2,
+                "RUAV": 1,
+                "REC": 4
+              },
+              "work_s": 26799.0
+            }
+          ],
+          "counts": {
+            "TUAV_A": 1,
+            "TUAV_B": 4,
+            "TUAV_C": 3,
+            "TBAT_A": 1,
+            "TBAT_B": 5,
+            "TBAT_C": 5,
+            "RUAV": 3,
+            "REC": 6
+          },
+          "redundancy": {
+            "TUAV_A": 0,
+            "TUAV_B": 2,
+            "TUAV_C": 1,
+            "TBAT_A": 0,
+            "TBAT_B": 1,
+            "TBAT_C": 1,
+            "RUAV": 1,
+            "REC": 1
+          },
+          "shortage": {
+            "TUAV_A": 0,
+            "TUAV_B": 2,
+            "TUAV_C": 1,
+            "TBAT_A": 0,
+            "TBAT_B": 1,
+            "TBAT_C": 1,
+            "RUAV": 1,
+            "REC": 0
+          },
+          "inventory_surplus": {
+            "TUAV_A": 3,
+            "TUAV_B": 0,
+            "TUAV_C": 0,
+            "TBAT_A": 5,
+            "TBAT_B": 0,
+            "TBAT_C": 0,
+            "RUAV": 0,
+            "REC": 0
+          },
+          "total_resources": 28,
+          "total_shortage": 6,
+          "work_cv": 0.003291492329149233
+        },
+        {
+          "K": 2,
+          "scheme": "pareto",
+          "groups": [
+            {
+              "group": "G1",
+              "services": [
+                "S001",
+                "S006",
+                "S014",
+                "S003",
+                "S007",
+                "S015",
+                "S008",
+                "S011"
+              ],
+              "resources": {
+                "TUAV_A": 0,
+                "TUAV_B": 1,
+                "TUAV_C": 2,
+                "TBAT_A": 0,
+                "TBAT_B": 2,
+                "TBAT_C": 3,
+                "RUAV": 2,
+                "REC": 3
+              },
+              "work_s": 27557.0
+            },
+            {
+              "group": "G2",
+              "services": [
+                "S002",
+                "S004",
+                "S009",
+                "S012",
+                "S013",
+                "S005",
+                "S010"
+              ],
+              "resources": {
+                "TUAV_A": 1,
+                "TUAV_B": 2,
+                "TUAV_C": 2,
+                "TBAT_A": 1,
+                "TBAT_B": 3,
+                "TBAT_C": 2,
+                "RUAV": 1,
+                "REC": 4
+              },
+              "work_s": 26218.0
+            }
+          ],
+          "counts": {
+            "TUAV_A": 1,
+            "TUAV_B": 3,
+            "TUAV_C": 4,
+            "TBAT_A": 1,
+            "TBAT_B": 5,
+            "TBAT_C": 5,
+            "RUAV": 3,
+            "REC": 7
+          },
+          "redundancy": {
+            "TUAV_A": 0,
+            "TUAV_B": 1,
+            "TUAV_C": 2,
+            "TBAT_A": 0,
+            "TBAT_B": 1,
+            "TBAT_C": 1,
+            "RUAV": 1,
+            "REC": 2
+          },
+          "shortage": {
+            "TUAV_A": 0,
+            "TUAV_B": 1,
+            "TUAV_C": 2,
+            "TBAT_A": 0,
+            "TBAT_B": 1,
+            "TBAT_C": 1,
+            "RUAV": 1,
+            "REC": 1
+          },
+          "inventory_surplus": {
+            "TUAV_A": 3,
+            "TUAV_B": 0,
+            "TUAV_C": 0,
+            "TBAT_A": 5,
+            "TBAT_B": 0,
+            "TBAT_C": 0,
+            "RUAV": 0,
+            "REC": 0
+          },
+          "total_resources": 29,
+          "total_shortage": 7,
+          "work_cv": 0.02490004649000465
+        },
+        {
+          "K": 2,
+          "scheme": "pareto",
+          "groups": [
+            {
+              "group": "G1",
+              "services": [
+                "S001",
+                "S006",
+                "S014",
+                "S003",
+                "S007",
+                "S015",
+                "S010"
+              ],
+              "resources": {
+                "TUAV_A": 0,
+                "TUAV_B": 2,
+                "TUAV_C": 2,
+                "TBAT_A": 0,
+                "TBAT_B": 2,
+                "TBAT_C": 3,
+                "RUAV": 2,
+                "REC": 2
+              },
+              "work_s": 25272.0
+            },
+            {
+              "group": "G2",
+              "services": [
+                "S002",
+                "S004",
+                "S009",
+                "S012",
+                "S013",
+                "S005",
+                "S008",
+                "S011"
+              ],
+              "resources": {
+                "TUAV_A": 1,
+                "TUAV_B": 2,
+                "TUAV_C": 2,
+                "TBAT_A": 1,
+                "TBAT_B": 2,
+                "TBAT_C": 2,
+                "RUAV": 2,
+                "REC": 4
+              },
+              "work_s": 28503.0
+            }
+          ],
+          "counts": {
+            "TUAV_A": 1,
+            "TUAV_B": 4,
+            "TUAV_C": 4,
+            "TBAT_A": 1,
+            "TBAT_B": 4,
+            "TBAT_C": 5,
+            "RUAV": 4,
+            "REC": 6
+          },
+          "redundancy": {
+            "TUAV_A": 0,
+            "TUAV_B": 2,
+            "TUAV_C": 2,
+            "TBAT_A": 0,
+            "TBAT_B": 0,
+            "TBAT_C": 1,
+            "RUAV": 2,
+            "REC": 1
+          },
+          "shortage": {
+            "TUAV_A": 0,
+            "TUAV_B": 2,
+            "TUAV_C": 2,
+            "TBAT_A": 0,
+            "TBAT_B": 0,
+            "TBAT_C": 1,
+            "RUAV": 2,
+            "REC": 0
+          },
+          "inventory_surplus": {
+            "TUAV_A": 3,
+            "TUAV_B": 0,
+            "TUAV_C": 0,
+            "TBAT_A": 5,
+            "TBAT_B": 0,
+            "TBAT_C": 0,
+            "RUAV": 0,
+            "REC": 0
+          },
+          "total_resources": 29,
+          "total_shortage": 7,
+          "work_cv": 0.0600836820083682
+        },
+        {
+          "K": 2,
+          "scheme": "pareto",
+          "groups": [
+            {
+              "group": "G1",
+              "services": [
+                "S001",
+                "S006",
+                "S014",
+                "S003",
+                "S008",
+                "S011",
+                "S010"
+              ],
+              "resources": {
+                "TUAV_A": 0,
+                "TUAV_B": 2,
+                "TUAV_C": 2,
+                "TBAT_A": 0,
+                "TBAT_B": 2,
+                "TBAT_C": 3,
+                "RUAV": 2,
+                "REC": 3
+              },
+              "work_s": 25574.0
+            },
+            {
+              "group": "G2",
+              "services": [
+                "S002",
+                "S004",
+                "S009",
+                "S012",
+                "S013",
+                "S005",
+                "S007",
+                "S015"
+              ],
+              "resources": {
+                "TUAV_A": 1,
+                "TUAV_B": 2,
+                "TUAV_C": 2,
+                "TBAT_A": 1,
+                "TBAT_B": 2,
+                "TBAT_C": 2,
+                "RUAV": 2,
+                "REC": 5
+              },
+              "work_s": 28201.0
+            }
+          ],
+          "counts": {
+            "TUAV_A": 1,
+            "TUAV_B": 4,
+            "TUAV_C": 4,
+            "TBAT_A": 1,
+            "TBAT_B": 4,
+            "TBAT_C": 5,
+            "RUAV": 4,
+            "REC": 8
+          },
+          "redundancy": {
+            "TUAV_A": 0,
+            "TUAV_B": 2,
+            "TUAV_C": 2,
+            "TBAT_A": 0,
+            "TBAT_B": 0,
+            "TBAT_C": 1,
+            "RUAV": 2,
+            "REC": 3
+          },
+          "shortage": {
+            "TUAV_A": 0,
+            "TUAV_B": 2,
+            "TUAV_C": 2,
+            "TBAT_A": 0,
+            "TBAT_B": 0,
+            "TBAT_C": 1,
+            "RUAV": 2,
+            "REC": 2
+          },
+          "inventory_surplus": {
+            "TUAV_A": 3,
+            "TUAV_B": 0,
+            "TUAV_C": 0,
+            "TBAT_A": 5,
+            "TBAT_B": 0,
+            "TBAT_C": 0,
+            "RUAV": 0,
+            "REC": 0
+          },
+          "total_resources": 31,
+          "total_shortage": 9,
+          "work_cv": 0.04885169688516969
+        }
+      ]
+    },
+    "3": {
+      "status": "EXACT",
+      "partitions_checked": 301,
+      "pareto_count": 11,
+      "shortage_first": {
+        "K": 3,
+        "scheme": "shortage_first",
+        "groups": [
+          {
+            "group": "G1",
+            "services": [
+              "S001",
+              "S006",
+              "S014",
+              "S008",
+              "S011"
+            ],
+            "resources": {
+              "TUAV_A": 0,
+              "TUAV_B": 1,
+              "TUAV_C": 2,
+              "TBAT_A": 0,
+              "TBAT_B": 1,
+              "TBAT_C": 2,
+              "RUAV": 1,
+              "REC": 1
+            },
+            "work_s": 15967.0,
+            "transport_sorties": 6,
+            "relay_tasks": 2,
+            "boxes": 32,
+            "mass_kg": 308.0
+          },
+          {
+            "group": "G2",
+            "services": [
+              "S002",
+              "S004",
+              "S009",
+              "S012",
+              "S013",
+              "S003",
+              "S010"
+            ],
+            "resources": {
+              "TUAV_A": 1,
+              "TUAV_B": 2,
+              "TUAV_C": 1,
+              "TBAT_A": 1,
+              "TBAT_B": 3,
+              "TBAT_C": 2,
+              "RUAV": 1,
+              "REC": 4
+            },
+            "work_s": 29672.0,
+            "transport_sorties": 9,
+            "relay_tasks": 5,
+            "boxes": 34,
+            "mass_kg": 321.0
+          },
+          {
+            "group": "G3",
+            "services": [
+              "S005",
+              "S007",
+              "S015"
+            ],
+            "resources": {
+              "TUAV_A": 0,
+              "TUAV_B": 0,
+              "TUAV_C": 1,
+              "TBAT_A": 0,
+              "TBAT_B": 0,
+              "TBAT_C": 1,
+              "RUAV": 1,
+              "REC": 1
+            },
+            "work_s": 8136.0,
+            "transport_sorties": 2,
+            "relay_tasks": 2,
+            "boxes": 14,
+            "mass_kg": 129.0
+          }
+        ],
+        "counts": {
+          "TUAV_A": 1,
+          "TUAV_B": 3,
+          "TUAV_C": 4,
+          "TBAT_A": 1,
+          "TBAT_B": 4,
+          "TBAT_C": 5,
+          "RUAV": 3,
+          "REC": 6
+        },
+        "redundancy": {
+          "TUAV_A": 0,
+          "TUAV_B": 1,
+          "TUAV_C": 2,
+          "TBAT_A": 0,
+          "TBAT_B": 0,
+          "TBAT_C": 1,
+          "RUAV": 1,
+          "REC": 1
+        },
+        "shortage": {
+          "TUAV_A": 0,
+          "TUAV_B": 1,
+          "TUAV_C": 2,
+          "TBAT_A": 0,
+          "TBAT_B": 0,
+          "TBAT_C": 1,
+          "RUAV": 1,
+          "REC": 0
+        },
+        "inventory_surplus": {
+          "TUAV_A": 3,
+          "TUAV_B": 0,
+          "TUAV_C": 0,
+          "TBAT_A": 5,
+          "TBAT_B": 0,
+          "TBAT_C": 0,
+          "RUAV": 0,
+          "REC": 0
+        },
+        "total_resources": 27,
+        "total_shortage": 5,
+        "work_cv": 0.49653445073024105
+      },
+      "balance_first": {
+        "K": 3,
+        "scheme": "balance_first",
+        "groups": [
+          {
+            "group": "G1",
+            "services": [
+              "S001",
+              "S006",
+              "S014",
+              "S005",
+              "S010"
+            ],
+            "resources": {
+              "TUAV_A": 0,
+              "TUAV_B": 2,
+              "TUAV_C": 2,
+              "TBAT_A": 0,
+              "TBAT_B": 2,
+              "TBAT_C": 2,
+              "RUAV": 2,
+              "REC": 2
+            },
+            "work_s": 16962.0,
+            "transport_sorties": 7,
+            "relay_tasks": 3,
+            "boxes": 33,
+            "mass_kg": 322.0
+          },
+          {
+            "group": "G2",
+            "services": [
+              "S002",
+              "S004",
+              "S009",
+              "S012",
+              "S013"
+            ],
+            "resources": {
+              "TUAV_A": 1,
+              "TUAV_B": 2,
+              "TUAV_C": 1,
+              "TBAT_A": 1,
+              "TBAT_B": 2,
+              "TBAT_C": 1,
+              "RUAV": 1,
+              "REC": 4
+            },
+            "work_s": 20065.0,
+            "transport_sorties": 6,
+            "relay_tasks": 3,
+            "boxes": 23,
+            "mass_kg": 215.0
+          },
+          {
+            "group": "G3",
+            "services": [
+              "S003",
+              "S007",
+              "S015",
+              "S008",
+              "S011"
+            ],
+            "resources": {
+              "TUAV_A": 0,
+              "TUAV_B": 1,
+              "TUAV_C": 2,
+              "TBAT_A": 0,
+              "TBAT_B": 1,
+              "TBAT_C": 3,
+              "RUAV": 2,
+              "REC": 3
+            },
+            "work_s": 16748.0,
+            "transport_sorties": 4,
+            "relay_tasks": 3,
+            "boxes": 24,
+            "mass_kg": 221.0
+          }
+        ],
+        "counts": {
+          "TUAV_A": 1,
+          "TUAV_B": 5,
+          "TUAV_C": 5,
+          "TBAT_A": 1,
+          "TBAT_B": 5,
+          "TBAT_C": 6,
+          "RUAV": 5,
+          "REC": 9
+        },
+        "redundancy": {
+          "TUAV_A": 0,
+          "TUAV_B": 3,
+          "TUAV_C": 3,
+          "TBAT_A": 0,
+          "TBAT_B": 1,
+          "TBAT_C": 2,
+          "RUAV": 3,
+          "REC": 4
+        },
+        "shortage": {
+          "TUAV_A": 0,
+          "TUAV_B": 3,
+          "TUAV_C": 3,
+          "TBAT_A": 0,
+          "TBAT_B": 1,
+          "TBAT_C": 2,
+          "RUAV": 3,
+          "REC": 3
+        },
+        "inventory_surplus": {
+          "TUAV_A": 3,
+          "TUAV_B": 0,
+          "TUAV_C": 0,
+          "TBAT_A": 5,
+          "TBAT_B": 0,
+          "TBAT_C": 0,
+          "RUAV": 0,
+          "REC": 0
+        },
+        "total_resources": 37,
+        "total_shortage": 15,
+        "work_cv": 0.08455946598284364
+      },
+      "pareto": [
+        {
+          "K": 3,
+          "scheme": "pareto",
+          "groups": [
+            {
+              "group": "G1",
+              "services": [
+                "S001",
+                "S006",
+                "S014",
+                "S008",
+                "S011"
+              ],
+              "resources": {
+                "TUAV_A": 0,
+                "TUAV_B": 1,
+                "TUAV_C": 2,
+                "TBAT_A": 0,
+                "TBAT_B": 1,
+                "TBAT_C": 2,
+                "RUAV": 1,
+                "REC": 1
+              },
+              "work_s": 15967.0
+            },
+            {
+              "group": "G2",
+              "services": [
+                "S002",
+                "S004",
+                "S009",
+                "S012",
+                "S013",
+                "S003",
+                "S010"
+              ],
+              "resources": {
+                "TUAV_A": 1,
+                "TUAV_B": 2,
+                "TUAV_C": 1,
+                "TBAT_A": 1,
+                "TBAT_B": 3,
+                "TBAT_C": 2,
+                "RUAV": 1,
+                "REC": 4
+              },
+              "work_s": 29672.0
+            },
+            {
+              "group": "G3",
+              "services": [
+                "S005",
+                "S007",
+                "S015"
+              ],
+              "resources": {
+                "TUAV_A": 0,
+                "TUAV_B": 0,
+                "TUAV_C": 1,
+                "TBAT_A": 0,
+                "TBAT_B": 0,
+                "TBAT_C": 1,
+                "RUAV": 1,
+                "REC": 1
+              },
+              "work_s": 8136.0
+            }
+          ],
+          "counts": {
+            "TUAV_A": 1,
+            "TUAV_B": 3,
+            "TUAV_C": 4,
+            "TBAT_A": 1,
+            "TBAT_B": 4,
+            "TBAT_C": 5,
+            "RUAV": 3,
+            "REC": 6
+          },
+          "redundancy": {
+            "TUAV_A": 0,
+            "TUAV_B": 1,
+            "TUAV_C": 2,
+            "TBAT_A": 0,
+            "TBAT_B": 0,
+            "TBAT_C": 1,
+            "RUAV": 1,
+            "REC": 1
+          },
+          "shortage": {
+            "TUAV_A": 0,
+            "TUAV_B": 1,
+            "TUAV_C": 2,
+            "TBAT_A": 0,
+            "TBAT_B": 0,
+            "TBAT_C": 1,
+            "RUAV": 1,
+            "REC": 0
+          },
+          "inventory_surplus": {
+            "TUAV_A": 3,
+            "TUAV_B": 0,
+            "TUAV_C": 0,
+            "TBAT_A": 5,
+            "TBAT_B": 0,
+            "TBAT_C": 0,
+            "RUAV": 0,
+            "REC": 0
+          },
+          "total_resources": 27,
+          "total_shortage": 5,
+          "work_cv": 0.49653445073024105
+        },
+        {
+          "K": 3,
+          "scheme": "pareto",
+          "groups": [
+            {
+              "group": "G1",
+              "services": [
+                "S001",
+                "S006",
+                "S014",
+                "S002",
+                "S004",
+                "S009",
+                "S012",
+                "S013",
+                "S003",
+                "S010"
+              ],
+              "resources": {
+                "TUAV_A": 1,
+                "TUAV_B": 2,
+                "TUAV_C": 2,
+                "TBAT_A": 1,
+                "TBAT_B": 4,
+                "TBAT_C": 3,
+                "RUAV": 2,
+                "REC": 5
+              },
+              "work_s": 40481.0
+            },
+            {
+              "group": "G2",
+              "services": [
+                "S005",
+                "S007",
+                "S015"
+              ],
+              "resources": {
+                "TUAV_A": 0,
+                "TUAV_B": 0,
+                "TUAV_C": 1,
+                "TBAT_A": 0,
+                "TBAT_B": 0,
+                "TBAT_C": 1,
+                "RUAV": 1,
+                "REC": 1
+              },
+              "work_s": 8136.0
+            },
+            {
+              "group": "G3",
+              "services": [
+                "S008",
+                "S011"
+              ],
+              "resources": {
+                "TUAV_A": 0,
+                "TUAV_B": 0,
+                "TUAV_C": 1,
+                "TBAT_A": 0,
+                "TBAT_B": 0,
+                "TBAT_C": 1,
+                "RUAV": 1,
+                "REC": 1
+              },
+              "work_s": 5158.0
+            }
+          ],
+          "counts": {
+            "TUAV_A": 1,
+            "TUAV_B": 2,
+            "TUAV_C": 4,
+            "TBAT_A": 1,
+            "TBAT_B": 4,
+            "TBAT_C": 5,
+            "RUAV": 4,
+            "REC": 7
+          },
+          "redundancy": {
+            "TUAV_A": 0,
+            "TUAV_B": 0,
+            "TUAV_C": 2,
+            "TBAT_A": 0,
+            "TBAT_B": 0,
+            "TBAT_C": 1,
+            "RUAV": 2,
+            "REC": 2
+          },
+          "shortage": {
+            "TUAV_A": 0,
+            "TUAV_B": 0,
+            "TUAV_C": 2,
+            "TBAT_A": 0,
+            "TBAT_B": 0,
+            "TBAT_C": 1,
+            "RUAV": 2,
+            "REC": 1
+          },
+          "inventory_surplus": {
+            "TUAV_A": 3,
+            "TUAV_B": 0,
+            "TUAV_C": 0,
+            "TBAT_A": 5,
+            "TBAT_B": 0,
+            "TBAT_C": 0,
+            "RUAV": 0,
+            "REC": 0
+          },
+          "total_resources": 28,
+          "total_shortage": 6,
+          "work_cv": 0.8923720899081707
+        },
+        {
+          "K": 3,
+          "scheme": "pareto",
+          "groups": [
+            {
+              "group": "G1",
+              "services": [
+                "S001",
+                "S006",
+                "S014",
+                "S002",
+                "S004",
+                "S009",
+                "S012",
+                "S013",
+                "S003"
+              ],
+              "resources": {
+                "TUAV_A": 1,
+                "TUAV_B": 2,
+                "TUAV_C": 2,
+                "TBAT_A": 1,
+                "TBAT_B": 4,
+                "TBAT_C": 3,
+                "RUAV": 2,
+                "REC": 4
+              },
+              "work_s": 37608.0
+            },
+            {
+              "group": "G2",
+              "services": [
+                "S005",
+                "S007",
+                "S015",
+                "S008",
+                "S011"
+              ],
+              "resources": {
+                "TUAV_A": 0,
+                "TUAV_B": 0,
+                "TUAV_C": 1,
+                "TBAT_A": 0,
+                "TBAT_B": 0,
+                "TBAT_C": 2,
+                "RUAV": 1,
+                "REC": 1
+              },
+              "work_s": 13294.0
+            },
+            {
+              "group": "G3",
+              "services": [
+                "S010"
+              ],
+              "resources": {
+                "TUAV_A": 0,
+                "TUAV_B": 1,
+                "TUAV_C": 0,
+                "TBAT_A": 0,
+                "TBAT_B": 1,
+                "TBAT_C": 0,
+                "RUAV": 1,
+                "REC": 1
+              },
+              "work_s": 2873.0
+            }
+          ],
+          "counts": {
+            "TUAV_A": 1,
+            "TUAV_B": 3,
+            "TUAV_C": 3,
+            "TBAT_A": 1,
+            "TBAT_B": 5,
+            "TBAT_C": 5,
+            "RUAV": 4,
+            "REC": 6
+          },
+          "redundancy": {
+            "TUAV_A": 0,
+            "TUAV_B": 1,
+            "TUAV_C": 1,
+            "TBAT_A": 0,
+            "TBAT_B": 1,
+            "TBAT_C": 1,
+            "RUAV": 2,
+            "REC": 1
+          },
+          "shortage": {
+            "TUAV_A": 0,
+            "TUAV_B": 1,
+            "TUAV_C": 1,
+            "TBAT_A": 0,
+            "TBAT_B": 1,
+            "TBAT_C": 1,
+            "RUAV": 2,
+            "REC": 0
+          },
+          "inventory_surplus": {
+            "TUAV_A": 3,
+            "TUAV_B": 0,
+            "TUAV_C": 0,
+            "TBAT_A": 5,
+            "TBAT_B": 0,
+            "TBAT_C": 0,
+            "RUAV": 0,
+            "REC": 0
+          },
+          "total_resources": 28,
+          "total_shortage": 6,
+          "work_cv": 0.8119211320132527
+        },
+        {
+          "K": 3,
+          "scheme": "pareto",
+          "groups": [
+            {
+              "group": "G1",
+              "services": [
+                "S001",
+                "S006",
+                "S014"
+              ],
+              "resources": {
+                "TUAV_A": 0,
+                "TUAV_B": 1,
+                "TUAV_C": 2,
+                "TBAT_A": 0,
+                "TBAT_B": 1,
+                "TBAT_C": 2,
+                "RUAV": 1,
+                "REC": 1
+              },
+              "work_s": 10809.0
+            },
+            {
+              "group": "G2",
+              "services": [
+                "S002",
+                "S004",
+                "S009",
+                "S012",
+                "S013",
+                "S003",
+                "S010"
+              ],
+              "resources": {
+                "TUAV_A": 1,
+                "TUAV_B": 2,
+                "TUAV_C": 1,
+                "TBAT_A": 1,
+                "TBAT_B": 3,
+                "TBAT_C": 2,
+                "RUAV": 1,
+                "REC": 4
+              },
+              "work_s": 29672.0
+            },
+            {
+              "group": "G3",
+              "services": [
+                "S005",
+                "S007",
+                "S015",
+                "S008",
+                "S011"
+              ],
+              "resources": {
+                "TUAV_A": 0,
+                "TUAV_B": 0,
+                "TUAV_C": 1,
+                "TBAT_A": 0,
+                "TBAT_B": 0,
+                "TBAT_C": 2,
+                "RUAV": 1,
+                "REC": 1
+              },
+              "work_s": 13294.0
+            }
+          ],
+          "counts": {
+            "TUAV_A": 1,
+            "TUAV_B": 3,
+            "TUAV_C": 4,
+            "TBAT_A": 1,
+            "TBAT_B": 4,
+            "TBAT_C": 6,
+            "RUAV": 3,
+            "REC": 6
+          },
+          "redundancy": {
+            "TUAV_A": 0,
+            "TUAV_B": 1,
+            "TUAV_C": 2,
+            "TBAT_A": 0,
+            "TBAT_B": 0,
+            "TBAT_C": 2,
+            "RUAV": 1,
+            "REC": 1
+          },
+          "shortage": {
+            "TUAV_A": 0,
+            "TUAV_B": 1,
+            "TUAV_C": 2,
+            "TBAT_A": 0,
+            "TBAT_B": 0,
+            "TBAT_C": 2,
+            "RUAV": 1,
+            "REC": 0
+          },
+          "inventory_surplus": {
+            "TUAV_A": 3,
+            "TUAV_B": 0,
+            "TUAV_C": 0,
+            "TBAT_A": 5,
+            "TBAT_B": 0,
+            "TBAT_C": 0,
+            "RUAV": 0,
+            "REC": 0
+          },
+          "total_resources": 28,
+          "total_shortage": 6,
+          "work_cv": 0.46683997967716384
+        },
+        {
+          "K": 3,
+          "scheme": "pareto",
+          "groups": [
+            {
+              "group": "G1",
+              "services": [
+                "S001",
+                "S006",
+                "S014",
+                "S003"
+              ],
+              "resources": {
+                "TUAV_A": 0,
+                "TUAV_B": 1,
+                "TUAV_C": 2,
+                "TBAT_A": 0,
+                "TBAT_B": 2,
+                "TBAT_C": 2,
+                "RUAV": 1,
+                "REC": 2
+              },
+              "work_s": 17543.0
+            },
+            {
+              "group": "G2",
+              "services": [
+                "S002",
+                "S004",
+                "S009",
+                "S012",
+                "S013",
+                "S010"
+              ],
+              "resources": {
+                "TUAV_A": 1,
+                "TUAV_B": 2,
+                "TUAV_C": 1,
+                "TBAT_A": 1,
+                "TBAT_B": 3,
+                "TBAT_C": 1,
+                "RUAV": 1,
+                "REC": 4
+              },
+              "work_s": 22938.0
+            },
+            {
+              "group": "G3",
+              "services": [
+                "S005",
+                "S007",
+                "S015",
+                "S008",
+                "S011"
+              ],
+              "resources": {
+                "TUAV_A": 0,
+                "TUAV_B": 0,
+                "TUAV_C": 1,
+                "TBAT_A": 0,
+                "TBAT_B": 0,
+                "TBAT_C": 2,
+                "RUAV": 1,
+                "REC": 1
+              },
+              "work_s": 13294.0
+            }
+          ],
+          "counts": {
+            "TUAV_A": 1,
+            "TUAV_B": 3,
+            "TUAV_C": 4,
+            "TBAT_A": 1,
+            "TBAT_B": 5,
+            "TBAT_C": 5,
+            "RUAV": 3,
+            "REC": 7
+          },
+          "redundancy": {
+            "TUAV_A": 0,
+            "TUAV_B": 1,
+            "TUAV_C": 2,
+            "TBAT_A": 0,
+            "TBAT_B": 1,
+            "TBAT_C": 1,
+            "RUAV": 1,
+            "REC": 2
+          },
+          "shortage": {
+            "TUAV_A": 0,
+            "TUAV_B": 1,
+            "TUAV_C": 2,
+            "TBAT_A": 0,
+            "TBAT_B": 1,
+            "TBAT_C": 1,
+            "RUAV": 1,
+            "REC": 1
+          },
+          "inventory_surplus": {
+            "TUAV_A": 3,
+            "TUAV_B": 0,
+            "TUAV_C": 0,
+            "TBAT_A": 5,
+            "TBAT_B": 0,
+            "TBAT_C": 0,
+            "RUAV": 0,
+            "REC": 0
+          },
+          "total_resources": 29,
+          "total_shortage": 7,
+          "work_cv": 0.22016186796139728
+        },
+        {
+          "K": 3,
+          "scheme": "pareto",
+          "groups": [
+            {
+              "group": "G1",
+              "services": [
+                "S001",
+                "S006",
+                "S014",
+                "S005",
+                "S007",
+                "S015",
+                "S008",
+                "S011"
+              ],
+              "resources": {
+                "TUAV_A": 0,
+                "TUAV_B": 1,
+                "TUAV_C": 2,
+                "TBAT_A": 0,
+                "TBAT_B": 1,
+                "TBAT_C": 3,
+                "RUAV": 1,
+                "REC": 2
+              },
+              "work_s": 24103.0
+            },
+            {
+              "group": "G2",
+              "services": [
+                "S002",
+                "S004",
+                "S009",
+                "S012",
+                "S013",
+                "S003"
+              ],
+              "resources": {
+                "TUAV_A": 1,
+                "TUAV_B": 2,
+                "TUAV_C": 1,
+                "TBAT_A": 1,
+                "TBAT_B": 3,
+                "TBAT_C": 2,
+                "RUAV": 1,
+                "REC": 4
+              },
+              "work_s": 26799.0
+            },
+            {
+              "group": "G3",
+              "services": [
+                "S010"
+              ],
+              "resources": {
+                "TUAV_A": 0,
+                "TUAV_B": 1,
+                "TUAV_C": 0,
+                "TBAT_A": 0,
+                "TBAT_B": 1,
+                "TBAT_C": 0,
+                "RUAV": 1,
+                "REC": 1
+              },
+              "work_s": 2873.0
+            }
+          ],
+          "counts": {
+            "TUAV_A": 1,
+            "TUAV_B": 4,
+            "TUAV_C": 3,
+            "TBAT_A": 1,
+            "TBAT_B": 5,
+            "TBAT_C": 5,
+            "RUAV": 3,
+            "REC": 7
+          },
+          "redundancy": {
+            "TUAV_A": 0,
+            "TUAV_B": 2,
+            "TUAV_C": 1,
+            "TBAT_A": 0,
+            "TBAT_B": 1,
+            "TBAT_C": 1,
+            "RUAV": 1,
+            "REC": 2
+          },
+          "shortage": {
+            "TUAV_A": 0,
+            "TUAV_B": 2,
+            "TUAV_C": 1,
+            "TBAT_A": 0,
+            "TBAT_B": 1,
+            "TBAT_C": 1,
+            "RUAV": 1,
+            "REC": 1
+          },
+          "inventory_surplus": {
+            "TUAV_A": 3,
+            "TUAV_B": 0,
+            "TUAV_C": 0,
+            "TBAT_A": 5,
+            "TBAT_B": 0,
+            "TBAT_C": 0,
+            "RUAV": 0,
+            "REC": 0
+          },
+          "total_resources": 29,
+          "total_shortage": 7,
+          "work_cv": 0.5969388408349883
+        },
+        {
+          "K": 3,
+          "scheme": "pareto",
+          "groups": [
+            {
+              "group": "G1",
+              "services": [
+                "S001",
+                "S006",
+                "S014",
+                "S008",
+                "S011"
+              ],
+              "resources": {
+                "TUAV_A": 0,
+                "TUAV_B": 1,
+                "TUAV_C": 2,
+                "TBAT_A": 0,
+                "TBAT_B": 1,
+                "TBAT_C": 2,
+                "RUAV": 1,
+                "REC": 1
+              },
+              "work_s": 15967.0
+            },
+            {
+              "group": "G2",
+              "services": [
+                "S002",
+                "S004",
+                "S009",
+                "S012",
+                "S013"
+              ],
+              "resources": {
+                "TUAV_A": 1,
+                "TUAV_B": 2,
+                "TUAV_C": 1,
+                "TBAT_A": 1,
+                "TBAT_B": 2,
+                "TBAT_C": 1,
+                "RUAV": 1,
+                "REC": 4
+              },
+              "work_s": 20065.0
+            },
+            {
+              "group": "G3",
+              "services": [
+                "S003",
+                "S005",
+                "S007",
+                "S015",
+                "S010"
+              ],
+              "resources": {
+                "TUAV_A": 0,
+                "TUAV_B": 1,
+                "TUAV_C": 1,
+                "TBAT_A": 0,
+                "TBAT_B": 1,
+                "TBAT_C": 2,
+                "RUAV": 1,
+                "REC": 2
+              },
+              "work_s": 17743.0
+            }
+          ],
+          "counts": {
+            "TUAV_A": 1,
+            "TUAV_B": 4,
+            "TUAV_C": 4,
+            "TBAT_A": 1,
+            "TBAT_B": 4,
+            "TBAT_C": 5,
+            "RUAV": 3,
+            "REC": 7
+          },
+          "redundancy": {
+            "TUAV_A": 0,
+            "TUAV_B": 2,
+            "TUAV_C": 2,
+            "TBAT_A": 0,
+            "TBAT_B": 0,
+            "TBAT_C": 1,
+            "RUAV": 1,
+            "REC": 2
+          },
+          "shortage": {
+            "TUAV_A": 0,
+            "TUAV_B": 2,
+            "TUAV_C": 2,
+            "TBAT_A": 0,
+            "TBAT_B": 0,
+            "TBAT_C": 1,
+            "RUAV": 1,
+            "REC": 1
+          },
+          "inventory_surplus": {
+            "TUAV_A": 3,
+            "TUAV_B": 0,
+            "TUAV_C": 0,
+            "TBAT_A": 5,
+            "TBAT_B": 0,
+            "TBAT_C": 0,
+            "RUAV": 0,
+            "REC": 0
+          },
+          "total_resources": 29,
+          "total_shortage": 7,
+          "work_cv": 0.09360914811685159
+        },
+        {
+          "K": 3,
+          "scheme": "pareto",
+          "groups": [
+            {
+              "group": "G1",
+              "services": [
+                "S001",
+                "S006",
+                "S014",
+                "S008",
+                "S011"
+              ],
+              "resources": {
+                "TUAV_A": 0,
+                "TUAV_B": 1,
+                "TUAV_C": 2,
+                "TBAT_A": 0,
+                "TBAT_B": 1,
+                "TBAT_C": 2,
+                "RUAV": 1,
+                "REC": 1
+              },
+              "work_s": 15967.0
+            },
+            {
+              "group": "G2",
+              "services": [
+                "S002",
+                "S004",
+                "S009",
+                "S012",
+                "S013",
+                "S003"
+              ],
+              "resources": {
+                "TUAV_A": 1,
+                "TUAV_B": 2,
+                "TUAV_C": 1,
+                "TBAT_A": 1,
+                "TBAT_B": 3,
+                "TBAT_C": 2,
+                "RUAV": 1,
+                "REC": 4
+              },
+              "work_s": 26799.0
+            },
+            {
+              "group": "G3",
+              "services": [
+                "S005",
+                "S007",
+                "S015",
+                "S010"
+              ],
+              "resources": {
+                "TUAV_A": 0,
+                "TUAV_B": 1,
+                "TUAV_C": 1,
+                "TBAT_A": 0,
+                "TBAT_B": 1,
+                "TBAT_C": 1,
+                "RUAV": 1,
+                "REC": 1
+              },
+              "work_s": 11009.0
+            }
+          ],
+          "counts": {
+            "TUAV_A": 1,
+            "TUAV_B": 4,
+            "TUAV_C": 4,
+            "TBAT_A": 1,
+            "TBAT_B": 5,
+            "TBAT_C": 5,
+            "RUAV": 3,
+            "REC": 6
+          },
+          "redundancy": {
+            "TUAV_A": 0,
+            "TUAV_B": 2,
+            "TUAV_C": 2,
+            "TBAT_A": 0,
+            "TBAT_B": 1,
+            "TBAT_C": 1,
+            "RUAV": 1,
+            "REC": 1
+          },
+          "shortage": {
+            "TUAV_A": 0,
+            "TUAV_B": 2,
+            "TUAV_C": 2,
+            "TBAT_A": 0,
+            "TBAT_B": 1,
+            "TBAT_C": 1,
+            "RUAV": 1,
+            "REC": 0
+          },
+          "inventory_surplus": {
+            "TUAV_A": 3,
+            "TUAV_B": 0,
+            "TUAV_C": 0,
+            "TBAT_A": 5,
+            "TBAT_B": 0,
+            "TBAT_C": 0,
+            "RUAV": 0,
+            "REC": 0
+          },
+          "total_resources": 29,
+          "total_shortage": 7,
+          "work_cv": 0.36782406938059786
+        },
+        {
+          "K": 3,
+          "scheme": "pareto",
+          "groups": [
+            {
+              "group": "G1",
+              "services": [
+                "S001",
+                "S006",
+                "S014",
+                "S003"
+              ],
+              "resources": {
+                "TUAV_A": 0,
+                "TUAV_B": 1,
+                "TUAV_C": 2,
+                "TBAT_A": 0,
+                "TBAT_B": 2,
+                "TBAT_C": 2,
+                "RUAV": 1,
+                "REC": 2
+              },
+              "work_s": 17543.0
+            },
+            {
+              "group": "G2",
+              "services": [
+                "S002",
+                "S004",
+                "S009",
+                "S012",
+                "S013"
+              ],
+              "resources": {
+                "TUAV_A": 1,
+                "TUAV_B": 2,
+                "TUAV_C": 1,
+                "TBAT_A": 1,
+                "TBAT_B": 2,
+                "TBAT_C": 1,
+                "RUAV": 1,
+                "REC": 4
+              },
+              "work_s": 20065.0
+            },
+            {
+              "group": "G3",
+              "services": [
+                "S005",
+                "S007",
+                "S015",
+                "S008",
+                "S011",
+                "S010"
+              ],
+              "resources": {
+                "TUAV_A": 0,
+                "TUAV_B": 1,
+                "TUAV_C": 1,
+                "TBAT_A": 0,
+                "TBAT_B": 1,
+                "TBAT_C": 2,
+                "RUAV": 1,
+                "REC": 1
+              },
+              "work_s": 16167.0
+            }
+          ],
+          "counts": {
+            "TUAV_A": 1,
+            "TUAV_B": 4,
+            "TUAV_C": 4,
+            "TBAT_A": 1,
+            "TBAT_B": 5,
+            "TBAT_C": 5,
+            "RUAV": 3,
+            "REC": 7
+          },
+          "redundancy": {
+            "TUAV_A": 0,
+            "TUAV_B": 2,
+            "TUAV_C": 2,
+            "TBAT_A": 0,
+            "TBAT_B": 1,
+            "TBAT_C": 1,
+            "RUAV": 1,
+            "REC": 2
+          },
+          "shortage": {
+            "TUAV_A": 0,
+            "TUAV_B": 2,
+            "TUAV_C": 2,
+            "TBAT_A": 0,
+            "TBAT_B": 1,
+            "TBAT_C": 1,
+            "RUAV": 1,
+            "REC": 1
+          },
+          "inventory_surplus": {
+            "TUAV_A": 3,
+            "TUAV_B": 0,
+            "TUAV_C": 0,
+            "TBAT_A": 5,
+            "TBAT_B": 0,
+            "TBAT_C": 0,
+            "RUAV": 0,
+            "REC": 0
+          },
+          "total_resources": 30,
+          "total_shortage": 8,
+          "work_cv": 0.09004817770873437
+        },
+        {
+          "K": 3,
+          "scheme": "pareto",
+          "groups": [
+            {
+              "group": "G1",
+              "services": [
+                "S001",
+                "S006",
+                "S014",
+                "S005"
+              ],
+              "resources": {
+                "TUAV_A": 0,
+                "TUAV_B": 1,
+                "TUAV_C": 2,
+                "TBAT_A": 0,
+                "TBAT_B": 1,
+                "TBAT_C": 2,
+                "RUAV": 1,
+                "REC": 1
+              },
+              "work_s": 14089.0
+            },
+            {
+              "group": "G2",
+              "services": [
+                "S002",
+                "S004",
+                "S009",
+                "S012",
+                "S013",
+                "S003"
+              ],
+              "resources": {
+                "TUAV_A": 1,
+                "TUAV_B": 2,
+                "TUAV_C": 1,
+                "TBAT_A": 1,
+                "TBAT_B": 3,
+                "TBAT_C": 2,
+                "RUAV": 1,
+                "REC": 4
+              },
+              "work_s": 26799.0
+            },
+            {
+              "group": "G3",
+              "services": [
+                "S007",
+                "S015",
+                "S008",
+                "S011",
+                "S010"
+              ],
+              "resources": {
+                "TUAV_A": 0,
+                "TUAV_B": 1,
+                "TUAV_C": 1,
+                "TBAT_A": 0,
+                "TBAT_B": 1,
+                "TBAT_C": 2,
+                "RUAV": 1,
+                "REC": 1
+              },
+              "work_s": 12887.0
+            }
+          ],
+          "counts": {
+            "TUAV_A": 1,
+            "TUAV_B": 4,
+            "TUAV_C": 4,
+            "TBAT_A": 1,
+            "TBAT_B": 5,
+            "TBAT_C": 6,
+            "RUAV": 3,
+            "REC": 6
+          },
+          "redundancy": {
+            "TUAV_A": 0,
+            "TUAV_B": 2,
+            "TUAV_C": 2,
+            "TBAT_A": 0,
+            "TBAT_B": 1,
+            "TBAT_C": 2,
+            "RUAV": 1,
+            "REC": 1
+          },
+          "shortage": {
+            "TUAV_A": 0,
+            "TUAV_B": 2,
+            "TUAV_C": 2,
+            "TBAT_A": 0,
+            "TBAT_B": 1,
+            "TBAT_C": 2,
+            "RUAV": 1,
+            "REC": 0
+          },
+          "inventory_surplus": {
+            "TUAV_A": 3,
+            "TUAV_B": 0,
+            "TUAV_C": 0,
+            "TBAT_A": 5,
+            "TBAT_B": 0,
+            "TBAT_C": 0,
+            "RUAV": 0,
+            "REC": 0
+          },
+          "total_resources": 30,
+          "total_shortage": 8,
+          "work_cv": 0.35113104848073656
+        },
+        {
+          "K": 3,
+          "scheme": "pareto",
+          "groups": [
+            {
+              "group": "G1",
+              "services": [
+                "S001",
+                "S006",
+                "S014",
+                "S005",
+                "S010"
+              ],
+              "resources": {
+                "TUAV_A": 0,
+                "TUAV_B": 2,
+                "TUAV_C": 2,
+                "TBAT_A": 0,
+                "TBAT_B": 2,
+                "TBAT_C": 2,
+                "RUAV": 2,
+                "REC": 2
+              },
+              "work_s": 16962.0
+            },
+            {
+              "group": "G2",
+              "services": [
+                "S002",
+                "S004",
+                "S009",
+                "S012",
+                "S013"
+              ],
+              "resources": {
+                "TUAV_A": 1,
+                "TUAV_B": 2,
+                "TUAV_C": 1,
+                "TBAT_A": 1,
+                "TBAT_B": 2,
+                "TBAT_C": 1,
+                "RUAV": 1,
+                "REC": 4
+              },
+              "work_s": 20065.0
+            },
+            {
+              "group": "G3",
+              "services": [
+                "S003",
+                "S007",
+                "S015",
+                "S008",
+                "S011"
+              ],
+              "resources": {
+                "TUAV_A": 0,
+                "TUAV_B": 1,
+                "TUAV_C": 2,
+                "TBAT_A": 0,
+                "TBAT_B": 1,
+                "TBAT_C": 3,
+                "RUAV": 2,
+                "REC": 3
+              },
+              "work_s": 16748.0
+            }
+          ],
+          "counts": {
+            "TUAV_A": 1,
+            "TUAV_B": 5,
+            "TUAV_C": 5,
+            "TBAT_A": 1,
+            "TBAT_B": 5,
+            "TBAT_C": 6,
+            "RUAV": 5,
+            "REC": 9
+          },
+          "redundancy": {
+            "TUAV_A": 0,
+            "TUAV_B": 3,
+            "TUAV_C": 3,
+            "TBAT_A": 0,
+            "TBAT_B": 1,
+            "TBAT_C": 2,
+            "RUAV": 3,
+            "REC": 4
+          },
+          "shortage": {
+            "TUAV_A": 0,
+            "TUAV_B": 3,
+            "TUAV_C": 3,
+            "TBAT_A": 0,
+            "TBAT_B": 1,
+            "TBAT_C": 2,
+            "RUAV": 3,
+            "REC": 3
+          },
+          "inventory_surplus": {
+            "TUAV_A": 3,
+            "TUAV_B": 0,
+            "TUAV_C": 0,
+            "TBAT_A": 5,
+            "TBAT_B": 0,
+            "TBAT_C": 0,
+            "RUAV": 0,
+            "REC": 0
+          },
+          "total_resources": 37,
+          "total_shortage": 15,
+          "work_cv": 0.08455946598284364
+        }
+      ]
+    }
+  }
+}
