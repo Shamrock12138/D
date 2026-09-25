@@ -32,6 +32,14 @@ def load_comm_snapshot() -> tuple[dict, dict]:
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     if manifest.get("objective") != "COMM" or manifest.get("all_pass") is not True or manifest.get("boxes") != 80:
         raise ValueError("COMM snapshot did not pass transport and 80-box validation")
+    capture_path = DATA / "Q4_capture_COMM_manifest.json"
+    if not capture_path.is_file():
+        raise FileNotFoundError("COMM transport-only capture provenance is missing")
+    capture = json.loads(capture_path.read_text(encoding="utf-8"))
+    if (capture.get("status") != "PROVISIONAL_TRANSPORT_ONLY"
+            or capture.get("q3_relay_feasibility_claimed") is not False
+            or capture.get("comm_manifest_sha256") != sha(manifest_path)):
+        raise ValueError("COMM capture provenance does not match transport snapshot")
     for key, path in names.items():
         if manifest.get("output_sha256", {}).get(key) != sha(path):
             raise ValueError(f"COMM snapshot hash mismatch: {path.name}")
@@ -93,7 +101,9 @@ def load_comm_snapshot() -> tuple[dict, dict]:
         raise ValueError("COMM snapshot does not cover all 15 service areas")
     source = {"manifest_sha256": sha(manifest_path), "files_sha256": {key: sha(path) for key, path in names.items()},
               "selected_sorties": len(transport), "reported_gaps": manifest.get("COMM_total_gap_count"),
-              "master_status": manifest.get("master_status"), "transport_status": manifest.get("transport_status")}
+              "master_status": manifest.get("master_status"), "transport_status": manifest.get("transport_status"),
+              "relay_capacity_constraints_in_master": capture["relay_capacity_constraints_in_comm_master"],
+              "q3_relay_feasibility_claimed": False}
     return {"transport": transport, "relay": [], "delivery": preview_delivery,
             "sha256": source["files_sha256"]}, source
 
