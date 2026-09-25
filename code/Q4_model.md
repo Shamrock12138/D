@@ -36,4 +36,4 @@ Q3 完成后填入：不可拆块及数量 M；K=2、K=3 的全部合法分区�
 
 ## 6. 数据契约注意事项
 
-Q3 当前实现的运输表使用 `sortie_id`，早期表可能使用 `task_id`，Q4 内部统一为 `sortie_id`，若两列并存必须逐行一致。冻结运输表至少需要 `sortie_id,visit_order,uav_type,start_time_s,end_time_s,charge_end_s`；中继表至少需要唯一任务 ID、被保障的 `sortie_id` 或关联列表、`dispatch_time_s,uav_release_time_s,energy_release_time_s`；配送表需能由 `box_id` 关联服务区及质量。`q3_joint_resource_summary.csv` 应明确八类库存的字段或附冻结库存表，不应把 Q3 已使用的设备 ID 数量误当为库存。所有这些字段及表均由 Step13 冻结并纳入验收哈希。
+Q3 当前实现的运输表使用 `sortie_id`，早期表可能使用 `task_id`，Q4 内部统一为 `sortie_id`，若两列并存必须逐行一致。冻结运输表至少需要 `sortie_id,visit_order,uav_type,start_time_s,end_time_s,charge_end_s`；中继表至少需要被保障的 `sortie_id` 或关联列表、`dispatch_time_s,uav_release_time_s,energy_release_time_s`；配送表需包含 `sortie_id,box_id,service,mass_kg,delivery_time_s`，且恰为 80 个互异货箱。当前 Q3 配送输出尚无 `service,mass_kg`，Step13 需将原始逐箱属性并入后冻结。`q3_joint_resource_summary.csv` 应明确八类库存的字段或附冻结库存表，不应把 Q3 已使用的设备 ID 数量误当为库存。当前 `Q4.py` 按附件已核对库存常量 (4,2,2,6,4,4,2,6) 计算；若最终库存修改，须同步修改该常量并重跑 Q4。四张冻结 CSV 的 SHA-256 须记录在 `acceptance.json` 的 `outputs_sha256` 或 `input_sha256` 字段。所有这些字段及表均由 Step13 冻结并纳入验收哈希。
