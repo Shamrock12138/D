@@ -96,9 +96,12 @@ def distance_3d_m(a: Tuple[float, float, float], b: Tuple[float, float, float]) 
 
 
 def free_space_loss_db(distance_m: float, frequency_mhz: float) -> float:
-    if distance_m <= 0 or frequency_mhz <= 0:
-        raise ValueError("三维距离和载波频率必须大于零")
-    return 32.45 + 20 * math.log10(frequency_mhz) + 20 * math.log10(distance_m / 1000.0)
+    if distance_m < 0 or frequency_mhz <= 0:
+        raise ValueError("三维距离不得为负且载波频率必须大于零")
+    # The far-field formula is singular at a colocated gateway/aircraft sample.
+    # A 1 m reference is conservative for this clearly direct-covered state.
+    effective_distance_m = max(distance_m, 1.0)
+    return 32.45 + 20 * math.log10(frequency_mhz) + 20 * math.log10(effective_distance_m / 1000.0)
 
 
 def path_loss_db(fspl_db: float, blocked: bool, parameters: DirectLinkParameters) -> float:

@@ -16,7 +16,8 @@ from src.q3.relay.operation_profile import build_gap_job_options, load_relay_fli
 from src.q3.trajectory_generator import load_box_services
 from src.q3.transport.candidate_loader import TransportTaskTemplate
 from src.q3.transport.comm_gap import (
-    _build_outage_state_library, _extract_gaps_with_states, _prune_outage_states,
+    _assemble_profile_with_sources, _build_outage_state_library,
+    _extract_gaps_with_states, _prune_outage_states,
 )
 from src.q3.transport.communication_summary import assemble_task_profile, summarize_profile
 
@@ -102,6 +103,56 @@ def _relay_options(gaps, gap_states, outage):
     return gaps, relay, 0
 
 
+def _fine_communication(templates, transport, relay):
+    """Recheck every 1 s outage sample against active chosen Relay service."""
+    cache = DirectProfileCache(dt=1.0)
+    try:
+        cache.build_nodes()
+        cache.build_segments(required_segment_keys(templates), verbose=False)
+        starts = dict(zip(transport["task_id"].astype(str),
+                          transport["start_time_s"].astype(float)))
+        services = load_box_services()
+        outage_rows = []
+        uncovered_time = 0
+        for template in templates:
+            samples = _assemble_profile_with_sources(template, cache, services)
+            jobs = relay.loc[relay["task_id"].astype(str) == template.task_id]
+            for sample in samples:
+                if sample.direct:
+                    continue
+                absolute = starts[template.task_id] + sample.tau
+                active = jobs.loc[(jobs["service_start_s"] <= absolute + 1e-6)
+                                  & (jobs["service_end_s"] >= absolute - 1e-6)]
+                if active.empty:
+                    uncovered_time += 1
+                    continue
+                outage_rows.append({"x": sample.x, "y": sample.y, "z": sample.z,
+                                    "candidate_id": str(active.iloc[0].candidate_id),
+                                    "phase": sample.phase})
+    finally:
+        cache.close()
+    if not outage_rows:
+        return {"outage_samples": 0, "unserved_time_samples": uncovered_time,
+                "uncovered_link_samples": 0, "all_pass": uncovered_time == 0}
+    states = pd.DataFrame(outage_rows)
+    sites = pd.read_csv(DATA / "q3_relay_sites.csv", encoding="utf-8-sig")
+    sites = sites.loc[sites["candidate_id"].isin(states["candidate_id"])].reset_index(drop=True)
+    site_index = {str(cid): i for i, cid in enumerate(sites["candidate_id"])}
+    terrain = DemTerrain()
+    try:
+        packed, _ = _actual_coverage(states, sites, load_relay_link_parameters(),
+                                     terrain)
+    finally:
+        terrain.close()
+    uncovered_link = sum(
+        not bool((packed[site_index[row.candidate_id], i // 8] >> (i % 8)) & 1)
+        for i, row in enumerate(states.itertuples(index=False)))
+    return {"outage_samples": len(states) + uncovered_time,
+            "unserved_time_samples": uncovered_time,
+            "uncovered_link_samples": uncovered_link,
+            "all_pass": uncovered_time == 0 and uncovered_link == 0}
+
+
 def run_compact_relay_smoke(tasks, deliveries, boxes, resources,
                             transport_start_hint, time_limit_s=20, workers=8):
     """Return proof status; never confuse site-shortlist failure with infeasibility."""
@@ -145,4 +196,13 @@ def run_compact_relay_smoke(tasks, deliveries, boxes, resources,
                             transport_start_hint=transport_start_hint)
     report["status"] = result["status"]
     report["joint_validation_pass"] = result.get("validation", {}).get("all_pass")
+    if "validation" in result:
+        report["joint_checks"] = result["validation"]["checks"]
+        report["joint_cmax_s"] = result["joint_cmax_s"]
+        report["transport_sorties"] = len(result["transport"])
+        report["relay_sorties"] = len(result["relay"])
+        report["relay_energy_kWh"] = float(result["relay"]["relay_energy_kWh"].sum())
+    if result["status"] in ("FEASIBLE", "OPTIMAL") and report["joint_validation_pass"]:
+        report["fine_communication_1s"] = _fine_communication(
+            templates, result["transport"], result["relay"])
     return report

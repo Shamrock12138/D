@@ -583,11 +583,11 @@ def _solve_q3(model, joint_cmax, all_vars, time_limit_s=600, workers=8,
 def validate_q3_solution(problem, transport, relay, joint_cmax_s):
     """Independently validate all Step8 minimum-model constraints."""
     checks = {}
-    boxes = data_model.load_boxes()
+    boxes = problem["boxes"]
     delivery = problem["deliveries"]
     selected_ids = set(transport["task_id"].astype(str))
     chosen_deliveries = delivery[delivery["task_id"].astype(str).isin(selected_ids)]
-    checks["box_coverage_80_of_80"] = (
+    checks["box_coverage_all_required"] = (
         len(chosen_deliveries) == len(boxes)
         and chosen_deliveries["box_id"].nunique() == len(boxes)
     )

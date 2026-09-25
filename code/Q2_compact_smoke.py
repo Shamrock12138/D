@@ -21,6 +21,7 @@ from src.q2.compact_classes import (
 )
 from src.q2.cp_sat_scheduler import _build_model, _deadlines, _decode_resources, _resource_ids
 from src.q2.data_model import load_q2_data
+from src.q2.route_evaluator import _box_data, evaluate_route
 
 
 DATA = Path(__file__).resolve().parent / "data"
@@ -40,6 +41,33 @@ def _resources(data):
     capacity = dict(zip(specs["type"].astype(str), specs["E_use"].astype(float)))
     charge_full = data["batteries"].groupby("type")["full_charge_time"].first().to_dict()
     return uav_ids, battery_ids, capacity, charge_full
+
+
+def _physical_cache_equivalent(patterns, pattern_counts, classes, boxes, models):
+    """Re-evaluate retained patterns without the generator's physics cache."""
+    class_rows = classes.set_index("class_id")
+    grouped = pattern_counts.groupby("pattern_id")
+    lookup = _box_data(boxes)
+    for row in patterns.itertuples(index=False):
+        visit = str(row.visit_order).split(">")
+        deliveries = {site: [] for site in visit}
+        for item in grouped.get_group(row.pattern_id).itertuples(index=False):
+            cls = class_rows.loc[item.class_id]
+            deliveries[cls.service].extend(cls.box_ids[:int(item.count)])
+        result = evaluate_route(models[row.uav_type], visit, deliveries,
+                                box_lookup=lookup)
+        if not result["feasible"]:
+            return False
+        if abs(float(result["duration_s"]) - float(row.duration_s)) > 1e-6:
+            return False
+        if abs(float(result["energy_kwh"]) - float(row.energy_kWh)) > 1e-8:
+            return False
+        for item in grouped.get_group(row.pattern_id).itertuples(index=False):
+            member = class_rows.loc[item.class_id].box_ids[0]
+            if abs(float(result["delivery_offsets"][member])
+                   - float(item.delivery_offset_s)) > 1e-6:
+                return False
+    return True
 
 
 def _fixed_transport_schedule(tasks, deliveries, boxes, resources, time_limit_s, workers):
@@ -128,18 +156,21 @@ def _q3_communication_check(tasks, deliveries):
 
 
 def run_smoke(services=("S001", "S002"), top_k=3, master_time_s=30,
-              transport_time_s=20, workers=8, q3_comm=False,
+              transport_time_s=20, workers=1, q3_comm=False,
               q3_relay=False):
     """Return an evidence report; never overwrite existing Q2/Q3 outputs."""
     data = load_q2_data()
     boxes = data["boxes"].loc[data["boxes"]["service"].isin(services)].copy()
     if boxes.empty:
         raise ValueError("No boxes in requested services")
+    models = load_models()
     classes, patterns, counts = generate_compact_patterns(
-        data["boxes"], load_models(), max_stops=2, services=services)
+        data["boxes"], models, max_stops=2, services=services)
     classes = classes.loc[classes["service"].isin(services)].reset_index(drop=True)
     full_pattern_count = len(patterns)
     patterns, counts = select_compact_patterns(patterns, counts, classes, top_k)
+    cache_equivalent = _physical_cache_equivalent(
+        patterns, counts, classes, boxes, models)
     resources = _resources(data)
     model, slots, chosen, starts = build_compact_master(
         patterns, counts, classes, *resources, horizon_s=36000)
@@ -148,6 +179,7 @@ def run_smoke(services=("S001", "S002"), top_k=3, master_time_s=30,
     report = {"services": list(services), "boxes": len(boxes),
               "classes": len(classes), "physical_patterns": full_pattern_count,
               "retained_patterns": len(patterns), "sortie_slots": len(slots),
+              "physical_cache_equivalence": cache_equivalent,
               "master_status": master.StatusName(master_status),
               "master_wall_time_s": master.WallTime(), "seed": 2026,
               "input_sha256": hashlib.sha256(
@@ -190,6 +222,7 @@ def run_smoke(services=("S001", "S002"), top_k=3, master_time_s=30,
     box_class = {box: row.class_id for row in classes.itertuples(index=False)
                  for box in row.box_ids}
     checks = {
+        "physical_cache_equivalence": cache_equivalent,
         "class_quantity_conservation": all(
             sum(s["class_counts"].get(row.class_id, 0) for s in sorties) == row.count
             for row in classes.itertuples(index=False)),
@@ -225,6 +258,11 @@ def run_smoke(services=("S001", "S002"), top_k=3, master_time_s=30,
         report["q3_relay"] = run_compact_relay_smoke(
             final_tasks, final_deliveries, boxes, resources, start_map,
             time_limit_s=transport_time_s, workers=workers)
+        relay_report = report["q3_relay"]
+        report["minimal_q3_all_pass"] = bool(
+            relay_report.get("status") in ("FEASIBLE", "OPTIMAL")
+            and relay_report.get("joint_validation_pass")
+            and relay_report.get("fine_communication_1s", {}).get("all_pass"))
     return report
 
 
@@ -234,7 +272,7 @@ if __name__ == "__main__":
     parser.add_argument("--top-k", type=int, default=3)
     parser.add_argument("--master-time", type=float, default=30)
     parser.add_argument("--transport-time", type=float, default=20)
-    parser.add_argument("--workers", type=int, default=8)
+    parser.add_argument("--workers", type=int, default=1)
     parser.add_argument("--q3-comm", action="store_true",
                         help="Also evaluate Q3 direct-link profiles for selected sorties")
     parser.add_argument("--q3-relay", action="store_true",

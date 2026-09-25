@@ -62,7 +62,8 @@ def enumerate_service_loads(classes, service, max_mass, max_volume):
             yield {row.class_id: n for n, row in zip(amounts, rows) if n}, mass, volume
 
 
-def generate_compact_patterns(boxes, models, max_stops=2, services=None):
+def generate_compact_patterns(boxes, models, max_stops=2, services=None,
+                              progress=None):
     """Generate one/two-stop physical patterns with class counts, never box IDs.
 
     Representative member IDs are used only transiently by the established
@@ -83,7 +84,7 @@ def generate_compact_patterns(boxes, models, max_stops=2, services=None):
             classes, service, float(model.u["Q_g"]), float(model.u["V_g"])))
             for service in service_ids}
         for stop_count in range(1, max_stops + 1):
-            for sites in combinations(service_ids, stop_count):
+            for site_index, sites in enumerate(combinations(service_ids, stop_count), 1):
                 for selected in product(*(loads[site] for site in sites)):
                     counts = {}
                     total_mass = total_volume = 0.0
@@ -142,6 +143,8 @@ def generate_compact_patterns(boxes, models, max_stops=2, services=None):
                                            "count": amount,
                                            "delivery_offset_s": offsets[class_id]}
                                           for class_id, amount in counts.items())
+                if progress is not None and site_index % 20 == 0:
+                    progress(uav_type, stop_count, site_index, len(pattern_rows))
     return classes, pd.DataFrame(pattern_rows), pd.DataFrame(count_rows)
 
 

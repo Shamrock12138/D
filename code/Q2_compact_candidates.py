@@ -24,7 +24,9 @@ def main():
     args = parser.parse_args()
     boxes = load_q2_data()["boxes"]
     classes, patterns, counts = generate_compact_patterns(
-        boxes, load_models(), max_stops=args.max_stops, services=args.service)
+        boxes, load_models(), max_stops=args.max_stops, services=args.service,
+        progress=lambda typ, stops, done, total: print(
+            f"{typ} {stops}-stop combinations: {done}; patterns: {total}", flush=True))
     if args.dry_run:
         print({"n_boxes": len(boxes), "n_classes": len(classes),
                "n_patterns": len(patterns), "n_pattern_class_rows": len(counts)})
