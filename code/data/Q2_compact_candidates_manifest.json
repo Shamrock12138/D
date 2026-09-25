@@ -1,0 +1,16 @@
+{
+  "max_stops": 2,
+  "services": null,
+  "local_load_limit": 24,
+  "n_boxes": 80,
+  "n_classes": 62,
+  "n_patterns": 25851,
+  "n_pattern_class_rows": 92501,
+  "all_classes_covered": true,
+  "outputs_sha256": {
+    "classes": "3db282438d8c4cf3b19a6c9292a171456d3ca10313e026ace56b0b212a072758",
+    "class_members": "88552b8e618b399019a95243a86dfba4c0d79c27397e6e63aeb2b32f6394f596",
+    "patterns": "587719089031cfb436faf27f029d2f9c86f628b32921adfa0a66951d18d5aa2f",
+    "pattern_counts": "45e378b230a29870507a9893d782cba1def93bd5d87696aa5b0cd7532264c264"
+  }
+}

@@ -62,8 +62,58 @@ def enumerate_service_loads(classes, service, max_mass, max_volume):
             yield {row.class_id: n for n, row in zip(amounts, rows) if n}, mass, volume
 
 
+def select_service_loads(loads, classes, service, max_mass, max_volume,
+                         limit):
+    """Deterministically shortlist local loads before two-site products.
+
+    The limit is a search budget, not a model constraint. Unit and largest
+    single-class loads remain mandatory even when they exceed that budget.
+    """
+    if limit is None or len(loads) <= limit:
+        return loads
+    if limit < 1:
+        raise ValueError("local load limit must be positive")
+    local = classes.loc[classes["service"] == service]
+    by_class = {row.class_id: [] for row in local.itertuples(index=False)}
+    for i, (amounts, _, _) in enumerate(loads):
+        if len(amounts) == 1:
+            for class_id in amounts:
+                by_class[class_id].append(i)
+    mandatory = set()
+    for class_id, indices in by_class.items():
+        if not indices:
+            continue
+        mandatory.add(min(indices, key=lambda i: loads[i][0][class_id]))
+        mandatory.add(max(indices, key=lambda i: loads[i][0][class_id]))
+
+    hard = {row.class_id for row in local.itertuples(index=False)
+            if math.isfinite(float(row.hard_deadline_s))}
+    indexed = list(range(len(loads)))
+    rankings = [
+        sorted(indexed, key=lambda i: (
+            -sum(loads[i][0].values()), -loads[i][1], i)),
+        sorted(indexed, key=lambda i: (-loads[i][1] / max_mass, i)),
+        sorted(indexed, key=lambda i: (-loads[i][2] / max_volume, i)),
+        sorted(indexed, key=lambda i: (
+            -sum(n for cid, n in loads[i][0].items() if cid in hard), i)),
+    ]
+    for class_id in by_class:
+        rankings.append(sorted(indexed, key=lambda i: (
+            -loads[i][0].get(class_id, 0),
+            -sum(loads[i][0].values()), i)))
+    chosen = set(mandatory)
+    rank = 0
+    while len(chosen) < limit and rank < len(indexed):
+        for ranking in rankings:
+            chosen.add(ranking[rank])
+            if len(chosen) >= limit:
+                break
+        rank += 1
+    return [loads[i] for i in sorted(chosen)]
+
+
 def generate_compact_patterns(boxes, models, max_stops=2, services=None,
-                              progress=None):
+                              progress=None, local_load_limit=None):
     """Generate one/two-stop physical patterns with class counts, never box IDs.
 
     Representative member IDs are used only transiently by the established
@@ -80,9 +130,15 @@ def generate_compact_patterns(boxes, models, max_stops=2, services=None,
     next_id = 0
     for uav_type, model in sorted(models.items()):
         route_cache = {}
-        loads = {service: list(enumerate_service_loads(
-            classes, service, float(model.u["Q_g"]), float(model.u["V_g"])))
-            for service in service_ids}
+        max_mass = float(model.u["Q_g"])
+        max_volume = float(model.u["V_g"])
+        loads = {
+            service: select_service_loads(
+                list(enumerate_service_loads(
+                    classes, service, max_mass, max_volume)),
+                classes, service, max_mass, max_volume, local_load_limit)
+            for service in service_ids
+        }
         for stop_count in range(1, max_stops + 1):
             for site_index, sites in enumerate(combinations(service_ids, stop_count), 1):
                 for selected in product(*(loads[site] for site in sites)):

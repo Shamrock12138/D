@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from src.q2.compact_classes import (
     assign_box_ids, build_box_classes, build_compact_master, class_timeliness,
     decode_box_deliveries, materialize_selected_sorties, select_compact_patterns,
-    enumerate_service_loads, expand_pattern_counts,
+    enumerate_service_loads, expand_pattern_counts, select_service_loads,
 )
 
 
@@ -88,6 +88,17 @@ def test_generator_can_carry_only_nonfirst_water():
              enumerate_service_loads(classes, "S001", 20.0, 1.0)]
     assert {regular: 2} in loads
     assert {first: 1, regular: 2} in loads
+
+
+def test_local_load_shortlist_preserves_each_class_unit_and_single_class_max():
+    classes, _ = build_box_classes(_boxes())
+    loads = list(enumerate_service_loads(classes, "S001", 20.0, 1.0))
+    retained = select_service_loads(loads, classes, "S001", 20.0, 1.0, 2)
+    for row in classes.itertuples(index=False):
+        assert any(amounts == {row.class_id: 1} for amounts, _, _ in retained)
+        assert any(amounts == {row.class_id: row.count}
+                   for amounts, _, _ in retained)
+    assert len(retained) < len(loads)
 
 
 def test_filter_preserves_unit_pattern_for_each_class():
