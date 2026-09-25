@@ -751,8 +751,16 @@ def validate_q3_solution(problem, transport, relay, joint_cmax_s):
         for gid in occ_gaps.get(sid, ()):
             expected_gaps.add((sid, gid))
 
-    relay_gaps = {(str(r["sortie_id"]), str(r["gap_id"])) for _, r in relay.iterrows()}
-    checks["one_relay_per_selected_gap"] = relay_gaps == expected_gaps if expected_gaps else len(relay) == 0
+    relay_keys = [
+        (str(r["sortie_id"]), str(r["gap_id"])) for _, r in relay.iterrows()
+    ]
+    checks["one_relay_per_selected_gap"] = (
+        (len(relay_keys) == len(expected_gaps)
+         and len(set(relay_keys)) == len(relay_keys)
+         and set(relay_keys) == expected_gaps)
+        if expected_gaps
+        else len(relay) == 0
+    )
 
     # 5. relay resources non-overlap
     checks["relay_uav_nonoverlap"] = _nonoverlap(relay, "relay_uav_id", "dispatch_time_s", "uav_release_time_s")

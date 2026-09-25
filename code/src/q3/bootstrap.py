@@ -100,15 +100,18 @@ def subset_problem(problem, sortie_ids):
     }
 
     gaps_df = problem.get("gaps")
-    if gaps_df is not None and required_gap_ids:
-        subset["gaps"] = (
-            gaps_df[
-                gaps_df["gap_id"]
-                .astype(str)
-                .isin(required_gap_ids)
-            ]
-            .reset_index(drop=True)
-        )
+    if gaps_df is not None:
+        if required_gap_ids:
+            subset["gaps"] = (
+                gaps_df[
+                    gaps_df["gap_id"]
+                    .astype(str)
+                    .isin(required_gap_ids)
+                ]
+                .reset_index(drop=True)
+            )
+        else:
+            subset["gaps"] = gaps_df.iloc[:0].copy()
 
     relay_df = problem.get("relay")
     if relay_df is not None and required_gap_ids:
@@ -133,9 +136,10 @@ def subset_problem(problem, sortie_ids):
     return subset
 
 
-def class_conservation_possible(problem, time_limit_s=10):
+def class_conservation_status(problem, time_limit_s=10):
     u"""结构可行性检查：class_counts 能否满足 class_supply。
 
+    返回 CP-SAT 状态字符串，区分 INFEASIBLE / UNKNOWN。
     只回答"数量组合是否可能"，不声称资源调度可行。
     """
     model = cp_model.CpModel()
@@ -150,31 +154,25 @@ def class_conservation_possible(problem, time_limit_s=10):
     for class_id, supply in (
         problem["class_supply"].items()
     ):
-        terms = []
-
-        for i, occ in enumerate(occurrences):
-            amount = occ.class_counts.get(
-                class_id,
-                0,
-            )
-            if amount:
-                terms.append(
-                    amount * selected[i]
-                )
+        terms = [
+            occ.class_counts.get(class_id, 0) * selected[i]
+            for i, occ in enumerate(occurrences)
+            if occ.class_counts.get(class_id, 0)
+        ]
 
         if not terms:
-            return False
+            return "INFEASIBLE"
 
         model.Add(
             sum(terms) == int(supply)
         )
 
     solver = cp_model.CpSolver()
-    solver.parameters.max_time_in_seconds = time_limit_s
+    solver.parameters.max_time_in_seconds = float(time_limit_s)
     solver.parameters.num_search_workers = 4
 
     status = solver.Solve(model)
-    return status in (cp_model.FEASIBLE, cp_model.OPTIMAL)
+    return solver.StatusName(status)
 
 
 def find_bootstrap(
@@ -200,22 +198,22 @@ def find_bootstrap(
         sortie_ids = shortlist_occurrence_ids(problem, k)
         small = subset_problem(problem, sortie_ids)
 
-        structural = class_conservation_possible(small)
+        structural_status = class_conservation_status(small)
         attempt = {
             "k": k,
             "occurrence_count": len(small["occurrences"]),
             "relay_option_count": len(small.get("relay", pd.DataFrame())),
-            "class_conservation_possible": structural,
+            "class_conservation_status": structural_status,
         }
 
         print(
             f"bootstrap K={k}: occurrences={len(small['occurrences'])}, "
-            f"class_conservation={'PASS' if structural else 'FAIL'}",
+            f"class_conservation={structural_status}",
             flush=True,
         )
 
-        if not structural:
-            attempt["status"] = "NO_CLASS_CONSERVATION"
+        if structural_status == "INFEASIBLE":
+            attempt["status"] = "CLASS_CONSERVATION_INFEASIBLE"
             attempts.append(attempt)
             continue
 
