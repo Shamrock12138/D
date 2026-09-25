@@ -49,6 +49,29 @@ def build_box_classes(boxes):
     return pd.DataFrame(records), box_to_class
 
 
+def count_signature(class_counts):
+    """Canonical immutable signature of a class-count vector."""
+    return tuple(sorted(
+        (str(class_id), int(amount))
+        for class_id, amount in class_counts.items()
+        if int(amount) > 0
+    ))
+
+
+def pattern_signature(uav_type, visit_order, class_counts):
+    """Canonical identity of a compact transport pattern."""
+    if isinstance(visit_order, str):
+        visit_order = tuple(visit_order.split(">"))
+    else:
+        visit_order = tuple(visit_order)
+
+    return (
+        str(uav_type),
+        visit_order,
+        count_signature(class_counts),
+    )
+
+
 def enumerate_service_loads(classes, service, max_mass, max_volume):
     """Enumerate class-count vectors within one service and UAV payload limits."""
     local = classes.loc[classes["service"] == service]
@@ -101,6 +124,22 @@ def select_service_loads(loads, classes, service, max_mass, max_volume,
         rankings.append(sorted(indexed, key=lambda i: (
             -loads[i][0].get(class_id, 0),
             -sum(loads[i][0].values()), i)))
+
+    class_ids = list(by_class)
+    for a, b in combinations(class_ids, 2):
+        rankings.append(
+            sorted(
+                indexed,
+                key=lambda i: (
+                    -loads[i][0].get(a, 0)
+                    - loads[i][0].get(b, 0),
+                    -sum(loads[i][0].values()),
+                    -loads[i][1],
+                    i,
+                ),
+            )
+        )
+
     chosen = set(mandatory)
     rank = 0
     while len(chosen) < limit and rank < len(indexed):
@@ -213,24 +252,126 @@ def pattern_multiplicity(counts, class_supply):
 
 
 def select_compact_patterns(patterns, pattern_counts, classes, top_k=8):
-    """Keep diverse patterns per class/UAV plus all feasible unit-class patterns."""
+    """Keep diverse patterns per class/UAV across multiple ranking dimensions.
+
+    Dimensions include energy, duration, per-box efficiency, box count,
+    target-class count, mass/volume utilisation, deadline slack, and
+    explicit single-stop / two-stop structure preservation.
+    """
     if top_k < 1:
         raise ValueError("top_k must be positive")
-    task_rows = patterns.set_index("pattern_id", drop=False)
+
+    work = patterns.copy()
+
+    work["energy_per_box"] = (
+        work["energy_kWh"] / work["n_boxes"].clip(lower=1)
+    )
+
+    work["duration_per_box"] = (
+        work["duration_s"] / work["n_boxes"].clip(lower=1)
+    )
+
+    task_rows = work.set_index("pattern_id", drop=False)
+
     chosen = set()
+
     for class_id, group in pattern_counts.groupby("class_id"):
         pattern_ids = group["pattern_id"].astype(str).unique()
+
+        if len(pattern_ids) == 0:
+            continue
+
         local = task_rows.loc[pattern_ids]
+
+        class_amount = (
+            group
+            .set_index("pattern_id")["count"]
+            .to_dict()
+        )
+
         for _, typed in local.groupby("uav_type"):
-            chosen.update(typed.nsmallest(top_k, "energy_kWh")["pattern_id"])
-            chosen.update(typed.nsmallest(top_k, "duration_s")["pattern_id"])
-            finite = typed.loc[typed["latest_start_s"].map(math.isfinite)]
-            chosen.update(finite.nlargest(top_k, "latest_start_s")["pattern_id"])
+
+            typed = typed.copy()
+
+            typed["target_class_count"] = (
+                typed["pattern_id"]
+                .map(class_amount)
+                .fillna(0)
+            )
+
+            chosen.update(
+                typed.nsmallest(top_k, "energy_kWh")["pattern_id"]
+            )
+
+            chosen.update(
+                typed.nsmallest(top_k, "duration_s")["pattern_id"]
+            )
+
+            chosen.update(
+                typed.nsmallest(top_k, "energy_per_box")["pattern_id"]
+            )
+
+            chosen.update(
+                typed.nsmallest(top_k, "duration_per_box")["pattern_id"]
+            )
+
+            chosen.update(
+                typed.nlargest(top_k, "n_boxes")["pattern_id"]
+            )
+
+            chosen.update(
+                typed.nlargest(top_k, "target_class_count")["pattern_id"]
+            )
+
+            chosen.update(
+                typed.nlargest(top_k, "total_mass_kg")["pattern_id"]
+            )
+
+            chosen.update(
+                typed.nlargest(top_k, "total_volume_m3")["pattern_id"]
+            )
+
+            finite = typed[
+                typed["latest_start_s"].map(math.isfinite)
+            ]
+
+            chosen.update(
+                finite.nlargest(
+                    top_k,
+                    "latest_start_s",
+                )["pattern_id"]
+            )
+
+            for _, routed in typed.groupby("n_stops"):
+
+                chosen.update(
+                    routed.nlargest(
+                        max(1, top_k // 2),
+                        "n_boxes",
+                    )["pattern_id"]
+                )
+
+                chosen.update(
+                    routed.nsmallest(
+                        max(1, top_k // 2),
+                        "energy_per_box",
+                    )["pattern_id"]
+                )
+
+                chosen.update(
+                    routed.nsmallest(
+                        max(1, top_k // 2),
+                        "duration_per_box",
+                    )["pattern_id"]
+                )
+
         unit = pattern_counts.loc[
             (pattern_counts["class_id"] == class_id)
-            & (pattern_counts["count"] == 1), "pattern_id"]
+            & (pattern_counts["count"] == 1), "pattern_id"
+        ]
         sizes = pattern_counts.groupby("pattern_id").size()
         chosen.update(pid for pid in unit if sizes[pid] == 1)
+
     selected = patterns.loc[patterns["pattern_id"].isin(chosen)].reset_index(drop=True)
     selected_counts = pattern_counts.loc[
         pattern_counts["pattern_id"].isin(chosen)
