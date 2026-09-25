@@ -70,8 +70,9 @@ def _physical_cache_equivalent(patterns, pattern_counts, classes, boxes, models)
     return True
 
 
-def _fixed_transport_schedule(tasks, deliveries, boxes, resources, time_limit_s, workers):
-    """Independently reschedule materialized sorties with the established Q2 model."""
+def _fixed_transport_schedule(tasks, deliveries, boxes, resources, master_starts,
+                              time_limit_s, workers):
+    """Check the master's exact sortie times in the established Q2 resource model."""
     grouped = deliveries.groupby("task_id")
     task_boxes = {str(tid): tuple(group["box_id"].astype(str)) for tid, group in grouped}
     task_offsets = {str(tid): dict(zip(group["box_id"].astype(str),
@@ -84,14 +85,23 @@ def _fixed_transport_schedule(tasks, deliveries, boxes, resources, time_limit_s,
     built = _build_model(work, task_boxes, task_offsets, deadlines, uav_ids,
                          battery_ids, capacity, charge_full, 36000)
     model, selected, starts, _, _, _, metadata = built
-    for chosen in selected:
+    task_ids = work["task_id"].astype(str).tolist()
+    if set(task_ids) != set(master_starts) or len(task_ids) != len(set(task_ids)):
+        raise ValueError("Master start times must match each unique sortie ID")
+    for i, chosen in enumerate(selected):
         model.Add(chosen == 1)
+        start_time = master_starts[task_ids[i]]
+        if int(start_time) != start_time:
+            raise ValueError(f"Non-integer master start time for {task_ids[i]}")
+        model.Add(starts[i] == int(start_time))
     solver = _solver(time_limit_s, workers)
     status = solver.Solve(model)
     if status not in (cp_model.FEASIBLE, cp_model.OPTIMAL):
         return solver.StatusName(status), None, None
     start_map = {str(row.task_id): int(solver.Value(starts[i]))
                  for i, row in work.iterrows()}
+    if start_map != {tid: int(start) for tid, start in master_starts.items()}:
+        raise AssertionError("Independent Q2 check changed master start times")
     records = [dict(task_id=meta["task_id"], uav_type=meta["uav_type"],
                     start_time_s=start_map[meta["task_id"]],
                     flight_duration_s=meta["flight_duration_s"],
@@ -191,10 +201,18 @@ def run_smoke(services=("S001", "S002"), top_k=3, master_time_s=30,
         return report
     sorties = [dict(slot, start_time_s=int(master.Value(starts[i])))
                for i, (slot, x) in enumerate(zip(slots, chosen)) if master.Value(x)]
+    master_starts = {sortie["sortie_id"]: sortie["start_time_s"]
+                     for sortie in sorties}
+    master_f1 = class_timeliness(sorties, classes, counts)
+    pattern_durations = dict(zip(patterns["pattern_id"], patterns["duration_s"]))
+    master_cmax = max(sortie["start_time_s"]
+                      + float(pattern_durations[sortie["pattern_id"]])
+                      for sortie in sorties)
     task_table, delivery_table = materialize_selected_sorties(
         sorties, patterns, counts, classes)
     transport_status, start_map, schedule = _fixed_transport_schedule(
-        task_table, delivery_table, boxes, resources, transport_time_s, workers)
+        task_table, delivery_table, boxes, resources, master_starts,
+        transport_time_s, workers)
     report.update({"selected_sorties": len(sorties),
                    "repeated_patterns": sum(
                        sum(s["pattern_id"] == pid for s in sorties) > 1
@@ -241,11 +259,20 @@ def run_smoke(services=("S001", "S002"), top_k=3, master_time_s=30,
                                       "flight_release_s"),
         "battery_nonoverlap": _nonoverlap(schedule, "battery_id", "start_time_s",
                                            "battery_release_s"),
+        "master_start_times_preserved": start_map == master_starts,
+        "master_F1_preserved": math.isclose(
+            class_timeliness(sorties, classes, counts), master_f1,
+            rel_tol=0.0, abs_tol=1e-6),
+        "master_Cmax_preserved": math.isclose(
+            float(schedule["end_time_s"].max()), master_cmax,
+            rel_tol=0.0, abs_tol=1e-6),
         "delivery_time_mapping": all(
             abs(row.delivery_time_s - row.start_time_s - row.delivery_offset_s) < 1e-6
             for row in deliveries.itertuples(index=False)),
     }
     report.update({"checks": checks, "all_pass": all(checks.values()),
+                   "master_F1_weighted_lateness": master_f1,
+                   "master_cmax_s": master_cmax,
                    "transport_cmax_s": float(schedule["end_time_s"].max()),
                    "F1_weighted_lateness": class_timeliness(sorties, classes, counts)})
     if q3_comm and report["all_pass"]:
