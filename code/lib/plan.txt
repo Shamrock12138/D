@@ -1074,122 +1074,165 @@ validate_q3_solution()
 
 ---
 
-# 22. `bootstrap.py`：全部切 occurrence
+# 22. `bootstrap.py`：优先利用 Q2 已验证运输解寻找 Q3 首个可行解
 
-当前还是：
+## 22.1 保留现有 occurrence shortlist（Phase B）
+
+保留：
 
 ```text
-task
-box
-Q2 N/E/T old seed
-```
-
-都要改。
-
----
-
-## 22.1 `shortlist_task_ids()`
-
-改名：
-
-```python
 shortlist_occurrence_ids()
+subset_problem()
+class_conservation_status()
 ```
 
-不要按：
-
-```python
-(box_id, UAV type)
-```
-
-分组。
-
-改成：
-
-```python
-(class_id, UAV type)
-```
+这部分仅作为 Phase B 的后备搜索机制，在 Q2 seed 失败后启用。
 
 ---
 
-## 22.2 `subset_problem()`
+## 22.2 新增 Verified Q2 Transport Seed（Phase A）
 
-改参数：
+Q3 不再首先从 Top-K shortlist 盲搜。
 
-```python
-subset_problem(
-    problem,
-    sortie_ids,
-)
-```
-
-只筛：
-
-```python
-occurrences
-```
-
-但：
+优先读取已经经过 Q2 严格验证的 compact transport solution，
+固定其 occurrence composition，但不固定开始时刻，
+由 Q3 Joint CP-SAT 重新联合决定：
 
 ```text
-relay template options
-classes
-class supply
+transport start time
+relay candidate
+relay UAV
+relay energy component
 ```
 
-保持完整。
+Q2 start_time_s 只作为 Hint。
 
 ---
 
-## 22.3 `exact_cover_possible()`
+## 22.3 Seed 优先级
 
-改成：
+优先：
 
-```python
-class_conservation_possible()
+```text
+1. Q2_anchor_F1_selected.csv
 ```
 
-使用：
+然后在验证版本兼容后尝试：
 
-```python
-add_class_conservation()
+```text
+2. Q2_compact_feasible_selected.csv
+3. Q2_anchor_N_selected.csv
+4. Q2_anchor_Cmax_selected.csv
+5. Q2_anchor_E_selected.csv
 ```
 
-而不是：
+其中 Q2_anchor_F1 与当前 Q3 candidate pool
+属于同一候选版本，应作为第一优先级。
 
-```python
-AddExactlyOne(box)
+其他 seed 必须先检查：
+
+```text
+sortie_id 是否仍存在于 Q3 occurrence pool
+class conservation 是否仍精确成立
 ```
+
+不允许自动替换缺失 Pattern。
 
 ---
 
-## 22.4 `find_bootstrap()`
+## 22.4 新增函数
 
-删除旧：
+### `_load_q2_transport_seed()`
+
+读取 Q2 selected.csv，
+将历史 task_id 字段解释为当前 sortie_id，
+检查 occurrence 是否仍在当前 Q3 pool。
+
+### `_validate_transport_seed()`
+
+验证 selected occurrence set 是否精确满足 62 类 class conservation。
+
+### `_apply_relay_tier()`
+
+分别构造 tier1 和 all relay option 问题。
+
+### `solve_q2_transport_seed()`
 
 ```text
-Q2_joint_selected_N.csv
-Q2_joint_selected_E.csv
-Q2_joint_selected_T.csv
+Q2 transport set
+        ↓
+tier1 Q3 joint solve
+        ↓
+若失败
+        ↓
+all relay option joint solve
 ```
 
-不要再碰。
+运输 occurrence composition 固定，
+transport start 允许重新优化。
 
-流程改成：
+---
+
+## 22.5 修改 `find_bootstrap()`
+
+正式流程：
+
+**Phase A: Verified Q2 Seeds**
 
 ```text
-K=1 shortlist
-→ class conservation possible?
-→ joint feasibility
-
-K=2
-→ ...
-
-K=4
-→ ...
+Q2_anchor_F1
+        ↓
+其他合法 Q2 seeds
 ```
 
-Q2 Anchor 如果有效，仅做额外 seed，不是必需。
+若任一：
+
+```text
+FEASIBLE / OPTIMAL
+```
+
+→ 返回首个 Q3 联合可行解
+
+否则进入 **Phase B**：
+
+```text
+K=1 → K=2 → K=4 → K=8
+```
+
+注意 prepare_q3_problem 应使用 tier="all"，
+而不是一开始只加载 tier1。
+
+---
+
+## 22.6 Seed 结果诊断
+
+**情况 A：**
+
+```text
+tier1 = FEASIBLE
+```
+
+说明当前联合模型和 relay option 压缩均可行。
+
+**情况 B：**
+
+```text
+tier1 = INFEASIBLE
+all = FEASIBLE
+```
+
+说明主要问题在 relay option tier1 压缩。
+
+**情况 C：**
+
+```text
+多个 verified Q2 seed 在 all 下均被证明 INFEASIBLE
+```
+
+说明 transport composition 与 relay scheduling
+存在系统性冲突。
+
+此时停止扩大 K，进入 Relay-aware Master。
 
 ---
 
@@ -1243,7 +1286,150 @@ sortie count
 
 ---
 
-## 23.2 `solve_master()`
+## 23.2 NEW: Master Relay Necessary Start Bound
+
+The current Master has almost no relay awareness:
+`gap_count` / `relay occupancy` are just surrogate preferences, not hard constraints.
+
+Step7 already computed:
+
+```python
+min_transport_start_s
+```
+
+For each gap g:
+
+```
+L_g^relay = min_{r in R_g} L_gr
+```
+
+For occurrence o:
+
+```
+L_o^relay = max_{g in G_o} L_g^relay
+```
+
+Add to Master:
+
+```
+s_o >= L_o^relay  (enforced only when x_o == 1)
+```
+
+i.e.:
+
+```python
+model.Add(
+    start >= relay_start_lb
+).OnlyEnforceIf(x)
+```
+
+The Master does NOT perform full relay scheduling,
+but MUST include relay feasibility boundaries.
+
+---
+
+## 23.3 NEW: Occurrence Relay-Window Presolve
+
+After `prepare_q3_problem()` or before `build_master()`, compute:
+
+```python
+relay_lb[o]
+```
+
+If:
+
+```text
+relay_lb[o] > latest_start[o]
+```
+
+then this occurrence can never satisfy comm requirements.
+
+Disable it:
+
+```python
+x[o] == 0
+```
+
+Do not let CP-SAT search it.
+This is more effective than increasing solver time.
+
+---
+
+## 23.4 `solve_master()`
+
+Returns:
+
+```python
+sortie_ids
+start_hint
+surrogate_cost
+```
+
+---
+
+## 23.5 Rename `add_task_set_exclusion()`
+
+To:
+
+```python
+add_occurrence_set_exclusion()
+```
+
+---
+
+## 23.6 `_selected_problem()`
+
+Input:
+
+```python
+sortie_ids
+```
+
+---
+
+## 23.7 Temporarily delete/disable
+
+```python
+_partial_task_set_infeasible()
+shrink_infeasible_core()
+```
+
+Not needed for v1. In a class-count model,
+"partial occurrence core" is harder to interpret correctly
+than physical exact cover.
+
+For now:
+
+```text
+entire occurrence set joint-infeasible
+-> exclude the whole set
+```
+
+---
+
+## 23.8 `conflict_diagnostics.py`
+
+This file still uses the old task model:
+
+```python
+problem["tasks"]
+problem["task_gaps"]
+problem["deliveries"]
+task_id
+```
+
+Cannot use it to diagnose the new occurrence Step8.
+
+Plan:
+
+```text
+Optional diagnostic utility
+
+If Seed + Relay-aware Master still cannot find FEASIBLE,
+migrate it from old task model to occurrence model.
+
+Not a required task for now.
+```
 
 返回：
 
@@ -1297,46 +1483,56 @@ shrink_infeasible_core()
 
 ---
 
-# 24. `run_step8_decomposed()`
+# 24. `run_step8_decomposed()` 最终逻辑
 
-最终逻辑：
+Step8 First Feasible Search 整体流程：
 
 ```text
-prepare full occurrence problem
-
-↓
-
-master
-选一个满足 class conservation 的 transport set
-
-↓
-
-joint subproblem
-固定 transport occurrence set
-重新联合优化：
-start
+Phase A: Verified Q2 transport seed
+        |
+        v
+Q2_anchor_F1 seed
+        |
+        v
+tier1 / all
+        |
+        v
+FEASIBLE?
+ +-- Yes -> Step8 Acceptance
+ |
+ +-- No
+        |
+        v
+Phase B: Relay-aware occurrence Master
+        |
+        v
+class conservation
+hard deadline
+transport UAV/battery
+relay necessary start window
+relay-window presolve (disable impossible occurrences)
+        |
+        v
+candidate occurrence set
+        |
+        v
+Joint CP-SAT
+        |
+        v
+transport start
 relay option
 relay UAV
-energy component
-
-↓
-
-FEASIBLE
-→ 停
-
-INFEASIBLE
-→ 排除该 set
-
-UNKNOWN
-→ 不当成不可行证明
-→ 换下一个 set
+relay energy component
+        |
+        v
+FEASIBLE  -> Step8 Acceptance
+INFEASIBLE -> exclude exact occurrence set
+UNKNOWN    -> deferred unknown (not a proof)
 ```
 
 ---
 
-# 25. Step8 结果必须满足什么
-
-这是第一道强验收。
+# 25. Step8 PASS 标准
 
 必须全部 PASS：
 
@@ -1350,16 +1546,16 @@ relay_uav_nonoverlap
 relay_energy_nonoverlap
 relay_energy_limit
 relay_end_soc_limit
+relay_dispatch_nonnegative
+relay_arrives_by_coverage
 relay_service_covers_gap
+relay_uav_release_valid
+relay_energy_release_valid
 joint_cmax_consistent
 80_box_decode
 ```
 
-只要有一项 false：
-
-```text
-Step8 不接受
-```
+只要有一项 false：Step8 不接受。
 
 ---
 
@@ -2167,98 +2363,85 @@ PASS
 
 ---
 
-# 40. 实际修改顺序
+# 40. 当前实际执行顺序
 
-不要一次把所有文件全改。
+已完成：
 
-按这个顺序最稳：
+**第一阶段**
+- Step3–Step7 preprocessing ✅
+- Occurrence ✅
+- Compact Joint CP-SAT ✅
 
-```text
-第一批
-occurrence.py
-cp_sat_scheduler.py
-```
+**当前进行中：**
 
-先做到：
+**第二阶段 A — Verified Q2 transport seed**
 
-```text
-新版 compact Joint CP-SAT 能建立模型
-```
+修改：`bootstrap.py`
 
-然后：
+新增函数：
+- `_load_q2_transport_seed()`
+- `_validate_transport_seed()`
+- `_apply_relay_tier()`
+- `solve_q2_transport_seed()`
 
-```text
-第二批
-bootstrap.py
-decomposition.py
-```
+修改：`find_bootstrap()` — 新增 Phase A
 
-做到：
-
-```text
-找到第一个 FEASIBLE
-```
-
-然后：
-
-```text
-第三批
-step8_acceptance.py
-```
-
-做到：
-
-```text
-首个联合解冻结
-```
-
-然后：
-
-```text
-第四批
-objectives.py
-anchors.py
-```
-
-得到：
-
-```text
-F1/F2/F3/F4 anchors
-```
-
-最后：
-
-```text
-第五批
-moead_cp_sat.py
-validation.py
-Q3.py
-```
-
-完成正式 Q3。
+目标：优先用 Q2_anchor_F1 transport composition 寻找首个 Q3 joint FEASIBLE。
 
 ---
 
-## 当前最应该马上做的
+若第二阶段 A 得到 FEASIBLE：
 
-就是第一批：
+→ 直接进入**第三阶段 `step8_acceptance.py`**，冻结首个联合可行解。
 
-```text
-occurrence.py
-+
-cp_sat_scheduler.py
+---
+
+若第二阶段 A 中多个 verified Q2 seeds 在 all relay options 下均被证明 INFEASIBLE：
+
+进入**第二阶段 B — Relay-aware decomposition**
+
+修改：`decomposition.py`
+
+新增：
+- `relay_start_lower_bound()`
+- Master 增加 `start_o >= relay_lb_o` 约束
+- 预先禁用 `relay_lb_o > latest_start_o` 的 occurrence
+
+重新运行：
+```
+Occurrence Master (relay-aware)
+→ Joint CP-SAT
+→ First FEASIBLE
 ```
 
-尤其 `cp_sat_scheduler.py` 中这 7 个函数是下一步的核心修改对象：
+**第二阶段完成标准：**
+- `status = FEASIBLE / OPTIMAL`
+- `validate_q3_solution().all_pass = True`
+- physical box decode: 80 rows, 80 unique box_id
 
-```python
-_read_q3_inputs()
-_deadlines()
-_validate_q3_input()
-prepare_q3_problem()
-_build_q3_model()
-_decode_q3_resources()
-validate_q3_solution()
-```
+---
 
-其中前 3 个直接换成 compact/class 口径，后 4 个改为 `sortie_id + class conservation + occurrence gap`。**先把这 7 个函数改完并跑出一个模型可行性测试，再碰 decomposition 和 MOEA/D。**
+**第三阶段**
+
+`step8_acceptance.py` → 冻结首个联合可行解
+
+---
+
+**第四阶段**
+
+`objectives.py` + `anchors.py` → F1/F2/F3/F4 anchors
+
+---
+
+**第五阶段**
+
+`moead_cp_sat.py` → Pareto solutions
+
+---
+
+**第六阶段**
+
+`validation.py` + `Q3.py`
+
+→ 最终独立连续通信验证
+→ 正式论文结果

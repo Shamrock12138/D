@@ -7,7 +7,7 @@ matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt
 import matplotlib.patheffects as pe
-from matplotlib.colors import LightSource
+from matplotlib.colors import LightSource, LinearSegmentedColormap
 from matplotlib.lines import Line2D
 import numpy as np
 import pandas as pd
@@ -51,9 +51,21 @@ CONNECT_MODE = "hub"
 # 改为：
 # CONNECT_MODE = "sequence"
 
-# 连续高程色图：
-# cividis 比 jet/rainbow 更适合论文，并且色盲友好
-TERRAIN_CMAP = "cividis"
+# 统一浅蓝色高程色带：低处极浅接近白，高处较深蓝但不压暗
+BLUE_TERRAIN_CMAP = LinearSegmentedColormap.from_list(
+    "blue_terrain_soft",
+    [
+        "#C8D9EE",
+        "#B3CDE5",
+        "#9BBFD9",
+        "#81AECD",
+        "#6A9DC1",
+        "#548BB3",
+        "#3D7AA5",
+        "#2E6DA0",
+    ],
+    N=256,
+)
 
 
 def configure_matplotlib() -> None:
@@ -432,7 +444,7 @@ def main() -> None:
                 bounds.top,
             ],
             origin="upper",
-            cmap=TERRAIN_CMAP,
+            cmap=BLUE_TERRAIN_CMAP,
             vmin=vmin,
             vmax=vmax,
             interpolation="bilinear",
@@ -458,7 +470,7 @@ def main() -> None:
             ],
             origin="upper",
             cmap="gray",
-            alpha=0.18,
+            alpha=0.06,
             interpolation="bilinear",
             zorder=2,
         )
@@ -644,17 +656,17 @@ def main() -> None:
 
         pdf_file = (
             OUTPUT_DIR
-            / "terrain_heatmap_nodes.pdf"
+            / "terrain_heatmap_blue.pdf"
         )
 
         svg_file = (
             OUTPUT_DIR
-            / "terrain_heatmap_nodes.svg"
+            / "terrain_heatmap_blue.svg"
         )
 
         png_file = (
             OUTPUT_DIR
-            / "terrain_heatmap_nodes.png"
+            / "terrain_heatmap_blue.png"
         )
 
         fig.savefig(

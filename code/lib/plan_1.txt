@@ -1,0 +1,971 @@
+重新制定后，Q3 不需要改总技术路线，只需要把**当前阶段的实现顺序重新固定**。你上传的方案中，“Q2 Anchor 只是 optional seed，而不是 Q3 的约束”这一原则继续保留；Q3 仍然是在完整 Pattern/Occurrence 空间中重新联合决定运输与中继。:chatgpt-content-reference{index="0"}
+
+同时，“先找到一个严格联合可行解，再做四目标优化”也继续保留。这个 First Feasible 只是后续 Anchor 和 MOEA/D 的 warm start，不是最终 Q3 答案。:chatgpt-content-reference{index="1"}
+
+下面按**当前最新代码 `f0644239...`** 重新固定计划。
+
+# Q3 最新实施计划
+
+## 0. 最终总路线固定，不再改
+
+```text
+Q1/Q2 公共物理模型
+        ↓
+① Q2 Compact Transport Pattern Pool
+        ↓
+② Pattern 全过程通信预计算
+        ↓
+③ 运输—通信联合候选压缩
+        ↓
+④ Pattern 通信 Gap 模板
+        ↓
+⑤ Relay Candidate / Job Library
+        ↓
+⑥ Pattern → Sortie Occurrence
+        ↓
+⑦ Transport + Relay Joint CP-SAT
+        ↓
+⑧ First Strict Joint Feasible
+        ↓
+⑨ Step8 Acceptance
+        ↓
+⑩ F1 / F2 / F3 / F4 Anchors
+        ↓
+⑪ MOEA/D + CP-SAT Repair
+        ↓
+⑫ Pareto Archive
+        ↓
+⑬ 62 Classes → 80 Physical Boxes
+        ↓
+⑭ Final Independent Validation
+        ↓
+正式 Q3 联合调度结果
+        ↓
+Q4
+```
+
+这与原方案主干一致：Pattern、Gap、Relay、Occurrence、联合 CP-SAT、四目标、多目标优化、还原 80 箱和最终验证的层次都不变。:chatgpt-content-reference{index="2"}
+
+---
+
+# 1. 已完成部分：全部冻结
+
+下面这些现在不再作为待办：
+
+| 模块 | 状态 |
+|---|---|
+| Step3 Pattern 通信 | ✅ |
+| Step4 联合候选压缩 | ✅ |
+| Step5 Pattern Gap | ✅ |
+| Step6 Relay Coverage | ✅ |
+| Step7 Relay Job Options | ✅ |
+| `occurrence.py` | ✅ |
+| `cp_sat_scheduler.py` occurrence/class 版本 | ✅ |
+| Step8 validator 第一版 | ✅ |
+
+因此原计划里说 `cp_sat_scheduler.py` 还是 physical task / 80-box ExactlyOne 的部分已经过期，不再执行。
+
+当前模型正式口径：
+
+```text
+80 physical boxes
+        ↓
+62 equivalent classes
+        ↓
+compact patterns
+        ↓
+sortie occurrences
+        ↓
+class conservation
+        ↓
+joint transport-relay scheduling
+        ↓
+求解成功后才恢复 80 boxes
+```
+
+“优化阶段保持 62-class representation，最后再恢复 80 个物理箱”这一原则继续保持。:chatgpt-content-reference{index="3"}
+
+---
+
+# 2. 当前唯一主任务：First Strict Joint Feasible
+
+现在不要做：
+
+```text
+Anchors
+MOEA/D
+Q4
+复杂通信扩展
+relay switching
+```
+
+当前只解决：
+
+```text
+能否找到一套
+运输架次
++
+运输开始时间
++
+运输 UAV / Battery
++
+Relay candidate
++
+Relay UAV
++
+Energy component
+全部同时可行的方案？
+```
+
+---
+
+# 3. 第一优先级：Verified Q2 Transport Seed
+
+## 修改文件
+
+```text
+src/q3/bootstrap.py
+```
+
+这是下一次代码修改的**第一步**。
+
+---
+
+## 3.1 为什么先做 Seed
+
+目前已知：
+
+```text
+Bootstrap K=1 → INFEASIBLE
+K=2/4/8 → UNKNOWN
+
+Decomposition 前 5 个 occurrence sets
+→ all relay options 仍 INFEASIBLE
+```
+
+因此暂时停止盲目扩大：
+
+```text
+K=16
+K=32
+max_occurrence_sets=100
+```
+
+先利用已经验证过的 Q2 transport feasible solution 判断：
+
+```text
+Joint Relay 层到底能不能排出来
+```
+
+---
+
+## 3.2 第一 Seed
+
+优先：
+
+```text
+Q2_anchor_F1_selected.csv
+```
+
+当前这个 Seed：
+
+```text
+44 transport occurrences
+42 unique patterns
+Q2 validation all_pass
+anchor_ready = true
+anchor_optimal = true
+```
+
+而当前 Q3 candidate filter 已经保留对应 42 个 Pattern。
+
+---
+
+## 3.3 Seed 的正确定位
+
+这里只固定：
+
+```text
+transport occurrence composition
+```
+
+即：
+
+```text
+选择哪些运输架次
+```
+
+不固定：
+
+```text
+运输开始时间
+```
+
+Q2 的 `start_time_s` 只能：
+
+```python
+AddHint(...)
+```
+
+绝对不能：
+
+```python
+start == q2_start
+```
+
+因为 Q3 中 Relay 可能需要提前起飞，所以运输任务可能需要重新平移。
+
+这也与原方案中“Q2 Anchor 只是 seed，不是 Q3 固定答案”的定位一致。:chatgpt-content-reference{index="4"}
+
+---
+
+# 4. `bootstrap.py` 本轮具体新增函数
+
+依次新增：
+
+```python
+_load_q2_transport_seed()
+```
+
+负责：
+
+```text
+读取 selected.csv
+task_id → sortie_id
+检查当前 occurrence pool 是否仍存在
+读取 start hint
+```
+
+---
+
+```python
+_validate_fixed_seed()
+```
+
+直接检查：
+
+```text
+62 classes exact conservation
+总箱数 = 80
+无 class shortage
+无 class excess
+```
+
+---
+
+```python
+_apply_relay_tier()
+```
+
+负责：
+
+```text
+full relay problem
+        ↓
+tier1
+或
+all
+        ↓
+重建 gap_option_map
+```
+
+---
+
+```python
+solve_q2_transport_seed()
+```
+
+正式运行：
+
+```text
+固定 Q2 occurrence composition
+        ↓
+Q3 tier1 Joint CP-SAT
+        ↓
+FEASIBLE?
+   ├─ YES → First Feasible
+   └─ NO
+        ↓
+Q3 all relay options
+        ↓
+FEASIBLE?
+```
+
+---
+
+# 5. `find_bootstrap()` 新结构
+
+旧结构：
+
+```text
+K1
+→ K2
+→ K4
+→ K8
+```
+
+改成：
+
+```text
+Phase A
+Verified Q2 Seeds
+        ↓
+Q2 F1
+
+        ↓ 若失败
+
+Phase B
+Heuristic shortlist
+        ↓
+K1
+K2
+K4
+K8
+```
+
+并把：
+
+```python
+prepare_q3_problem(tier="tier1")
+```
+
+改成：
+
+```python
+prepare_q3_problem(tier="all")
+```
+
+然后针对每个小问题再分别：
+
+```text
+tier1
+all
+```
+
+---
+
+# 6. Seed 结果怎么解释
+
+### 情况 A
+
+```text
+F1 Seed
+tier1 = FEASIBLE
+```
+
+说明：
+
+```text
+模型正常
++
+tier1 relay reduction 正常
+```
+
+立即进入 Acceptance。
+
+---
+
+### 情况 B
+
+```text
+tier1 = INFEASIBLE
+all = FEASIBLE
+```
+
+说明：
+
+```text
+Joint 模型正常
+但 tier1 relay 压缩过强
+```
+
+仍然已经拿到了 First Feasible。
+
+进入 Acceptance。
+
+---
+
+### 情况 C
+
+```text
+all = UNKNOWN
+```
+
+不能认为不可行。
+
+先提高这个**只有 44 occurrence**的小问题求解时间。
+
+例如：
+
+```text
+180 s → 600 s
+```
+
+这比对 6449 occurrence 全空间增加时间有意义得多。
+
+---
+
+### 情况 D
+
+```text
+all = INFEASIBLE
+```
+
+说明：
+
+```text
+Q2 F1 transport composition
+无法兼容当前 Q3 Relay constraints
+```
+
+这并不代表 Q3 无解。
+
+接下来进入第二优先级。
+
+---
+
+# 7. 第二优先级：其他合法 Q2 Seeds
+
+顺序：
+
+```text
+Q2_compact_feasible
+Q2_anchor_N
+Q2_anchor_Cmax
+Q2_anchor_E
+```
+
+但必须先做：
+
+```text
+当前 sortie_id 是否仍存在
++
+当前 62-class conservation 是否仍成立
+```
+
+通过才运行。
+
+不允许：
+
+```text
+缺 Pattern 后自动找类似 Pattern
+自动替换 occurrence
+```
+
+版本不兼容就跳过。
+
+---
+
+# 8. 如果多个 Q2 Seed 都失败：进入 Relay-aware Decomposition
+
+这时才修改：
+
+```text
+src/q3/decomposition.py
+```
+
+原来的分解框架继续保留。你的原技术路线中 Master 负责提出运输 occurrence set，Subproblem 才真正安排 transport + relay + resources，这个定位仍然正确。:chatgpt-content-reference{index="5"}
+
+但 Master 必须增加 Relay 的**必要条件**。
+
+---
+
+# 9. 新增 Relay Start Lower Bound
+
+Step7 已经给每个 relay option：
+
+```text
+min_transport_start_s
+```
+
+对 gap $g$ 定义：
+
+$$
+L_g
+=
+\min_{r\in\mathcal R_g}
+L_{gr}
+$$
+
+然后 occurrence $o$：
+
+$$
+L_o
+=
+\max_{g\in G_o}L_g
+$$
+
+意思：
+
+> 这个运输 occurrence 最早什么时候才能启动，才能保证其所有可能需要的 Relay 至少有一个来得及提前到位。
+
+---
+
+# 10. 新增函数
+
+在：
+
+```text
+decomposition.py
+```
+
+新增：
+
+```python
+build_relay_start_lower_bounds(problem)
+```
+
+输出：
+
+```python
+{
+    sortie_id: relay_start_lb
+}
+```
+
+---
+
+# 11. 修改 `build_master()`
+
+现在 Master 的：
+
+```text
+class conservation
+hard deadline
+transport UAV
+transport battery
+```
+
+全部保留。
+
+增加：
+
+```python
+model.Add(
+    starts[i] >= relay_lb
+).OnlyEnforceIf(select[i])
+```
+
+---
+
+# 12. 增加 Presolve
+
+如果：
+
+$$
+L_o > U_o
+$$
+
+其中：
+
+- $L_o$ = Relay 最早允许运输开始时间；
+- $U_o$ = occurrence 最晚开始时间。
+
+那么：
+
+```text
+这个 occurrence 必然不可行
+```
+
+直接：
+
+```python
+model.Add(x == 0)
+```
+
+不用让 CP-SAT 搜。
+
+---
+
+# 13. Master objective 仍然只是搜索目标
+
+当前：
+
+```text
+sortie penalty
++
+gap penalty
++
+minimum relay occupancy
++
+transport energy
+```
+
+继续保留。
+
+不要把它当论文正式目标。
+
+它唯一作用：
+
+```text
+更快找到可能联合可行的 occurrence set
+```
+
+---
+
+# 14. Decomposition 新流程
+
+```text
+Relay-aware Master
+        ↓
+Class conservation
+Hard deadline
+Transport UAV
+Transport Battery
+Relay start lower bound
+        ↓
+选出 occurrence set
+        ↓
+Tier1 Joint Subproblem
+        ↓
+失败
+        ↓
+All Relay Joint Subproblem
+        ↓
+   ┌────┴────┐
+FEASIBLE   INFEASIBLE
+   ↓           ↓
+接受       Exact-set cut
+```
+
+如果：
+
+```text
+UNKNOWN
+```
+
+只能写：
+
+```text
+deferred_unknown_not_a_proof
+```
+
+绝对不能计入：
+
+```text
+proven_infeasible_occurrence_sets
+```
+
+---
+
+# 15. 修复 Master UNKNOWN 行为
+
+你现在第 6 个 Master：
+
+```text
+UNKNOWN
+```
+
+导致整个 run 提前结束。
+
+建议改为：
+
+```text
+第一次 Master：
+60 s
+
+若 UNKNOWN：
+用前一轮解/提示重新启动
+180 s
+
+仍 UNKNOWN：
+才终止本次 decomposition
+```
+
+因此：
+
+```text
+max_occurrence_sets=50
+```
+
+才真正有机会搜索多个 set。
+
+---
+
+# 16. First Feasible 的严格验收标准
+
+必须：
+
+```text
+status = FEASIBLE
+或 OPTIMAL
+```
+
+然后：
+
+```text
+class_conservation               PASS
+transport_hard_deadlines        PASS
+transport_uav_nonoverlap        PASS
+transport_battery_nonoverlap    PASS
+
+one_relay_per_selected_gap      PASS
+
+relay_uav_nonoverlap            PASS
+relay_energy_nonoverlap         PASS
+relay_energy_limit              PASS
+relay_end_soc_limit             PASS
+
+relay_dispatch_nonnegative      PASS
+relay_arrives_by_coverage       PASS
+relay_service_covers_gap        PASS
+relay_uav_release_valid         PASS
+relay_energy_release_valid      PASS
+
+joint_cmax_consistent           PASS
+```
+
+再检查：
+
+```text
+physical delivery rows = 80
+unique box_id = 80
+missing = 0
+duplicate = 0
+```
+
+全部通过才能宣布：
+
+```text
+Q3 First Strict Joint Feasible
+```
+
+---
+
+# 17. 第三阶段：Acceptance
+
+只有上一步成功才修改：
+
+```text
+src/q3/step8_acceptance.py
+```
+
+作用不是继续优化。
+
+而是：
+
+```text
+从磁盘重新读取
+transport schedule
+relay schedule
+delivery
+resource summary
+        ↓
+独立重新检查
+        ↓
+冻结 First Feasible baseline
+```
+
+---
+
+# 18. 第四阶段：四个 Anchors
+
+再修改：
+
+```text
+objectives.py
+anchors.py
+```
+
+四目标保持原方案定义：及时性、联合完成时间、联合总能耗、联合总架次。:chatgpt-content-reference{index="6"}
+
+分别得到：
+
+```text
+F1 Anchor
+F2 Anchor
+F3 Anchor
+F4 Anchor
+```
+
+只有：
+
+```text
+OPTIMAL
+```
+
+才能称：
+
+```text
+单目标最优
+```
+
+FEASIBLE 只能称 incumbent。:chatgpt-content-reference{index="7"}
+
+---
+
+# 19. 第五阶段：MOEA/D + CP-SAT Repair
+
+新增：
+
+```text
+src/q3/moead_cp_sat.py
+```
+
+初始化：
+
+```text
+First Feasible
++
+F1 Anchor
++
+F2 Anchor
++
+F3 Anchor
++
+F4 Anchor
+```
+
+迭代：
+
+```text
+destroy 2~5 occurrences
+        ↓
+CP-SAT local repair
+        ↓
+重新安排 transport + relay
+        ↓
+F1/F2/F3/F4
+        ↓
+MOEA/D neighborhood update
+        ↓
+Pareto archive
+```
+
+这也与原技术方案一致。:chatgpt-content-reference{index="8"}
+
+---
+
+# 20. 第六阶段：62 → 80
+
+只在最终选出的联合方案上：
+
+```text
+decode_box_deliveries()
+```
+
+得到：
+
+```text
+box_id
+service
+sortie_id
+delivery_time_s
+```
+
+仍然不要把 physical box variables 塞回 CP-SAT。原方案也明确要求最后才恢复 80 箱。:chatgpt-content-reference{index="9"}
+
+---
+
+# 21. 第七阶段：Final Validation
+
+新增：
+
+```text
+src/q3/validation.py
+```
+
+正式检查：
+
+```text
+80 boxes exactly once
+hard deadlines
+transport UAV
+transport battery + recharge
+relay UAV
+relay energy component + recharge
+continuous communication
+objective consistency
+```
+
+通信不能只检查 1 秒采样。
+
+正式：
+
+```text
+1 s dense sampling
++
+direct/relay transition boundaries
++
+gap start/end
++
+relay service start/end
++
+boundary ± ε
+```
+
+这一点也与原最终方案一致。:chatgpt-content-reference{index="10"}
+
+---
+
+# 22. 当前修改顺序最终固定
+
+从现在开始严格按这个顺序：
+
+```text
+A. bootstrap.py
+   Verified Q2 transport seed
+        ↓
+
+B. 运行 Q2 F1 Seed
+
+   如果 FEASIBLE
+        ↓
+   跳到 D
+
+   如果多个 seed all INFEASIBLE
+        ↓
+
+C. decomposition.py
+   Relay-aware Master
+   + relay start lower bound
+   + presolve
+        ↓
+   First FEASIBLE
+
+D. step8_acceptance.py
+   冻结 First Feasible
+
+E. objectives.py + anchors.py
+   四个 Anchor
+
+F. moead_cp_sat.py
+   Pareto
+
+G. 62 → 80 physical boxes
+
+H. validation.py
+   Final strict validation
+
+I. Q3.py
+   最后统一总入口
+
+J. Q4
+```
+
+## 当前最应该做的代码只有一个
+
+**现在只改 `bootstrap.py`，先跑 `Q2_anchor_F1 → Q3 Joint CP-SAT`。**
+
+不要同时动：
+
+```text
+decomposition.py
+anchors.py
+MOEA/D
+validation.py
+```
+
+等这次 Seed 的 `tier1/all` 结果出来，我们就能非常明确地决定下一步是：
+
+```text
+直接 Acceptance
+```
+
+还是：
+
+```text
+进入 Relay-aware Master
+```
+
+这样现在的路线既不改变你原先的 Q3 总模型，也不会继续在不知道瓶颈位置的情况下盲目扩展搜索。

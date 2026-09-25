@@ -917,33 +917,26 @@ def write_step8_outputs(result):
         stream.write("\n")
 
 
-def run_step8(time_limit_s=600, workers=8, bootstrap_time_limit_s=120):
+def run_step8(time_limit_s=180, workers=8, bootstrap_time_limit_s=180):
+    u"""Step8: 找到第一个 Strict Joint Feasible 解并保存。
+
+    不再对 full 6449 occurrences 做再优化。
+    """
     from src.q3.bootstrap import find_bootstrap
 
-    bootstrap, full_problem = find_bootstrap(
+    result, _ = find_bootstrap(
         time_limit_s=bootstrap_time_limit_s, workers=workers
     )
-    if bootstrap["status"] not in ("OPTIMAL", "FEASIBLE"):
-        print(f"Step8 bootstrap stopped without a solution: {bootstrap['status']}")
-        return bootstrap
 
-    bootstrap["optimization_status"] = "NOT_RUN"
-    write_step8_outputs(bootstrap)
-    result = solve_q3_joint(
-        tier="tier1", time_limit_s=time_limit_s, workers=workers,
-        problem=full_problem, hint=bootstrap,
-    )
-    print(f"Step8 full tier1 with bootstrap hint: {result['status']}")
-    if result["status"] in ("OPTIMAL", "FEASIBLE"):
-        result["bootstrap_source"] = bootstrap["bootstrap_source"]
-        if "bootstrap_k" in bootstrap:
-            result["bootstrap_k"] = bootstrap["bootstrap_k"]
-        result["bootstrap_attempts"] = bootstrap["bootstrap_attempts"]
-        result["optimization_status"] = result["status"]
-        write_step8_outputs(result)
+    if result["status"] not in ("OPTIMAL", "FEASIBLE"):
+        print(
+            f"Step8 stopped without a feasible solution: "
+            f"{result['status']}"
+        )
         return result
-    if result["status"] == "INFEASIBLE":
-        raise AssertionError("Full tier1 model rejected a validated bootstrap solution")
-    bootstrap["optimization_status"] = result["status"]
-    write_step8_outputs(bootstrap)
-    return bootstrap
+
+    result["optimization_status"] = "NOT_RUN"
+    write_step8_outputs(result)
+
+    print("Step8 first strict joint feasible solution saved.")
+    return result
