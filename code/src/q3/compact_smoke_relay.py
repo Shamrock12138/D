@@ -680,13 +680,24 @@ def _solve_fixed_transport_joint_relay(
     # 4. Relay resources
     # =====================================================
 
+    relay_uav_cap = RELAY_UAV_CAPACITY
+    relay_energy_cap = RELAY_ENERGY_CAPACITY
+
+    import os as _os
+    if _os.environ.get("RELAY_UAV_CAP"):
+        relay_uav_cap = int(_os.environ["RELAY_UAV_CAP"])
+        print(f"  [DEBUG] relay UAV cap = {relay_uav_cap}")
+    if _os.environ.get("RELAY_ENERGY_CAP"):
+        relay_energy_cap = int(_os.environ["RELAY_ENERGY_CAP"])
+        print(f"  [DEBUG] relay energy cap = {relay_energy_cap}")
+
     if relay_uav_intervals:
         model.AddCumulative(
             relay_uav_intervals,
             [1] * len(
                 relay_uav_intervals
             ),
-            RELAY_UAV_CAPACITY,
+            relay_uav_cap,
         )
 
     if relay_energy_intervals:
@@ -695,7 +706,7 @@ def _solve_fixed_transport_joint_relay(
             [1] * len(
                 relay_energy_intervals
             ),
-            RELAY_ENERGY_CAPACITY,
+            relay_energy_cap,
         )
 
     # =====================================================
@@ -906,14 +917,14 @@ def _solve_fixed_transport_joint_relay(
     relay_uav_ready = {
         f"R{i + 1:02d}": 0
         for i in range(
-            RELAY_UAV_CAPACITY
+            relay_uav_cap
         )
     }
 
     energy_ready = {
         f"E{i + 1:02d}": 0
         for i in range(
-            RELAY_ENERGY_CAPACITY
+            relay_energy_cap
         )
     }
 

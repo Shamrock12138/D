@@ -31,7 +31,7 @@ DATA = PROJECT / "data"
 
 ENERGY_SCALE = 10_000
 
-RELAY_UAV_CAPACITY = 2
+RELAY_UAV_CAPACITY = 4
 RELAY_ENERGY_CAPACITY = 6
 
 OPTS_TIER1 = {"top_energy": 2, "top_lead": 2, "top_margin": 1}
