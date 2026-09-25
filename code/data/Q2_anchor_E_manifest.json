@@ -26,21 +26,21 @@
   "python_version": "3.11.7",
   "ortools_version": "9.15.6755",
   "classes": 62,
-  "physical_patterns": 25851,
-  "retained_patterns": 972,
-  "sortie_slots": 1036,
+  "physical_patterns": 53106,
+  "retained_patterns": 2225,
+  "sortie_slots": 2313,
   "physical_cache_equivalence": true,
   "master_status": "OPTIMAL",
-  "master_wall_time_s": 38.1161237,
+  "master_wall_time_s": 266.37234040000004,
   "seed": 2026,
-  "seed_source": "Q2_anchor_E",
+  "seed_source": null,
   "input_sha256": "bbc22fa4df3ba1202471d050ddf3fb1caba027767735227a2b6ec89d44e63c2d",
-  "master_objective_value": 77806206.0,
-  "master_best_bound": 77806206.0,
+  "master_objective_value": 58519192.0,
+  "master_best_bound": 58519192.0,
   "master_relative_gap": 0.0,
   "anchor_optimal": true,
-  "selected_sorties": 32,
-  "repeated_patterns": 2,
+  "selected_sorties": 17,
+  "repeated_patterns": 0,
   "transport_status": "OPTIMAL",
   "checks": {
     "physical_cache_equivalence": true,
@@ -59,16 +59,22 @@
     "delivery_time_mapping": true
   },
   "all_pass": true,
-  "master_F1_weighted_lateness": 1825706.5328312025,
-  "master_cmax_s": 22086.24147479645,
-  "transport_cmax_s": 22086.24147479645,
-  "transport_energy_kWh": 77.80620562404232,
-  "F1_weighted_lateness": 1825706.5328312025,
+  "master_F1_weighted_lateness": 404548.97677351953,
+  "master_cmax_s": 11268.778736614857,
+  "transport_cmax_s": 11268.778736614857,
+  "transport_energy_kWh": 58.51919206683239,
+  "F1_weighted_lateness": 404548.97677351953,
+  "objectives": {
+    "F1": 404548.97677351953,
+    "Cmax_s": 11268.778736614857,
+    "E_kWh": 58.51919206683239,
+    "N": 17
+  },
   "anchor_ready": true,
   "output_sha256": {
-    "selected": "0912546302183153b6f6f81ea6b384dd843b70ad65e5c9995410333fc06a14b5",
-    "schedule": "6225349ad6c4d0b15d79355efca71037cfb2cf4b9b5f747b444233538b94cc00",
-    "deliveries": "b803ff19e51c1b15c85544d8f919edb2597069da0e2e23cd97788d49516119bd"
+    "selected": "27475b14a3b3f9392ebeb34fb4dc4ab2712009424cf48ed40dba7cf4b903e264",
+    "schedule": "4fef327b5f651a0eeeb0b3295182b36e48cfe4bd56952f7230d90fcda8cec497",
+    "deliveries": "6d64ccc26d9cc35dc27ce9520ce6907e6d33833bbebaeaa223302713e873a5af"
   },
-  "candidate_manifest_sha256": "33d0506d78392f30f11fd762c5db757f8a0d29e870e6e66d5f9778aece0c3a60"
+  "candidate_manifest_sha256": "ca4218207c2855548a17795be789189e2349c83bb2a7a002baf9d87e853e27bd"
 }

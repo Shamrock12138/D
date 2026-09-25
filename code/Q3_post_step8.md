@@ -2,7 +2,7 @@
 
 当前仓库尚无 `code/data/q3_joint_*` 和 `q3_step8_manifest.json`，因此不能宣称 Step 8.5 已通过，也不能填写 Anchor 数值。下列命令在 Step 8 输出齐全后执行。
 
-Step 8 的当前入口 `python code/Q3_step8.py` 使用运输任务选择 Master 和固定任务集合的联合调度子问题。Master 从全部 Q3 运输候选中重新选任务，子问题同时安排运输开始时间、运输 UAV/电池、中继选点、中继 UAV/能源组件。仅当完整 relay 选项子问题证明不可行，才提取并排除已证明的冲突任务子集；`UNKNOWN` 仅作未决搜索记录。默认 `--min-transport-tasks 20` 是寻找首解的启发式搜索范围，不是 Q3 的硬性下界，可设为 0。搜索过程写入 `code/data/q3_step8_decomposition_manifest.json`。达到任务集合次数上限而未找到首解时状态为 `UNKNOWN`。
+Step 8 的当前入口 `python code/Q3_step8.py` 使用运输任务选择 Master 和固定任务集合的联合调度子问题。Master 从全部 Q3 运输候选中重新选任务，子问题同时安排运输开始时间、运输 UAV/电池、中继选点、中继 UAV/能源组件。仅当完整 relay 选项子问题证明不可行，才提取并排除已证明的冲突任务子集；`UNKNOWN` 仅作未决搜索记录。`--min-transport-tasks` 默认 0，不施加运输架次下界；若显式设为正数，则该值是 Master 的硬性下界。搜索过程写入 `code/data/q3_step8_decomposition_manifest.json`。达到任务集合次数上限而未找到首解时状态为 `UNKNOWN`。
 
 1. Step 8.5：运行 `python code/Q3_step8_accept.py`。检查求解状态、80 箱唯一覆盖、硬时限、四类资源无冲突、每个选中 gap 的中继、能耗与 SOC、联合 Cmax、输入哈希及逐箱送达时间。全部通过后，原样保存到 `code/data/q3_step8_frozen/`，并生成 `acceptance.json`。冻结目录中如已有不同内容，程序会拒绝覆盖。
 2. Step 9/9.1：运行 `python code/Q3_step9_anchors.py`。四次求解固定使用全部中继 option（`Q3_MULTI_OBJECTIVE_TIER = "all"`），与 Step 8 首次找到可行解时所用的 tier 无关；Step 8 冻结解只作求解提示。分别最小化 F1～F4，结果写入 `code/data/q3_anchors/`；未找到可行解时停止，不生成理想点。每个 Anchor 都重新经过 Q3 校验。

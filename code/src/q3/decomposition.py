@@ -336,6 +336,7 @@ def run_step8_decomposed(max_occurrence_sets=30, master_time_s=30,
             solution["search_scope"] = (
                 "full_occurrence_pool_with_selected_set_joint_schedule"
             )
+            solution["input_sha256"] = input_sha256
             write_step8_outputs(solution)
             report = {
                 "status": "FEASIBLE",
