@@ -93,6 +93,10 @@ def load_final_q3(folder: Path = FROZEN) -> dict:
         a, b, c = (number(row, name, sid) for name in ("start_time_s", "end_time_s", "charge_end_s"))
         if not a < b <= c:
             raise ValueError(f"invalid transport/battery interval for {sid}")
+        if row.get("uav_release_time_s"):
+            release = number(row, "uav_release_time_s", sid)
+            if release < b:
+                raise ValueError(f"transport UAV release precedes flight end for {sid}")
     if set().union(*(set(row["_sites"]) for row in transport)) != set(SERVICES):
         raise ValueError("frozen Q3 transport routes do not cover all 15 services")
     for i, row in enumerate(relay):
@@ -164,7 +168,8 @@ def intervals(q3: dict, blocks: tuple) -> tuple[list[tuple[int, int, float, floa
         block = site_block[row["_sites"][0]]
         typ = row["uav_type"]
         start, end, charge = (float(row[x]) for x in ("start_time_s", "end_time_s", "charge_end_s"))
-        jobs.extend(((block, KINDS.index("TUAV_" + typ), start, end),
+        release = float(row.get("uav_release_time_s") or end)
+        jobs.extend(((block, KINDS.index("TUAV_" + typ), start, release),
                      (block, KINDS.index("TBAT_" + typ), start, charge)))
         weights[block] += end - start
     by_sortie = {row["sortie_id"]: row for row in q3["transport"]}

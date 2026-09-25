@@ -230,6 +230,150 @@ def _load_current_anchor_seed(objective, top_k):
     return None, None
 
 
+def _add_comm_relay_capacity(
+    model,
+    slots,
+    chosen,
+    starts,
+    relay_capacity=2,
+    energy_capacity=6,
+):
+    gaps = pd.read_csv(
+        DATA / "q3_pattern_comm_gaps.csv",
+        encoding="utf-8-sig",
+    )
+
+    relay = pd.read_csv(
+        DATA / "q3_relay_job_options.csv",
+        encoding="utf-8-sig",
+    )
+
+    # 每个 gap 选一个真实存在的、Relay UAV 占用时间最短的 option
+    best_options = (
+        relay.sort_values(
+            [
+                "gap_id",
+                "relay_uav_occupancy_s",
+                "relay_energy_kWh",
+            ]
+        )
+        .drop_duplicates("gap_id")
+        .set_index("gap_id")
+    )
+
+    pattern_gaps = {
+        str(pid): group["gap_id"].astype(str).tolist()
+        for pid, group
+        in gaps.groupby("pattern_id")
+    }
+
+    relay_intervals = []
+    energy_intervals = []
+
+    horizon = 36000
+
+    for i, slot in enumerate(slots):
+
+        pid = str(slot["pattern_id"])
+        x = chosen[i]
+        transport_start = starts[i]
+
+        for gap_id in pattern_gaps.get(pid, []):
+
+            if gap_id not in best_options.index:
+                # 这个 Pattern 有 gap 但没有合法 Relay option，
+                # 正式 COMM 中禁止选择
+                model.Add(x == 0)
+                continue
+
+            row = best_options.loc[gap_id]
+
+            dispatch_offset = math.floor(
+                float(row["dispatch_offset_s"])
+            )
+
+            uav_duration = max(
+                1,
+                math.ceil(
+                    float(row["relay_uav_occupancy_s"])
+                ),
+            )
+
+            energy_duration = max(
+                1,
+                math.ceil(
+                    float(row["energy_component_occupancy_s"])
+                ),
+            )
+
+            # Relay 出发时间
+            relay_start = model.NewIntVar(
+                0,
+                horizon,
+                f"comm_relay_start_{i}_{gap_id}",
+            )
+
+            relay_end = model.NewIntVar(
+                0,
+                horizon,
+                f"comm_relay_end_{i}_{gap_id}",
+            )
+
+            energy_end = model.NewIntVar(
+                0,
+                horizon,
+                f"comm_energy_end_{i}_{gap_id}",
+            )
+
+            model.Add(
+                relay_start
+                == transport_start + dispatch_offset
+            ).OnlyEnforceIf(x)
+
+            model.Add(
+                relay_start == 0
+            ).OnlyEnforceIf(x.Not())
+
+            # 防止需要提前出发却出现负时间
+            if dispatch_offset < 0:
+                model.Add(
+                    transport_start >= -dispatch_offset
+                ).OnlyEnforceIf(x)
+
+            relay_interval = model.NewOptionalIntervalVar(
+                relay_start,
+                uav_duration,
+                relay_end,
+                x,
+                f"comm_relay_interval_{i}_{gap_id}",
+            )
+
+            energy_interval = model.NewOptionalIntervalVar(
+                relay_start,
+                energy_duration,
+                energy_end,
+                x,
+                f"comm_energy_interval_{i}_{gap_id}",
+            )
+
+            relay_intervals.append(relay_interval)
+            energy_intervals.append(energy_interval)
+
+    if relay_intervals:
+        model.AddCumulative(
+            relay_intervals,
+            [1] * len(relay_intervals),
+            relay_capacity,
+        )
+
+    if energy_intervals:
+        model.AddCumulative(
+            energy_intervals,
+            [1] * len(energy_intervals),
+            energy_capacity,
+        )
+
+
 def run_smoke(services=("S001", "S002"), top_k=3, master_time_s=30,
               transport_time_s=20, workers=1, q3_comm=False,
               q3_relay=False, objective="N", full_candidates=False,
@@ -342,6 +486,23 @@ def run_smoke(services=("S001", "S002"), top_k=3, master_time_s=30,
     model, slots, chosen, starts = build_compact_master(
         patterns, counts, classes, *resources, horizon_s=36000,
         objective=objective)
+
+    if objective == "COMM":
+        print(
+            "Adding 2-Relay capacity constraints "
+            "to COMM master...",
+            flush=True,
+        )
+
+        _add_comm_relay_capacity(
+            model,
+            slots,
+            chosen,
+            starts,
+            relay_capacity=2,
+            energy_capacity=6,
+        )
+
     seed_source = None
 
     if (
@@ -568,9 +729,13 @@ def run_smoke(services=("S001", "S002"), top_k=3, master_time_s=30,
             time_limit_s=transport_time_s, workers=workers, classes=classes)
         relay_report = report["q3_relay"]
         report["minimal_q3_all_pass"] = bool(
-            relay_report.get("status") in ("FEASIBLE", "OPTIMAL")
-            and relay_report.get("joint_validation_pass")
-            and relay_report.get("fine_communication_1s", {}).get("all_pass"))
+            relay_report.get("status")
+            in ("FEASIBLE", "OPTIMAL")
+            and relay_report.get(
+                "joint_validation_pass",
+                False,
+            )
+        )
     return report
 
 

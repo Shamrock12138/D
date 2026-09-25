@@ -683,14 +683,6 @@ def _solve_fixed_transport_joint_relay(
     relay_uav_cap = RELAY_UAV_CAPACITY
     relay_energy_cap = RELAY_ENERGY_CAPACITY
 
-    import os as _os
-    if _os.environ.get("RELAY_UAV_CAP"):
-        relay_uav_cap = int(_os.environ["RELAY_UAV_CAP"])
-        print(f"  [DEBUG] relay UAV cap = {relay_uav_cap}")
-    if _os.environ.get("RELAY_ENERGY_CAP"):
-        relay_energy_cap = int(_os.environ["RELAY_ENERGY_CAP"])
-        print(f"  [DEBUG] relay energy cap = {relay_energy_cap}")
-
     if relay_uav_intervals:
         model.AddCumulative(
             relay_uav_intervals,
@@ -1022,7 +1014,7 @@ def _solve_fixed_transport_joint_relay(
         ] = energy_end
 
         relay_rows.append({
-            "pattern_id":
+            "task_id":
                 task_id,
             "gap_id":
                 str(
@@ -1355,6 +1347,9 @@ def run_compact_relay_smoke(
     ):
         return report
 
+    if not report["joint_validation_pass"]:
+        return report
+
     # ============================================================
     # SAVE FIRST FEASIBLE Q3 RESULT
     # ============================================================
@@ -1555,9 +1550,10 @@ def run_compact_relay_smoke(
         ]
     )
 
-    report["minimal_q3_all_pass"] = (
+    report["minimal_q3_all_pass"] = bool(
         result["status"]
         in ("FEASIBLE", "OPTIMAL")
+        and report["joint_validation_pass"]
     )
 
     return report
