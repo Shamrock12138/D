@@ -7,6 +7,7 @@ import json
 import math
 import random
 import time
+from datetime import datetime
 from collections import Counter, defaultdict
 
 import numpy as np
@@ -58,6 +59,7 @@ class TransportSearch:
         self.base = np.array(self.base)
         self.weights = {op: 1.0 for op in self.operators}
         self.cores = []
+        self.excluded_sets = []
 
     def canonical(self, selected):
         multiplicities = Counter(self.occ[i].pattern_id for i in selected)
@@ -68,7 +70,9 @@ class TransportSearch:
                 np.array_equal(self.counts[list(selected)].sum(axis=0), self.supply))
 
     def eligible(self, selected):
-        return self.exact_cover(selected) and all(self.allowed[list(selected)])
+        signature = frozenset(selected)
+        return (self.exact_cover(selected) and all(self.allowed[list(selected)])
+                and signature not in self.excluded_sets)
 
     def score(self, selected):
         profile = self.footprint[list(selected)].sum(axis=0)
@@ -104,6 +108,14 @@ class TransportSearch:
         for c, demand in enumerate(residual):
             model.Add(sum(int(self.counts[i, c])*x for i, x in variables.items()
                           if self.counts[i, c]) == int(demand))
+        kept_set = set(kept)
+        for forbidden in self.excluded_sets:
+            if kept_set <= forbidden:
+                remaining = forbidden - kept_set
+                if not remaining:
+                    model.AddBoolOr([])
+                elif remaining <= set(variables):
+                    model.Add(sum(variables[i] for i in remaining) <= len(remaining)-1)
         profile = self.footprint[kept].sum(axis=0)
         costs = {i: int((self.base[i]+5000*np.maximum(0, profile+self.footprint[i]-2).sum())
                         * self.rng.uniform(.5, 1.5)) for i in candidates}
@@ -137,24 +149,38 @@ class TransportSearch:
 
 
 def run_alns(iterations=200, wall_time_s=300, repair_time_s=1, joint_time_s=20,
-             workers=4, seed=42, batch_size=5):
+             workers=4, seed=42, batch_size=5, max_solutions=3):
     started = time.monotonic()
     hashes = _input_hashes()
     problem = prepare_q3_problem(tier='all')
     search = TransportSearch(problem, seed)
     seeds = search.initial_seeds()
+    baseline_ids = []
+    frozen_transport = DATA/'q3_step8_frozen'/'q3_joint_transport_schedule.csv'
+    if frozen_transport.is_file():
+        baseline_ids = pd.read_csv(frozen_transport, encoding='utf-8-sig')['sortie_id'].astype(str).tolist()
+    elif (DATA/'q3_joint_transport_schedule.csv').is_file():
+        baseline_ids = pd.read_csv(DATA/'q3_joint_transport_schedule.csv', encoding='utf-8-sig')['sortie_id'].astype(str).tolist()
+    if baseline_ids and all(s in search.by_id for s in baseline_ids):
+        baseline = search.canonical([search.by_id[s] for s in baseline_ids])
+        search.excluded_sets.append(frozenset(baseline))
     admissible_seeds = [s for s in seeds if search.eligible(s)]
     current = min(admissible_seeds or seeds, key=search.score) if seeds else ()
-    report = {'status': 'UNKNOWN', 'algorithm': 'ALNS_CP_SAT', 'seed': seed,
+    run_dir = DATA/'q3_alns_runs'/datetime.now().strftime('%Y%m%d_%H%M%S')
+    run_dir.mkdir(parents=True, exist_ok=False)
+    report = {'status': 'SEARCHING', 'algorithm': 'ALNS_CP_SAT', 'seed': seed,
               'input_sha256': hashes, 'iterations': 0, 'generated': 0,
               'unique_candidates': 0, 'repair_wall_time_s': 0, 'attempts': [],
               'config': dict(iterations=iterations, wall_time_s=wall_time_s,
                              repair_time_s=repair_time_s, joint_time_s=joint_time_s,
                              workers=workers, batch_size=batch_size),
               'initial_exact_cover_seeds': len(seeds),
-              'forbidden_occurrences': int((~search.allowed).sum())}
+              'forbidden_occurrences': int((~search.allowed).sum()),
+              'max_additional_solutions': max_solutions,
+              'baseline_excluded': bool(search.excluded_sets),
+              'run_directory': str(run_dir), 'solutions': [], 'archive_errors': []}
     pending, visited = {}, set()
-    path = DATA/'q3_alns_manifest.json'
+    path = run_dir/'manifest.json'
     def save():
         report['wall_time_s'] = time.monotonic()-started
         report['operator_weights'] = search.weights
@@ -207,10 +233,43 @@ def run_alns(iterations=200, wall_time_s=300, repair_time_s=1, joint_time_s=20,
                 if _input_hashes() != hashes: raise RuntimeError('Inputs changed during ALNS')
                 solution.update(input_sha256=hashes, solve_mode='ALNS_CP_SAT',
                                 optimization_status='NOT_RUN', alns_iteration=iteration)
-                write_step8_outputs(solution)
-                report['status'] = 'FEASIBLE'
-                save()
-                return report
+                ordinal = len(report['solutions']) + 1
+                solution_dir = run_dir/f'solution_{iteration:04d}'
+                try:
+                    write_step8_outputs(solution, output_dir=solution_dir)
+                    from src.q3.step8_acceptance import accept_step8
+                    acceptance = accept_step8(freeze=False, data_dir=solution_dir)
+                    (solution_dir/'acceptance.json').write_text(
+                        json.dumps(acceptance, ensure_ascii=False, indent=2)+'\n', encoding='utf-8')
+                except Exception as exc:
+                    attempt['archive_error'] = f'{type(exc).__name__}: {exc}'
+                    report['archive_errors'].append({
+                        'iteration': iteration, 'solution_directory': str(solution_dir),
+                        'error': attempt['archive_error'],
+                    })
+                    print(f"ALNS archive failed at iteration {iteration}: {attempt['archive_error']}",
+                          flush=True)
+                    save()
+                    continue
+                chosen_set = frozenset(candidate)
+                search.excluded_sets.append(chosen_set)
+                report['solutions'].append({
+                    'index': ordinal, 'iteration': iteration,
+                    'sortie_ids': ids, 'solution_directory': str(solution_dir),
+                    'status': acceptance['status'],
+                    'validation_all_pass': acceptance['validation']['all_pass'],
+                    'objectives': acceptance['objectives'],
+                    'transport_sorties': len(solution['transport']),
+                    'relay_gap_jobs': len(solution['relay']),
+                    'relay_sessions': int(solution['relay']['relay_session_id'].nunique())
+                        if 'relay_session_id' in solution['relay'] else len(solution['relay']),
+                })
+                report['distinct_additional_solutions'] = len(report['solutions'])
+                print(f"ALNS archived distinct solution #{ordinal} at iteration {iteration}", flush=True)
+                if len(report['solutions']) >= max_solutions:
+                    report['status'] = 'SOLUTION_LIMIT_REACHED'
+                    save()
+                    return report
             if solution['status'] == 'INFEASIBLE':
                 attempt['core'] = {
                     'status': 'DISABLED',
@@ -218,6 +277,7 @@ def run_alns(iterations=200, wall_time_s=300, repair_time_s=1, joint_time_s=20,
                 }
             # UNKNOWN is only visited within this run, never a proven exclusion.
         save()
-    report['reason'] = 'Search budget exhausted; no validated joint feasible schedule'
+    report['status'] = 'FEASIBLE_SOLUTIONS' if report['solutions'] else 'UNKNOWN'
+    report['reason'] = 'Search budget exhausted before requested distinct solution count'
     save()
     return report

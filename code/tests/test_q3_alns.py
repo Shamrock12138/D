@@ -26,10 +26,10 @@ class AlnsTests(unittest.TestCase):
         self.assertEqual(result, (0, 1))
         self.assertTrue(search.eligible(result))
 
-    def test_proven_core_excluded(self):
+    def test_existing_exact_solution_is_excluded(self):
         search = self.make_search()
-        search.cores.append(frozenset([2]))
-        self.assertEqual(search.repair([], 2), (0, 1))
+        search.excluded_sets.append(frozenset([0, 1]))
+        self.assertEqual(search.repair([], 2), (2,))
 
     def test_destroy_all_operators_preserve_subset(self):
         search = self.make_search()

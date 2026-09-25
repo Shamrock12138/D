@@ -27,16 +27,17 @@ def _hash(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def accept_step8(freeze=True):
-    missing = [name for name in OUTPUTS if not (DATA / name).is_file()]
+def accept_step8(freeze=True, data_dir=None):
+    data_dir = Path(data_dir) if data_dir is not None else DATA
+    missing = [name for name in OUTPUTS if not (data_dir / name).is_file()]
     if missing:
         raise FileNotFoundError(f"Step8 outputs are incomplete: {missing}")
-    manifest = json.loads((DATA / "q3_step8_manifest.json").read_text(encoding="utf-8"))
+    manifest = json.loads((data_dir / "q3_step8_manifest.json").read_text(encoding="utf-8"))
     status = manifest.get("status")
     if status not in ("FEASIBLE", "OPTIMAL") or manifest.get("validation", {}).get("all_pass") is not True:
         raise AssertionError(f"Step8 status/validation failed: {status}, {manifest.get('validation')}")
     for name, recorded in manifest.get("input_sha256", {}).items():
-        if _hash(DATA / name) != recorded:
+        if _hash(data_dir / name) != recorded:
             raise AssertionError(f"Step8 input changed since solve: {name}")
     tier = manifest.get("tier")
     if tier not in ("tier1", "tier2", "all"):
@@ -44,10 +45,10 @@ def accept_step8(freeze=True):
     problem = prepare_q3_problem(tier=tier)
     problem["boxes"] = data_model.load_boxes()
     problem["deadlines"] = _deadlines(problem["boxes"])
-    transport = pd.read_csv(DATA / OUTPUTS[0], encoding="utf-8-sig")
-    relay = pd.read_csv(DATA / OUTPUTS[1], encoding="utf-8-sig")
-    delivery = pd.read_csv(DATA / OUTPUTS[2], encoding="utf-8-sig")
-    summary = pd.read_csv(DATA / OUTPUTS[3], encoding="utf-8-sig")
+    transport = pd.read_csv(data_dir / OUTPUTS[0], encoding="utf-8-sig")
+    relay = pd.read_csv(data_dir / OUTPUTS[1], encoding="utf-8-sig")
+    delivery = pd.read_csv(data_dir / OUTPUTS[2], encoding="utf-8-sig")
+    summary = pd.read_csv(data_dir / OUTPUTS[3], encoding="utf-8-sig")
     if len(summary) != 1:
         raise AssertionError("Step8 resource summary must have exactly one row")
     cmax = float(summary.iloc[0]["joint_Cmax_s"])
@@ -107,7 +108,7 @@ def accept_step8(freeze=True):
         "input_sha256": {name: _hash(DATA / name) for name in OUTPUTS},
     }
     if freeze:
-        target = DATA / "q3_step8_frozen"
+        target = data_dir / "q3_step8_frozen"
         target.mkdir(exist_ok=True)
         for name in OUTPUTS:
             destination = target / name

@@ -976,9 +976,11 @@ def solve_q3_joint(tier="tier1", time_limit_s=600, workers=8, random_seed=2026,
     }
 
 
-def write_step8_outputs(result):
+def write_step8_outputs(result, output_dir=None):
     if result["status"] not in ("OPTIMAL", "FEASIBLE"):
         raise RuntimeError(f"Cannot write Step8 outputs for {result['status']}")
+    output_dir = Path(output_dir) if output_dir is not None else DATA
+    output_dir.mkdir(parents=True, exist_ok=True)
     transport = result["transport"].copy()
     delivery = result["delivery"].copy()
     if "visit_order" not in transport:
@@ -1002,9 +1004,9 @@ def write_step8_outputs(result):
         raise ValueError("Q3 delivered box service is outside its frozen sortie route")
     result["transport"] = transport
     result["delivery"] = delivery
-    transport.to_csv(DATA / "q3_joint_transport_schedule.csv", index=False, encoding="utf-8-sig")
-    result["relay"].to_csv(DATA / "q3_joint_relay_schedule.csv", index=False, encoding="utf-8-sig")
-    delivery.to_csv(DATA / "q3_joint_delivery_schedule.csv", index=False, encoding="utf-8-sig")
+    transport.to_csv(output_dir / "q3_joint_transport_schedule.csv", index=False, encoding="utf-8-sig")
+    result["relay"].to_csv(output_dir / "q3_joint_relay_schedule.csv", index=False, encoding="utf-8-sig")
+    delivery.to_csv(output_dir / "q3_joint_delivery_schedule.csv", index=False, encoding="utf-8-sig")
     transport_energy = float(transport["energy_kWh"].sum())
     relay_energy = float(result["relay"]["relay_energy_kWh"].sum())
     pd.DataFrame([{
@@ -1020,11 +1022,11 @@ def write_step8_outputs(result):
         "relay_energy_capacity": RELAY_ENERGY_CAPACITY,
         "status": result["status"],
         "tier": result["tier"],
-    }]).to_csv(DATA / "q3_joint_resource_summary.csv", index=False, encoding="utf-8-sig")
+    }]).to_csv(output_dir / "q3_joint_resource_summary.csv", index=False, encoding="utf-8-sig")
 
     manifest = {key: value for key, value in result.items()
                 if key not in {"transport", "relay", "delivery"}}
-    with (DATA / "q3_step8_manifest.json").open("w", encoding="utf-8") as stream:
+    with (output_dir / "q3_step8_manifest.json").open("w", encoding="utf-8") as stream:
         json.dump(manifest, stream, ensure_ascii=False, indent=2)
         stream.write("\n")
 

@@ -14,9 +14,12 @@ if __name__ == '__main__':
     parser.add_argument('--workers', type=int, default=4)
     parser.add_argument('--seed', type=int, default=42)
     parser.add_argument('--batch-size', type=int, default=5)
+    parser.add_argument('--max-solutions', type=int, default=3,
+                        help='Number of additional distinct transport combinations to archive')
     args = parser.parse_args()
     if min(args.iterations, args.wall_time, args.repair_time, args.joint_time,
-           args.workers, args.batch_size) <= 0:
+           args.workers, args.batch_size, args.max_solutions) <= 0:
         parser.error('Budgets, workers and batch size must be positive')
     print(json.dumps(run_alns(args.iterations, args.wall_time, args.repair_time,
-        args.joint_time, args.workers, args.seed, args.batch_size), indent=2))
+        args.joint_time, args.workers, args.seed, args.batch_size,
+        args.max_solutions), indent=2))
