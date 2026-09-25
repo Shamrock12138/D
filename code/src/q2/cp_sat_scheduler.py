@@ -174,6 +174,9 @@ def _resource_ids(uavs, batteries):
 def _build_model(tasks, task_boxes, task_offsets, deadlines, uav_ids,
                  battery_ids, energy_capacity, charge_full, horizon_s):
     model = cp_model.CpModel()
+    battery_horizon_s = horizon_s + math.ceil(max(
+        charge_time_to_full(0.0, full) for full in charge_full.values()
+    ))
     select = []
     starts = []
     flight_ends = []
@@ -192,7 +195,7 @@ def _build_model(tasks, task_boxes, task_offsets, deadlines, uav_ids,
         charge_s = charge_time_to_full(soc, charge_full[typ])
         battery_duration = max(flight_duration,
                                math.ceil(float(row.duration_s) + charge_s))
-        latest = horizon_s - battery_duration
+        latest = horizon_s - flight_duration
         if math.isfinite(float(row.hard_latest_start_s)):
             latest = min(latest, math.floor(float(row.hard_latest_start_s)))
         if latest < 0:
@@ -201,7 +204,8 @@ def _build_model(tasks, task_boxes, task_offsets, deadlines, uav_ids,
         chosen = model.NewBoolVar(f"select_{i}")
         start = model.NewIntVar(0, latest, f"start_{i}")
         flight_end = model.NewIntVar(flight_duration, horizon_s, f"flight_end_{i}")
-        battery_end = model.NewIntVar(battery_duration, horizon_s, f"battery_end_{i}")
+        battery_end = model.NewIntVar(battery_duration, battery_horizon_s,
+                                      f"battery_end_{i}")
         flight_interval = model.NewOptionalIntervalVar(
             start, flight_duration, flight_end, chosen, f"flight_{i}"
         )
@@ -359,6 +363,9 @@ def _build_tchebycheff_model(full_problem, fixed_task_ids, free_box_ids):
     metadata = []
     fixed_count = 0
 
+    battery_horizon_s = horizon_s + math.ceil(max(
+        charge_time_to_full(0.0, full) for full in charge_full.values()
+    ))
     for i, row in local_tasks.iterrows():
         tid = str(row.task_id)
         typ = str(row.uav_type)
@@ -367,7 +374,7 @@ def _build_tchebycheff_model(full_problem, fixed_task_ids, free_box_ids):
         charge_s = charge_time_to_full(soc, charge_full[typ])
         battery_duration = max(flight_duration,
                                math.ceil(float(row.duration_s) + charge_s))
-        latest = horizon_s - battery_duration
+        latest = horizon_s - flight_duration
         if math.isfinite(float(row.hard_latest_start_s)):
             latest = min(latest, math.floor(float(row.hard_latest_start_s)))
         if latest < 0:
@@ -381,7 +388,8 @@ def _build_tchebycheff_model(full_problem, fixed_task_ids, free_box_ids):
 
         start = model.NewIntVar(0, latest, f"start_{i}")
         flight_end = model.NewIntVar(flight_duration, horizon_s, f"flight_end_{i}")
-        battery_end = model.NewIntVar(battery_duration, horizon_s, f"battery_end_{i}")
+        battery_end = model.NewIntVar(battery_duration, battery_horizon_s,
+                                      f"battery_end_{i}")
         flight_interval = model.NewOptionalIntervalVar(
             start, flight_duration, flight_end, chosen, f"flight_{i}"
         )

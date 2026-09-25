@@ -13,9 +13,12 @@ from src.q3.decomposition import (
 
 def test_master_reselects_exact_cover_after_feedback():
     tasks = pd.DataFrame([
-        {"task_id": "A", "gap_count": 0, "energy_kWh": 1.0},
-        {"task_id": "B", "gap_count": 0, "energy_kWh": 1.0},
-        {"task_id": "AB", "gap_count": 1, "energy_kWh": 1.5},
+        {"task_id": "A", "uav_type": "A", "duration_s": 10,
+         "latest_start_s": 80, "gap_count": 0, "energy_kWh": 1.0},
+        {"task_id": "B", "uav_type": "A", "duration_s": 10,
+         "latest_start_s": 80, "gap_count": 0, "energy_kWh": 1.0},
+        {"task_id": "AB", "uav_type": "A", "duration_s": 10,
+         "latest_start_s": 80, "gap_count": 1, "energy_kWh": 1.5},
     ])
     problem = {
         "tasks": tasks,
@@ -24,15 +27,22 @@ def test_master_reselects_exact_cover_after_feedback():
                        "AB": ("B001", "B002")},
         "task_gaps": {},
         "relay": pd.DataFrame(columns=["gap_id", "relay_uav_occupancy_s"]),
+        "task_offsets": {"A": {"B001": 5}, "B": {"B002": 5},
+                         "AB": {"B001": 5, "B002": 5}},
+        "deadlines": {"B001": 100, "B002": 100},
+        "uav_ids": {"A": ["U01"]}, "battery_ids": {"A": ["BAT01"]},
+        "energy_capacity": {"A": 10}, "charge_full": {"A": 0},
+        "horizon_s": 100,
     }
-    model, selected = build_master(problem)
+    model, selected, starts = build_master(problem)
     ids = tasks["task_id"].tolist()
-    first = solve_master(model, selected, ids, workers=1)
+    first = solve_master(model, selected, ids, starts, workers=1)
     assert first["status"] == "OPTIMAL"
     assert set(first["task_ids"]) == {"A", "B"}
+    assert set(first["start_hint"]) == {"A", "B"}
     add_task_set_exclusion(model, selected, {tid: i for i, tid in enumerate(ids)},
                            first["task_ids"])
-    second = solve_master(model, selected, ids, workers=1)
+    second = solve_master(model, selected, ids, starts, workers=1)
     assert second["status"] == "OPTIMAL"
     assert second["task_ids"] == ("AB",)
 
@@ -65,3 +75,30 @@ def test_infeasible_core_requires_both_tasks():
     assert not _partial_task_set_infeasible(problem, ("A",), 5, 1)
     assert not _partial_task_set_infeasible(problem, ("B",), 5, 1)
     assert shrink_infeasible_core(problem, ("A", "B"), 5, 1) == ("A", "B")
+
+
+def test_transport_master_rejects_resource_infeasible_pair():
+    tasks = pd.DataFrame([
+        {"task_id": tid, "uav_type": "A", "duration_s": 10,
+         "energy_kWh": 1.0, "latest_start_s": 0,
+         "gap_count": 0 if tid != "AB" else 1}
+        for tid in ("A", "B", "AB")
+    ])
+    problem = {
+        "tasks": tasks,
+        "boxes": pd.DataFrame([{"box_id": "B001"}, {"box_id": "B002"}]),
+        "task_boxes": {"A": ("B001",), "B": ("B002",),
+                       "AB": ("B001", "B002")},
+        "task_offsets": {"A": {"B001": 5}, "B": {"B002": 5},
+                         "AB": {"B001": 5, "B002": 5}},
+        "deadlines": {"B001": 5, "B002": 5},
+        "task_gaps": {},
+        "relay": pd.DataFrame(columns=["gap_id", "relay_uav_occupancy_s"]),
+        "uav_ids": {"A": ["U01"]}, "battery_ids": {"A": ["BAT01"]},
+        "energy_capacity": {"A": 10.0}, "charge_full": {"A": 0.0},
+        "horizon_s": 100,
+    }
+    model, selected, starts = build_master(problem)
+    result = solve_master(model, selected, tasks["task_id"].tolist(), starts, workers=1)
+    assert result["status"] == "OPTIMAL"
+    assert result["task_ids"] == ("AB",)

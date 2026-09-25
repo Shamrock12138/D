@@ -6,8 +6,11 @@ transport start times and all transport/relay resources remain joint decisions.
 
 import hashlib
 import json
+import math
+from collections import defaultdict
 from ortools.sat.python import cp_model
 
+from src.q2.battery import charge_time_to_full, soc_after_task
 from src.q3.bootstrap import subset_problem
 from src.q3.cp_sat_scheduler import (
     DATA, _build_q3_model, _reduce_relay_options, prepare_q3_problem, solve_q3_joint,
@@ -22,10 +25,47 @@ MASTER_RELAY_OCCUPANCY_PENALTY_PER_S = 2_000
 
 
 def build_master(problem, min_transport_tasks=0):
-    """Exact cover over every Q3 transport candidate, with a search surrogate."""
+    """Exact cover plus the joint model's transport scheduling constraints."""
     tasks = problem["tasks"]
     model = cp_model.CpModel()
+    battery_horizon_s = problem["horizon_s"] + math.ceil(max(
+        charge_time_to_full(0.0, full) for full in problem["charge_full"].values()
+    ))
     selected = [model.NewBoolVar(f"transport_{i}") for i in range(len(tasks))]
+    starts = []
+    flight_intervals = defaultdict(list)
+    battery_intervals = defaultdict(list)
+    for i, row in tasks.iterrows():
+        typ = str(row.uav_type)
+        flight_duration = max(1, math.ceil(float(row.duration_s)))
+        soc = soc_after_task(float(row.energy_kWh), problem["energy_capacity"][typ])
+        charge_s = charge_time_to_full(soc, problem["charge_full"][typ])
+        battery_duration = max(flight_duration,
+                               math.ceil(float(row.duration_s) + charge_s))
+        latest = problem["horizon_s"] - flight_duration
+        if math.isfinite(float(row.latest_start_s)):
+            latest = min(latest, math.floor(float(row.latest_start_s)))
+        if latest < 0:
+            raise RuntimeError(f"Task {row.task_id} has no transport start in horizon")
+        start = model.NewIntVar(0, latest, f"start_t_{i}")
+        flight_end = model.NewIntVar(flight_duration, problem["horizon_s"],
+                                     f"flight_end_t_{i}")
+        battery_end = model.NewIntVar(battery_duration, battery_horizon_s,
+                                      f"battery_end_t_{i}")
+        flight_intervals[typ].append(model.NewOptionalIntervalVar(
+            start, flight_duration, flight_end, selected[i], f"flight_t_{i}"))
+        battery_intervals[typ].append(model.NewOptionalIntervalVar(
+            start, battery_duration, battery_end, selected[i], f"battery_t_{i}"))
+        for box_id in problem["task_boxes"].get(str(row.task_id), ()):
+            deadline = problem["deadlines"][box_id]
+            if math.isfinite(deadline):
+                offset = math.ceil(problem["task_offsets"][str(row.task_id)][box_id])
+                model.Add(start + offset <= math.floor(deadline)).OnlyEnforceIf(selected[i])
+        starts.append(start)
+    for typ, intervals in flight_intervals.items():
+        model.AddCumulative(intervals, [1] * len(intervals), len(problem["uav_ids"][typ]))
+    for typ, intervals in battery_intervals.items():
+        model.AddCumulative(intervals, [1] * len(intervals), len(problem["battery_ids"][typ]))
     task_index = {str(task_id): i for i, task_id in enumerate(tasks["task_id"].astype(str))}
     covering = {str(box_id): [] for box_id in problem["boxes"]["box_id"].astype(str)}
     for task_id, boxes in problem["task_boxes"].items():
@@ -56,10 +96,10 @@ def build_master(problem, min_transport_tasks=0):
                 + round(float(row.energy_kWh) * MASTER_ENERGY_SCALE))
         costs.append(cost)
     model.Minimize(sum(costs[i] * selected[i] for i in range(len(tasks))))
-    return model, selected
+    return model, selected, starts
 
 
-def solve_master(model, selected, task_ids, time_limit_s=30, workers=8):
+def solve_master(model, selected, task_ids, starts=None, time_limit_s=30, workers=8):
     solver = cp_model.CpSolver()
     solver.parameters.max_time_in_seconds = float(time_limit_s)
     solver.parameters.num_search_workers = int(workers)
@@ -70,6 +110,11 @@ def solve_master(model, selected, task_ids, time_limit_s=30, workers=8):
             str(task_ids[i]) for i, var in enumerate(selected) if solver.Value(var)
         )
         record["surrogate_cost"] = int(solver.ObjectiveValue())
+        if starts is not None:
+            record["start_hint"] = {
+                str(task_ids[i]): int(solver.Value(starts[i]))
+                for i, var in enumerate(selected) if solver.Value(var)
+            }
     return record
 
 
@@ -128,7 +173,8 @@ def run_step8_decomposed(max_task_sets=30, master_time_s=30,
                          subproblem_time_s=60, workers=8,
                          min_transport_tasks=0):
     full_problem = prepare_q3_problem(tier="all")
-    model, selected = build_master(full_problem, min_transport_tasks=min_transport_tasks)
+    model, selected, starts = build_master(full_problem,
+                                            min_transport_tasks=min_transport_tasks)
     task_ids = full_problem["tasks"]["task_id"].astype(str).tolist()
     task_index = {task_id: i for i, task_id in enumerate(task_ids)}
     attempts = []
@@ -138,7 +184,8 @@ def run_step8_decomposed(max_task_sets=30, master_time_s=30,
     output_manifest = DATA / "q3_step8_decomposition_manifest.json"
 
     for iteration in range(1, int(max_task_sets) + 1):
-        master = solve_master(model, selected, task_ids, master_time_s, workers)
+        master = solve_master(model, selected, task_ids, starts,
+                              master_time_s, workers)
         if master["status"] == "MODEL_INVALID":
             raise RuntimeError("Q3 task-selection master is invalid")
         if master["status"] not in ("OPTIMAL", "FEASIBLE"):
@@ -155,6 +202,7 @@ def run_step8_decomposed(max_task_sets=30, master_time_s=30,
             sub = solve_q3_joint(
                 tier=tier, time_limit_s=subproblem_time_s, workers=workers,
                 problem=small, feasibility_only=True,
+                transport_start_hint=master["start_hint"],
             )
             detail = {"tier": tier, "status": sub["status"],
                       "wall_time_s": sub["wall_time_s"],

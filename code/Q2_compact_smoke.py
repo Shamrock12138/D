@@ -1,0 +1,246 @@
+"""Small Q2 closed-loop test of class-count patterns (S001/S002 by default)."""
+
+import argparse
+import hashlib
+import json
+import math
+import sys
+from pathlib import Path
+
+import pandas as pd
+from ortools.sat.python import cp_model
+
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from src.physics import load_models
+from src.q2.compact_classes import (
+    build_compact_master, class_timeliness, decode_box_deliveries,
+    generate_compact_patterns, materialize_selected_sorties,
+    select_compact_patterns,
+)
+from src.q2.cp_sat_scheduler import _build_model, _deadlines, _decode_resources, _resource_ids
+from src.q2.data_model import load_q2_data
+
+
+DATA = Path(__file__).resolve().parent / "data"
+
+
+def _solver(time_limit_s, workers):
+    solver = cp_model.CpSolver()
+    solver.parameters.max_time_in_seconds = float(time_limit_s)
+    solver.parameters.num_search_workers = int(workers)
+    solver.parameters.random_seed = 2026
+    return solver
+
+
+def _resources(data):
+    uav_ids, battery_ids = _resource_ids(data["uavs"], data["batteries"])
+    specs = pd.read_csv(DATA / "运输无人机_机型参数.csv", encoding="utf-8-sig")
+    capacity = dict(zip(specs["type"].astype(str), specs["E_use"].astype(float)))
+    charge_full = data["batteries"].groupby("type")["full_charge_time"].first().to_dict()
+    return uav_ids, battery_ids, capacity, charge_full
+
+
+def _fixed_transport_schedule(tasks, deliveries, boxes, resources, time_limit_s, workers):
+    """Independently reschedule materialized sorties with the established Q2 model."""
+    grouped = deliveries.groupby("task_id")
+    task_boxes = {str(tid): tuple(group["box_id"].astype(str)) for tid, group in grouped}
+    task_offsets = {str(tid): dict(zip(group["box_id"].astype(str),
+                                       group["delivery_offset_s"].astype(float)))
+                    for tid, group in grouped}
+    deadlines = _deadlines(boxes)
+    work = tasks.copy().reset_index(drop=True)
+    work["hard_latest_start_s"] = work["latest_start_s"]
+    uav_ids, battery_ids, capacity, charge_full = resources
+    built = _build_model(work, task_boxes, task_offsets, deadlines, uav_ids,
+                         battery_ids, capacity, charge_full, 36000)
+    model, selected, starts, _, _, _, metadata = built
+    for chosen in selected:
+        model.Add(chosen == 1)
+    solver = _solver(time_limit_s, workers)
+    status = solver.Solve(model)
+    if status not in (cp_model.FEASIBLE, cp_model.OPTIMAL):
+        return solver.StatusName(status), None, None
+    start_map = {str(row.task_id): int(solver.Value(starts[i]))
+                 for i, row in work.iterrows()}
+    records = [dict(task_id=meta["task_id"], uav_type=meta["uav_type"],
+                    start_time_s=start_map[meta["task_id"]],
+                    flight_duration_s=meta["flight_duration_s"],
+                    battery_duration_s=meta["battery_duration_s"],
+                    charge_s=meta["charge_s"])
+               for meta in metadata]
+    schedule = _decode_resources(work, records, uav_ids, battery_ids)
+    flight_release = {item["task_id"]: item["start_time_s"]
+                      + item["flight_duration_s"] for item in records}
+    battery_release = {item["task_id"]: item["start_time_s"]
+                       + item["battery_duration_s"] for item in records}
+    schedule["flight_release_s"] = schedule["task_id"].map(flight_release)
+    schedule["battery_release_s"] = schedule["task_id"].map(battery_release)
+    return solver.StatusName(status), start_map, schedule
+
+
+def _nonoverlap(schedule, resource, start, end):
+    for _, group in schedule.sort_values(start).groupby(resource):
+        if (group[start].iloc[1:].to_numpy()
+                < group[end].iloc[:-1].to_numpy() - 1e-9).any():
+            return False
+    return True
+
+
+def _q3_communication_check(tasks, deliveries):
+    """Check that materialized compact sorties enter the existing Q3 profile."""
+    from src.q3.communication.direct_profile import DirectProfileCache, required_segment_keys
+    from src.q3.transport.candidate_loader import TransportTaskTemplate
+    from src.q3.transport.communication_summary import assemble_task_profile, summarize_profile
+    from src.q3.trajectory_generator import load_box_services
+
+    grouped = deliveries.groupby("task_id")
+    templates = []
+    for row in tasks.itertuples(index=False):
+        group = grouped.get_group(row.task_id)
+        visit = str(row.visit_order).split(">")
+        templates.append(TransportTaskTemplate(
+            task_id=str(row.task_id), uav_type=str(row.uav_type),
+            n_stops=int(row.n_stops), visit_order=visit,
+            route=["O01", *visit, "O01"],
+            boxes=group["box_id"].astype(str).tolist(),
+            delivery_offsets=dict(zip(group["box_id"].astype(str),
+                                      group["delivery_offset_s"].astype(float))),
+            energy_kWh=float(row.energy_kWh), duration_s=float(row.duration_s),
+            end_SOC=float(row.end_SOC),
+            has_hard_deadline=bool(row.has_hard_deadline),
+            latest_start_s=float(row.latest_start_s),
+        ))
+    cache = DirectProfileCache(dt=10.0)
+    try:
+        cache.build_nodes()
+        cache.build_segments(required_segment_keys(templates), verbose=False)
+        services = load_box_services()
+        summary = [summarize_profile(template, assemble_task_profile(template, cache,
+                                                                       services))
+                   for template in templates]
+    finally:
+        cache.close()
+    return {"profiles": len(summary), "gaps": sum(row["gap_count"] for row in summary),
+            "needs_relay": sum(row["needs_relay"] for row in summary),
+            "all_profiles_complete": len(summary) == len(templates)}
+
+
+def run_smoke(services=("S001", "S002"), top_k=3, master_time_s=30,
+              transport_time_s=20, workers=8, q3_comm=False,
+              q3_relay=False):
+    """Return an evidence report; never overwrite existing Q2/Q3 outputs."""
+    data = load_q2_data()
+    boxes = data["boxes"].loc[data["boxes"]["service"].isin(services)].copy()
+    if boxes.empty:
+        raise ValueError("No boxes in requested services")
+    classes, patterns, counts = generate_compact_patterns(
+        data["boxes"], load_models(), max_stops=2, services=services)
+    classes = classes.loc[classes["service"].isin(services)].reset_index(drop=True)
+    full_pattern_count = len(patterns)
+    patterns, counts = select_compact_patterns(patterns, counts, classes, top_k)
+    resources = _resources(data)
+    model, slots, chosen, starts = build_compact_master(
+        patterns, counts, classes, *resources, horizon_s=36000)
+    master = _solver(master_time_s, workers)
+    master_status = master.Solve(model)
+    report = {"services": list(services), "boxes": len(boxes),
+              "classes": len(classes), "physical_patterns": full_pattern_count,
+              "retained_patterns": len(patterns), "sortie_slots": len(slots),
+              "master_status": master.StatusName(master_status),
+              "master_wall_time_s": master.WallTime(), "seed": 2026,
+              "input_sha256": hashlib.sha256(
+                  (DATA / "物资需求.csv").read_bytes()).hexdigest()}
+    if master_status not in (cp_model.FEASIBLE, cp_model.OPTIMAL):
+        report["all_pass"] = False
+        return report
+    sorties = [dict(slot, start_time_s=int(master.Value(starts[i])))
+               for i, (slot, x) in enumerate(zip(slots, chosen)) if master.Value(x)]
+    task_table, delivery_table = materialize_selected_sorties(
+        sorties, patterns, counts, classes)
+    transport_status, start_map, schedule = _fixed_transport_schedule(
+        task_table, delivery_table, boxes, resources, transport_time_s, workers)
+    report.update({"selected_sorties": len(sorties),
+                   "repeated_patterns": sum(
+                       sum(s["pattern_id"] == pid for s in sorties) > 1
+                       for pid in {s["pattern_id"] for s in sorties}),
+                   "transport_status": transport_status})
+    if schedule is None:
+        report["all_pass"] = False
+        return report
+    for sortie in sorties:
+        sortie["start_time_s"] = start_map[sortie["sortie_id"]]
+    deliveries = decode_box_deliveries(sorties, classes, counts)
+    deadlines = _deadlines(boxes)
+    box_rows = boxes.set_index("box_id")
+    hard_ok = all(float(row.delivery_time_s) <= math.floor(deadlines[row.box_id]) + 1e-6
+                  for row in deliveries.itertuples(index=False)
+                  if math.isfinite(deadlines[row.box_id]))
+    first_ok = all(float(row.delivery_time_s) <= math.floor(
+                       float(box_rows.loc[row.box_id, "first_deadline"])) + 1e-6
+                   for row in deliveries.itertuples(index=False)
+                   if bool(box_rows.loc[row.box_id, "is_first_batch"])
+                   and pd.notna(box_rows.loc[row.box_id, "first_deadline"]))
+    medical_ok = all(float(row.delivery_time_s) <= math.floor(
+                         float(box_rows.loc[row.box_id, "expected_time"])) + 1e-6
+                     for row in deliveries.itertuples(index=False)
+                     if box_rows.loc[row.box_id, "cargo_type"] == "医疗物资"
+                     and pd.notna(box_rows.loc[row.box_id, "expected_time"]))
+    box_class = {box: row.class_id for row in classes.itertuples(index=False)
+                 for box in row.box_ids}
+    checks = {
+        "class_quantity_conservation": all(
+            sum(s["class_counts"].get(row.class_id, 0) for s in sorties) == row.count
+            for row in classes.itertuples(index=False)),
+        "every_box_exactly_once": (len(deliveries) == len(boxes)
+                                   and set(deliveries["box_id"]) == set(boxes["box_id"])
+                                   and deliveries["box_id"].is_unique),
+        "box_class_identity": all(box_class[row.box_id] == row.class_id
+                                  for row in deliveries.itertuples(index=False)),
+        "hard_deadlines": hard_ok,
+        "first_batch_deadlines": first_ok,
+        "medical_deadlines": medical_ok,
+        "flight_horizon": bool((schedule["end_time_s"] <= 36000 + 1e-6).all()),
+        "uav_nonoverlap": _nonoverlap(schedule, "uav_id", "start_time_s",
+                                      "flight_release_s"),
+        "battery_nonoverlap": _nonoverlap(schedule, "battery_id", "start_time_s",
+                                           "battery_release_s"),
+        "delivery_time_mapping": all(
+            abs(row.delivery_time_s - row.start_time_s - row.delivery_offset_s) < 1e-6
+            for row in deliveries.itertuples(index=False)),
+    }
+    report.update({"checks": checks, "all_pass": all(checks.values()),
+                   "transport_cmax_s": float(schedule["end_time_s"].max()),
+                   "F1_weighted_lateness": class_timeliness(sorties, classes, counts)})
+    if q3_comm and report["all_pass"]:
+        final_tasks, final_deliveries = materialize_selected_sorties(
+            sorties, patterns, counts, classes)
+        report["q3_communication"] = _q3_communication_check(
+            final_tasks, final_deliveries)
+    if q3_relay and report["all_pass"]:
+        from src.q3.compact_smoke_relay import run_compact_relay_smoke
+        final_tasks, final_deliveries = materialize_selected_sorties(
+            sorties, patterns, counts, classes)
+        report["q3_relay"] = run_compact_relay_smoke(
+            final_tasks, final_deliveries, boxes, resources, start_map,
+            time_limit_s=transport_time_s, workers=workers)
+    return report
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--service", action="append", default=None)
+    parser.add_argument("--top-k", type=int, default=3)
+    parser.add_argument("--master-time", type=float, default=30)
+    parser.add_argument("--transport-time", type=float, default=20)
+    parser.add_argument("--workers", type=int, default=8)
+    parser.add_argument("--q3-comm", action="store_true",
+                        help="Also evaluate Q3 direct-link profiles for selected sorties")
+    parser.add_argument("--q3-relay", action="store_true",
+                        help="Also test in-memory gap/RP/Relay joint scheduling")
+    args = parser.parse_args()
+    print(json.dumps(run_smoke(tuple(args.service) if args.service else ("S001", "S002"),
+                               args.top_k, args.master_time, args.transport_time,
+                               args.workers, args.q3_comm, args.q3_relay),
+                     ensure_ascii=False, indent=2))

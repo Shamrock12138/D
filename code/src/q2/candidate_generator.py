@@ -119,44 +119,23 @@ def _pick_boxes(combo, pool, sv, offset=0):
     return delivery
 
 
-def _deadline_violated(delivery_offsets, pool, sv, combo):
-    u"""检查组合是否违反硬时限约束。
+def _deadline_violated(delivery_offsets, deadline_lookup):
+    """Check selected boxes against their own hard deadlines."""
+    return any(offset > deadline_lookup.get(bid, float("inf")) + 1e-6
+               for bid, offset in delivery_offsets.items())
 
-    两类硬时限:
-      1. 医疗物资 — 所有箱必须 offset <= deadline (或 expected_time)
-      2. 首批保障箱 — 前 first_required 个箱必须 offset <= first_deadline
 
-    违反任一 → True (剪枝该 candidate)
-    """
-    cargo_info = pool[sv]["cargo"]
-    for ct, n in combo.items():
-        if n == 0 or ct not in cargo_info:
-            continue
-        ci = cargo_info[ct]
-
-        if ct == "医疗物资":
-            d = ci["deadline"] or ci.get("expected_time")
-            if d is None:
-                continue
-            offsets = [
-                delivery_offsets[bid]
-                for bid, bt in zip(pool[sv]["box_ids"], pool[sv]["box_types"])
-                if bt == ct and bid in delivery_offsets
-            ]
-            if any(t > d + 1e-6 for t in offsets):
-                return True
-            continue
-
-        if ci["first_required"] > 0 and ci["deadline"] is not None:
-            offsets = [
-                delivery_offsets[bid]
-                for bid, bt in zip(pool[sv]["box_ids"], pool[sv]["box_types"])
-                if bt == ct and bid in delivery_offsets
-            ]
-            if any(t > ci["deadline"] + 1e-6 for t in offsets):
-                return True
-
-    return False
+def _box_deadline_lookup(boxes_df):
+    """Combine first-batch and medical deadlines for each physical box."""
+    deadlines = {}
+    for _, row in boxes_df.iterrows():
+        deadline = float("inf")
+        if row["is_first_batch"] and pd.notna(row["first_deadline"]):
+            deadline = min(deadline, float(row["first_deadline"]))
+        if row["cargo_type"] == "医疗物资" and pd.notna(row["expected_time"]):
+            deadline = min(deadline, float(row["expected_time"]))
+        deadlines[row["box_id"]] = deadline
+    return deadlines
 
 
 def _hard_deadline_info(delivery_offsets, deadline_lookup, box_list):
@@ -203,13 +182,7 @@ def generate_candidate_pool(boxes_df, models, max_stops=2):
     g_names = sorted(models.keys())
     box_lookup = _box_data(boxes_df)
 
-    deadline_lookup = {}
-    for _, row in boxes_df.iterrows():
-        bid = row["box_id"]
-        if row["is_first_batch"] and pd.notna(row["first_deadline"]):
-            deadline_lookup[bid] = float(row["first_deadline"])
-        else:
-            deadline_lookup[bid] = float("inf")
+    deadline_lookup = _box_deadline_lookup(boxes_df)
 
     print("=" * 60)
     print(f"Q2 Step 1: Candidate Task Generation  (max_stops={max_stops})")
@@ -274,7 +247,7 @@ def generate_candidate_pool(boxes_df, models, max_stops=2):
                     pruned_energy += 1
                     continue
 
-                if _deadline_violated(r["delivery_offsets"], pool, sv, combo):
+                if _deadline_violated(r["delivery_offsets"], deadline_lookup):
                     pruned_time += 1
                     continue
 
@@ -356,16 +329,9 @@ def generate_candidate_pool(boxes_df, models, max_stops=2):
                             pruned_energy += 1
                             continue
 
-                        ok = True
-                        for sv_check, combo_check in [(sv_a, ca), (sv_b, cb)]:
-                            if _deadline_violated(
-                                r["delivery_offsets"], pool,
-                                sv_check, combo_check
-                            ):
-                                pruned_time += 1
-                                ok = False
-                                break
-                        if not ok:
+                        if _deadline_violated(r["delivery_offsets"],
+                                              deadline_lookup):
+                            pruned_time += 1
                             continue
 
                         tid_counter += 1
@@ -439,7 +405,9 @@ def generate_candidate_pool(boxes_df, models, max_stops=2):
                     continue
                 r = evaluate_route(model, [sv_svc], {sv_svc: sv_del},
                                    box_lookup=box_lookup)
-                if r["feasible"]:
+                if r["feasible"] and not _deadline_violated(
+                    r["delivery_offsets"], deadline_lookup
+                ):
                     tid_counter += 1
                     tid = f"R{tid_counter:06d}"
                     has_hard, latest_start = _hard_deadline_info(

@@ -290,6 +290,7 @@ def _extract_gaps_with_states(
     state_map: Dict[OutageStateKey, str],
     box_services: dict = None,
     verbose: bool = True,
+    needs_relay_tids: Set[str] = None,
 ):
     u"""遍历任务，提取 gap + 逐采样 state 映射。"""
     gap_rows: List[dict] = []
@@ -301,11 +302,12 @@ def _extract_gaps_with_states(
     gap_index = 0
     skipped = 0
 
-    needs_relay_tids: Set[str] = set()
-    with CANDIDATE_TASKS.open("r", encoding="utf-8-sig", newline="") as f:
-        for row in _csv.DictReader(f):
-            if row.get("needs_relay", "0") == "1":
-                needs_relay_tids.add(row["task_id"].strip())
+    if needs_relay_tids is None:
+        needs_relay_tids = set()
+        with CANDIDATE_TASKS.open("r", encoding="utf-8-sig", newline="") as f:
+            for row in _csv.DictReader(f):
+                if row.get("needs_relay", "0") == "1":
+                    needs_relay_tids.add(row["task_id"].strip())
 
     for ti, template in enumerate(templates):
         if verbose and (ti + 1) % 500 == 0:

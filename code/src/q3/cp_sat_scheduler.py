@@ -230,6 +230,9 @@ def _build_q3_model(problem, relay_uav_capacity=None, relay_energy_capacity=None
     horizon_s = problem["horizon_s"]
 
     model = cp_model.CpModel()
+    battery_horizon_s = horizon_s + math.ceil(max(
+        charge_time_to_full(0.0, full) for full in charge_full.values()
+    ))
     task_map = {}
     for i, row in tasks.iterrows():
         task_map[str(row.task_id)] = i
@@ -251,7 +254,7 @@ def _build_q3_model(problem, relay_uav_capacity=None, relay_energy_capacity=None
         charge_s = charge_time_to_full(soc, charge_full[typ])
         battery_duration = max(flight_duration, math.ceil(float(row.duration_s) + charge_s))
 
-        latest = horizon_s - battery_duration
+        latest = horizon_s - flight_duration
         if math.isfinite(float(row.get("latest_start_s", float("inf")))):
             latest = min(latest, math.floor(float(row["latest_start_s"])))
         if latest < 0:
@@ -260,7 +263,8 @@ def _build_q3_model(problem, relay_uav_capacity=None, relay_energy_capacity=None
         chosen = model.NewBoolVar(f"select_t_{i}")
         start = model.NewIntVar(0, latest, f"start_t_{i}")
         flight_end = model.NewIntVar(flight_duration, horizon_s, f"flight_end_t_{i}")
-        battery_end = model.NewIntVar(battery_duration, horizon_s, f"battery_end_t_{i}")
+        battery_end = model.NewIntVar(battery_duration, battery_horizon_s,
+                                      f"battery_end_t_{i}")
 
         flight_interval = model.NewOptionalIntervalVar(
             start, flight_duration, flight_end, chosen, f"flight_interval_t_{i}"
@@ -669,13 +673,19 @@ def _add_joint_hint(model, problem, select, starts, relay_select, relay_starts, 
 
 
 def solve_q3_joint(tier="tier1", time_limit_s=600, workers=8, random_seed=2026,
-                   problem=None, feasibility_only=False, hint=None):
+                   problem=None, feasibility_only=False, hint=None,
+                   transport_start_hint=None):
     if problem is None:
         problem = prepare_q3_problem(tier=tier)
     built = _build_q3_model(problem)
     model, select, starts, relay_select, relay_starts, transport_cmax, relay_cmax, joint_cmax, metadata = built
     if hint is not None:
         _add_joint_hint(model, problem, select, starts, relay_select, relay_starts, hint)
+    elif transport_start_hint is not None:
+        for i, row in problem["tasks"].iterrows():
+            task_id = str(row.task_id)
+            if task_id in transport_start_hint:
+                model.AddHint(starts[i], int(transport_start_hint[task_id]))
     solver, status = _solve_q3(
         model, joint_cmax, select + starts + relay_select, time_limit_s,
         workers, random_seed, feasibility_only=feasibility_only,
