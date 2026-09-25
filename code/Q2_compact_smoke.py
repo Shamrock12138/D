@@ -255,7 +255,87 @@ def run_smoke(services=("S001", "S002"), top_k=3, master_time_s=30,
             data["boxes"], models, max_stops=2, services=services)
         classes = classes.loc[classes["service"].isin(services)].reset_index(drop=True)
     full_pattern_count = len(patterns)
-    patterns, counts = select_compact_patterns(patterns, counts, classes, top_k)
+
+    if full_candidates and objective == "COMM":
+
+        q3_patterns_path = (
+            DATA
+            / "q3_compact_patterns.csv"
+        )
+
+        q3_counts_path = (
+            DATA
+            / "q3_compact_pattern_counts.csv"
+        )
+
+        if not q3_patterns_path.exists():
+            raise FileNotFoundError(
+                q3_patterns_path
+            )
+
+        if not q3_counts_path.exists():
+            raise FileNotFoundError(
+                q3_counts_path
+            )
+
+        patterns = pd.read_csv(
+            q3_patterns_path,
+            encoding="utf-8-sig",
+        )
+
+        counts = pd.read_csv(
+            q3_counts_path,
+            encoding="utf-8-sig",
+        )
+
+        # 基本一致性检查
+        required_classes = set(
+            classes[
+                "class_id"
+            ].astype(str)
+        )
+
+        covered_classes = set(
+            counts[
+                "class_id"
+            ].astype(str)
+        )
+
+        missing_classes = (
+            required_classes
+            - covered_classes
+        )
+
+        if missing_classes:
+            raise RuntimeError(
+                "Q3 communication candidate pool "
+                "lost classes: "
+                f"{sorted(missing_classes)}"
+            )
+
+        if "gap_count" not in patterns.columns:
+            raise RuntimeError(
+                "q3_compact_patterns.csv "
+                "does not contain gap_count"
+            )
+
+        print(
+            "COMM objective uses "
+            "Q3 joint candidate pool: "
+            f"{len(patterns)} patterns",
+            flush=True,
+        )
+
+    else:
+
+        patterns, counts = (
+            select_compact_patterns(
+                patterns,
+                counts,
+                classes,
+                top_k,
+            )
+        )
     cache_equivalent = _physical_cache_equivalent(
         patterns, counts, classes, boxes, models)
     resources = _resources(data)
@@ -264,7 +344,11 @@ def run_smoke(services=("S001", "S002"), top_k=3, master_time_s=30,
         objective=objective)
     seed_source = None
 
-    if full_candidates and objective != "N":
+    if (
+        full_candidates
+        and objective
+        not in ("N", "COMM")
+    ):
         seed, seed_source = _load_current_anchor_seed(objective, top_k)
 
         if seed is not None:
@@ -323,6 +407,43 @@ def run_smoke(services=("S001", "S002"), top_k=3, master_time_s=30,
     )
     sorties = [dict(slot, start_time_s=int(master.Value(starts[i])))
                for i, (slot, x) in enumerate(zip(slots, chosen)) if master.Value(x)]
+
+    if objective == "COMM":
+
+        pattern_lookup = (
+            patterns.set_index(
+                "pattern_id"
+            )
+        )
+
+        total_gap_count = sum(
+            int(
+                pattern_lookup.loc[
+                    sortie["pattern_id"],
+                    "gap_count",
+                ]
+            )
+            for sortie in sorties
+        )
+
+        relay_pattern_count = sum(
+            int(
+                pattern_lookup.loc[
+                    sortie["pattern_id"],
+                    "gap_count",
+                ]
+            ) > 0
+            for sortie in sorties
+        )
+
+        report[
+            "COMM_total_gap_count"
+        ] = total_gap_count
+
+        report[
+            "COMM_relay_sorties"
+        ] = relay_pattern_count
+
     master_starts = {sortie["sortie_id"]: sortie["start_time_s"]
                      for sortie in sorties}
     master_f1 = class_timeliness(sorties, classes, counts)
@@ -460,7 +581,7 @@ if __name__ == "__main__":
     parser.add_argument("--master-time", type=float, default=30)
     parser.add_argument("--transport-time", type=float, default=20)
     parser.add_argument("--workers", type=int, default=1)
-    parser.add_argument("--objective", choices=("F1", "Cmax", "E", "N"),
+    parser.add_argument("--objective", choices=("F1", "Cmax", "E", "N", "COMM"),
                         default="N")
     parser.add_argument("--full-candidates", action="store_true",
                         help="Use saved 80-box compact candidate files")

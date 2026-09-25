@@ -491,8 +491,30 @@ def build_compact_master(patterns, pattern_counts, classes, uav_ids,
                          battery_ids, energy_capacity, charge_full, horizon_s,
                          objective="N"):
     """Build transport-feasible class-count master with a Q2 single objective."""
-    if objective not in {"F1", "Cmax", "E", "N"}:
-        raise ValueError(f"Unknown compact Q2 objective: {objective}")
+    if objective not in {
+        "F1",
+        "Cmax",
+        "E",
+        "N",
+        "COMM",
+    }:
+        raise ValueError(
+            f"Unknown compact Q2 objective: {objective}"
+        )
+
+    if objective == "COMM":
+        if "gap_count" not in patterns.columns:
+            raise ValueError(
+                "COMM objective requires "
+                "'gap_count' in patterns"
+            )
+
+        if patterns["gap_count"].isna().any():
+            raise ValueError(
+                "COMM objective found missing "
+                "gap_count values"
+            )
+
     supply = dict(zip(classes["class_id"], classes["count"]))
     counts = {pid: dict(zip(group["class_id"], group["count"]))
               for pid, group in pattern_counts.groupby("pattern_id")}
@@ -509,6 +531,16 @@ def build_compact_master(patterns, pattern_counts, classes, uav_ids,
             default=math.inf,
         )
     slots = expand_pattern_counts(counts, supply)
+
+    # COMM 主目标:
+    #   1. 最小化总 communication gap 数
+    #   2. 相同 gap 数下最小化运输架次
+    #
+    # 因为最大可能架次数不超过 len(slots)，
+    # 令 COMM_SCALE > len(slots)，即可保证
+    # 一个额外 gap 的代价一定大于所有架次差异。
+    COMM_SCALE = len(slots) + 1
+
     pattern_rows = patterns.set_index("pattern_id")
     model = cp_model.CpModel()
     chosen = []
@@ -516,6 +548,7 @@ def build_compact_master(patterns, pattern_counts, classes, uav_ids,
     active_ends = []
     energy_terms = []
     lateness_terms = []
+    comm_terms = []
     flight_intervals = defaultdict(list)
     battery_intervals = defaultdict(list)
     flight_work_terms = defaultdict(list)
@@ -555,40 +588,172 @@ def build_compact_master(patterns, pattern_counts, classes, uav_ids,
         chosen.append(x)
         starts.append(s)
         if objective == "Cmax":
-            active_end = model.NewIntVar(0, horizon_s, f"active_end_{i}")
-            model.Add(active_end == f_end).OnlyEnforceIf(x)
-            model.Add(active_end == 0).OnlyEnforceIf(x.Not())
-            active_ends.append(active_end)
+
+            active_end = model.NewIntVar(
+                0,
+                horizon_s,
+                f"active_end_{i}",
+            )
+
+            model.Add(
+                active_end == f_end
+            ).OnlyEnforceIf(x)
+
+            model.Add(
+                active_end == 0
+            ).OnlyEnforceIf(x.Not())
+
+            active_ends.append(
+                active_end
+            )
+
         elif objective == "E":
-            energy_terms.append(int(round(float(row.energy_kWh) * 1_000_000)) * x)
+
+            energy_terms.append(
+                int(
+                    round(
+                        float(row.energy_kWh)
+                        * 1_000_000
+                    )
+                )
+                * x
+            )
+
+        elif objective == "COMM":
+
+            gap_count = int(
+                row.gap_count
+            )
+
+            comm_cost = (
+                gap_count * COMM_SCALE
+                + 1
+            )
+
+            comm_terms.append(
+                comm_cost * x
+            )
+
         elif objective == "F1":
-            for item in count_rows[slot["pattern_id"]]:
-                cls = class_rows.loc[item.class_id]
-                if (math.isfinite(float(cls.hard_deadline_s))
-                        or not math.isfinite(float(cls.expected_time_s))):
+
+            for item in count_rows[
+                slot["pattern_id"]
+            ]:
+
+                cls = class_rows.loc[
+                    item.class_id
+                ]
+
+                if (
+                    math.isfinite(
+                        float(
+                            cls.hard_deadline_s
+                        )
+                    )
+                    or not math.isfinite(
+                        float(
+                            cls.expected_time_s
+                        )
+                    )
+                ):
                     continue
-                diff_ms = math.ceil(1000 * (float(item.delivery_offset_s)
-                                            - float(cls.expected_time_s)))
-                upper = max(0, 1000 * horizon_s + diff_ms)
-                late = model.NewIntVar(0, upper, f"late_ms_{i}_{item.class_id}")
-                model.Add(late >= 1000 * s + diff_ms).OnlyEnforceIf(x)
-                model.Add(late == 0).OnlyEnforceIf(x.Not())
-                lateness_terms.append(int(item.count) * int(cls.priority) * late)
+
+                diff_ms = math.ceil(
+                    1000
+                    * (
+                        float(
+                            item.delivery_offset_s
+                        )
+                        - float(
+                            cls.expected_time_s
+                        )
+                    )
+                )
+
+                upper = max(
+                    0,
+                    1000 * horizon_s
+                    + diff_ms,
+                )
+
+                late = model.NewIntVar(
+                    0,
+                    upper,
+                    f"late_ms_{i}_{item.class_id}",
+                )
+
+                model.Add(
+                    late
+                    >=
+                    1000 * s
+                    + diff_ms
+                ).OnlyEnforceIf(x)
+
+                model.Add(
+                    late == 0
+                ).OnlyEnforceIf(x.Not())
+
+                lateness_terms.append(
+                    int(item.count)
+                    * int(cls.priority)
+                    * late
+                )
+
     add_class_conservation(model, slots, chosen, supply)
     for typ, intervals in flight_intervals.items():
         model.AddCumulative(intervals, [1] * len(intervals), len(uav_ids[typ]))
     for typ, intervals in battery_intervals.items():
         model.AddCumulative(intervals, [1] * len(intervals), len(battery_ids[typ]))
+
     if objective == "N":
-        model.Minimize(sum(chosen))
+
+        model.Minimize(
+            sum(chosen)
+        )
+
     elif objective == "E":
-        model.Minimize(sum(energy_terms))
+
+        model.Minimize(
+            sum(energy_terms)
+        )
+
     elif objective == "Cmax":
-        cmax = model.NewIntVar(0, horizon_s, "cmax")
-        model.AddMaxEquality(cmax, active_ends)
-        for typ, terms in flight_work_terms.items():
-            model.Add(len(uav_ids[typ]) * cmax >= sum(terms))
+
+        cmax = model.NewIntVar(
+            0,
+            horizon_s,
+            "cmax",
+        )
+
+        model.AddMaxEquality(
+            cmax,
+            active_ends,
+        )
+
+        for typ, terms in (
+            flight_work_terms.items()
+        ):
+
+            model.Add(
+                len(uav_ids[typ])
+                * cmax
+                >=
+                sum(terms)
+            )
+
         model.Minimize(cmax)
+
+    elif objective == "COMM":
+
+        model.Minimize(
+            sum(comm_terms)
+        )
+
     else:
-        model.Minimize(sum(lateness_terms))
+
+        # F1
+        model.Minimize(
+            sum(lateness_terms)
+        )
+
     return model, slots, chosen, starts
