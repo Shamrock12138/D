@@ -487,22 +487,6 @@ def run_smoke(services=("S001", "S002"), top_k=3, master_time_s=30,
         patterns, counts, classes, *resources, horizon_s=36000,
         objective=objective)
 
-    if objective == "COMM":
-        print(
-            "Adding 2-Relay capacity constraints "
-            "to COMM master...",
-            flush=True,
-        )
-
-        _add_comm_relay_capacity(
-            model,
-            slots,
-            chosen,
-            starts,
-            relay_capacity=2,
-            energy_capacity=6,
-        )
-
     seed_source = None
 
     if (
@@ -604,6 +588,220 @@ def run_smoke(services=("S001", "S002"), top_k=3, master_time_s=30,
         report[
             "COMM_relay_sorties"
         ] = relay_pattern_count
+
+        # ==========================================================
+        # COMM 邻域搜索：用第一次解周围的通信友好 Pattern 重建小规模
+        # Master，加入 2-Relay 容量约束
+        # ==========================================================
+        used_pids = set(
+            s["pattern_id"] for s in sorties
+        )
+
+        print(
+            "  First COMM solution: "
+            f"{len(used_pids)} patterns, "
+            f"{total_gap_count} gaps",
+            flush=True,
+        )
+
+        # 为每个 class 保留 gap_count 最小的 top-3 pattern
+        class_top = set()
+        if "class_id" in counts.columns:
+            merged = counts.merge(
+                patterns[["pattern_id", "gap_count"]],
+                on="pattern_id",
+            )
+            for cls_id, grp in merged.groupby("class_id"):
+                top = (
+                    grp.sort_values("gap_count")
+                    .head(3)["pattern_id"]
+                    .astype(str)
+                    .tolist()
+                )
+                class_top.update(top)
+
+        neighborhood_pids = used_pids | class_top
+
+        # 过滤 patterns 和 counts 到邻域
+        neighborhood_patterns = patterns[
+            patterns["pattern_id"].astype(str).isin(
+                neighborhood_pids
+            )
+        ].copy()
+
+        neighborhood_counts = counts[
+            counts["pattern_id"].astype(str).isin(
+                neighborhood_pids
+            )
+        ].copy()
+
+        # 检查 class 覆盖
+        covered = set(
+            neighborhood_counts["class_id"].astype(str)
+        )
+        required = set(
+            classes["class_id"].astype(str)
+        )
+        lost = required - covered
+        if lost:
+            # 为丢失的 class 补回 gap_count 最小的 pattern
+            print(
+                f"  WARNING: neighborhood lost {len(lost)} classes, "
+                "refilling...",
+                flush=True,
+            )
+            merged_full = counts.merge(
+                patterns[["pattern_id", "gap_count"]],
+                on="pattern_id",
+            )
+            for cls_id in lost:
+                best = (
+                    merged_full[
+                        merged_full["class_id"].astype(str)
+                        == cls_id
+                    ]
+                    .sort_values("gap_count")
+                    .head(1)["pattern_id"]
+                    .astype(str)
+                    .tolist()
+                )
+                neighborhood_pids.update(best)
+
+            neighborhood_patterns = patterns[
+                patterns["pattern_id"].astype(str).isin(
+                    neighborhood_pids
+                )
+            ].copy()
+            neighborhood_counts = counts[
+                counts["pattern_id"].astype(str).isin(
+                    neighborhood_pids
+                )
+            ].copy()
+
+        print(
+            "  COMM neighborhood: "
+            f"{len(neighborhood_patterns)} patterns "
+            f"(from {len(patterns)})",
+            flush=True,
+        )
+
+        # 重建 Master（with 2-Relay capacity）
+        model2, slots2, chosen2, starts2 = (
+            build_compact_master(
+                neighborhood_patterns,
+                neighborhood_counts,
+                classes,
+                *resources,
+                horizon_s=36000,
+                objective="COMM",
+            )
+        )
+
+        _add_comm_relay_capacity(
+            model2,
+            slots2,
+            chosen2,
+            starts2,
+            relay_capacity=2,
+            energy_capacity=6,
+        )
+
+        print(
+            "  Solving COMM neighborhood + 2-Relay...",
+            flush=True,
+        )
+
+        master2 = _solver(master_time_s, workers)
+        master2_status = master2.Solve(model2)
+
+        nh_status = master2.StatusName(master2_status)
+        nh_wall = master2.WallTime()
+
+        print(
+            f"  Neighborhood result: {nh_status} "
+            f"({nh_wall:.1f} s)",
+            flush=True,
+        )
+
+        report["comm_neighborhood_status"] = nh_status
+        report["comm_neighborhood_wall_s"] = nh_wall
+        report["comm_neighborhood_patterns"] = len(
+            neighborhood_patterns
+        )
+        report["comm_neighborhood_slots"] = len(slots2)
+
+        if master2_status in (
+            cp_model.FEASIBLE,
+            cp_model.OPTIMAL,
+        ):
+            # 用邻域解替换原 sorties
+            sorties = [
+                dict(
+                    slot,
+                    start_time_s=int(
+                        master2.Value(starts2[i])
+                    ),
+                )
+                for i, (slot, x) in enumerate(
+                    zip(slots2, chosen2)
+                )
+                if master2.Value(x)
+            ]
+            patterns = neighborhood_patterns
+            counts = neighborhood_counts
+            slots = slots2
+            chosen = chosen2
+            starts = starts2
+            master = master2
+
+            # 更新 COMM 指标
+            pattern_lookup_new = (
+                neighborhood_patterns.set_index(
+                    "pattern_id"
+                )
+            )
+
+            total_gap_count = sum(
+                int(
+                    pattern_lookup_new.loc[
+                        sortie["pattern_id"],
+                        "gap_count",
+                    ]
+                )
+                for sortie in sorties
+            )
+
+            relay_pattern_count = sum(
+                int(
+                    pattern_lookup_new.loc[
+                        sortie["pattern_id"],
+                        "gap_count",
+                    ]
+                ) > 0
+                for sortie in sorties
+            )
+
+            report[
+                "COMM_total_gap_count"
+            ] = total_gap_count
+
+            report[
+                "COMM_relay_sorties"
+            ] = relay_pattern_count
+
+            print(
+                "  Neighborhood solution: "
+                f"{len(sorties)} sorties, "
+                f"{total_gap_count} gaps",
+                flush=True,
+            )
+
+        else:
+            print(
+                "  Neighborhood FAILED — "
+                "keeping original COMM solution",
+                flush=True,
+            )
 
     master_starts = {sortie["sortie_id"]: sortie["start_time_s"]
                      for sortie in sorties}
