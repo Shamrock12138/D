@@ -1,0 +1,2 @@
+﻿transport_Cmax_s,relay_Cmax_s,joint_Cmax_s,transport_sorties,relay_jobs,transport_energy_kWh,relay_energy_kWh,total_energy_kWh,relay_uav_capacity,relay_energy_capacity,status,tier
+12389,12627,12627,17,13,64.08636972236133,6.05203836003472,70.13840808239604,2,6,OPTIMAL,all

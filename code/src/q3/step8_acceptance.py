@@ -8,7 +8,9 @@ from pathlib import Path
 import pandas as pd
 
 from src.q3.cp_sat_scheduler import DATA, prepare_q3_problem, validate_q3_solution
+from src.q2 import data_model
 from src.q2.compact_classes import decode_box_deliveries
+from src.q2.cp_sat_scheduler import _deadlines
 from src.q3.objectives import evaluate_objectives
 
 
@@ -40,6 +42,8 @@ def accept_step8(freeze=True):
     if tier not in ("tier1", "tier2", "all"):
         raise ValueError(f"Unknown Step8 relay tier: {tier}")
     problem = prepare_q3_problem(tier=tier)
+    problem["boxes"] = data_model.load_boxes()
+    problem["deadlines"] = _deadlines(problem["boxes"])
     transport = pd.read_csv(DATA / OUTPUTS[0], encoding="utf-8-sig")
     relay = pd.read_csv(DATA / OUTPUTS[1], encoding="utf-8-sig")
     delivery = pd.read_csv(DATA / OUTPUTS[2], encoding="utf-8-sig")

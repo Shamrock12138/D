@@ -16,7 +16,7 @@ from ortools.sat.python import cp_model
 from src.q3.bootstrap import subset_problem
 from src.q3.cp_sat_scheduler import DATA, prepare_q3_problem, solve_q3_joint, write_step8_outputs
 from src.q3.decomposition import _input_hashes
-from src.q3.relay_master import intrinsic_status, latest_start, prefix_workload, relay_intervals, relay_conflict_core
+from src.q3.relay_master import latest_start, relay_intervals
 
 
 class TransportSearch:
@@ -33,27 +33,20 @@ class TransportSearch:
         self.counts = np.array([[o.class_counts.get(c, 0) for c in self.classes]
                                 for o in self.occ], dtype=int)
         options = relay_intervals(problem)
-        statuses = {}
         self.allowed, self.base, self.loads, self.latest = [], [], [], []
-        self.times = list(range(1000, problem['horizon_s']+1, 1000))
-        if problem['horizon_s'] not in self.times:
-            self.times.append(problem['horizon_s'])
-        self.prefix = np.zeros((len(self.occ), len(self.times)), dtype=int)
         self.grid = np.arange(0, problem['horizon_s'], 250) + 125
         self.footprint = np.zeros((len(self.occ), len(self.grid)), dtype=float)
         self.copies = defaultdict(list)
         for i, o in enumerate(self.occ):
             self.copies[o.pattern_id].append(i)
-            if o.pattern_id not in statuses:
-                statuses[o.pattern_id] = intrinsic_status(o.gap_ids, options)
             upper = latest_start(problem, o)
             self.latest.append(upper)
-            usable = upper >= 0 and statuses[o.pattern_id] != 'INFEASIBLE'
+            # Relay feasibility belongs to the exact shared-session joint model.
+            usable = upper >= 0
             load = 0
             for gap in o.gap_ids:
                 valid = [(a, b) for a, b in options.get(gap, ()) if upper+a >= 0]
                 if not valid:
-                    usable = False
                     continue
                 a, b = min(valid, key=lambda ab: ab[1]-ab[0])
                 load += b-a
@@ -61,8 +54,6 @@ class TransportSearch:
             self.allowed.append(usable)
             self.loads.append(load)
             self.base.append(1000 + 2000*len(o.gap_ids) + 2*load + o.energy_kWh)
-            if usable:
-                self.prefix[i] = [prefix_workload(o.gap_ids, options, upper, t) for t in self.times]
         self.allowed = np.array(self.allowed)
         self.base = np.array(self.base)
         self.weights = {op: 1.0 for op in self.operators}
@@ -77,9 +68,7 @@ class TransportSearch:
                 np.array_equal(self.counts[list(selected)].sum(axis=0), self.supply))
 
     def eligible(self, selected):
-        return (self.exact_cover(selected) and all(self.allowed[list(selected)])
-                and not any(core <= set(selected) for core in self.cores)
-                and np.all(self.prefix[list(selected)].sum(axis=0) <= 2*np.array(self.times)))
+        return self.exact_cover(selected) and all(self.allowed[list(selected)])
 
     def score(self, selected):
         profile = self.footprint[list(selected)].sum(axis=0)
@@ -115,13 +104,6 @@ class TransportSearch:
         for c, demand in enumerate(residual):
             model.Add(sum(int(self.counts[i, c])*x for i, x in variables.items()
                           if self.counts[i, c]) == int(demand))
-        current = self.prefix[kept].sum(axis=0)
-        for j, t in enumerate(self.times):
-            model.Add(sum(int(self.prefix[i, j])*x for i, x in variables.items()
-                          if self.prefix[i, j]) <= int(2*t-current[j]))
-        for core in self.cores:
-            model.Add(sum(variables[i] for i in core if i in variables)
-                      <= len(core)-1-len(core & set(kept)))
         profile = self.footprint[kept].sum(axis=0)
         costs = {i: int((self.base[i]+5000*np.maximum(0, profile+self.footprint[i]-2).sum())
                         * self.rng.uniform(.5, 1.5)) for i in candidates}
@@ -214,7 +196,7 @@ def run_alns(iterations=200, wall_time_s=300, repair_time_s=1, joint_time_s=20,
             ids = [search.occ[i].sortie_id for i in candidate]
             solution = solve_q3_joint(tier='all', time_limit_s=min(joint_time_s, remaining),
                         workers=workers, random_seed=seed, problem=subset_problem(problem, ids),
-                        feasibility_only=True)
+                        feasibility_only=True, allow_relay_sharing=True)
             attempt = {'iteration': iteration, 'sortie_ids': ids, 'status': solution['status'],
                        'wall_time_s': solution['wall_time_s'], 'score': search.score(candidate)}
             report['attempts'].append(attempt)
@@ -230,9 +212,10 @@ def run_alns(iterations=200, wall_time_s=300, repair_time_s=1, joint_time_s=20,
                 save()
                 return report
             if solution['status'] == 'INFEASIBLE':
-                core = relay_conflict_core(problem, ids, time_limit_s=max(.01, min(2, wall_time_s-(time.monotonic()-started))))
-                attempt['core'] = core
-                search.cores.append(frozenset(search.by_id[s] for s in (core['sortie_ids'] or ids)))
+                attempt['core'] = {
+                    'status': 'DISABLED',
+                    'reason': 'exclusive relay core is invalid under same-site sharing',
+                }
             # UNKNOWN is only visited within this run, never a proven exclusion.
         save()
     report['reason'] = 'Search budget exhausted; no validated joint feasible schedule'

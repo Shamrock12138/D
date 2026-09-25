@@ -15,12 +15,9 @@ Q3_MULTI_OBJECTIVE_TIER = "all"
 
 
 def time_units(seconds):
-    """Represent a time exactly on Q3's 0.1-second objective grid."""
+    """Round actual output time to the 0.1-second reporting grid."""
     scaled = float(seconds) * F1_TIME_SCALE
-    value = round(scaled)
-    if not math.isclose(scaled, value, rel_tol=0.0, abs_tol=1e-7):
-        raise ValueError(f"Time is not on the 0.1-second grid: {seconds}")
-    return int(value)
+    return int(round(scaled))
 
 
 def energy_units(kwh):
@@ -63,5 +60,9 @@ def evaluate_objectives(problem, transport, relay, delivery):
             sum(energy_units(value) for value in transport["energy_kWh"])
             + sum(energy_units(value) for value in relay["relay_energy_kWh"])
         ) / ENERGY_SCALE,
-        "F4_total_sorties": int(len(transport) + len(relay)),
+        "F4_total_sorties": int(len(transport) + (
+            relay["relay_session_id"].nunique()
+            if len(relay) and "relay_session_id" in relay
+            else len(relay)
+        )),
     }

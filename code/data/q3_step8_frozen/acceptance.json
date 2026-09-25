@@ -1,0 +1,43 @@
+{
+  "status": "OPTIMAL",
+  "validation": {
+    "all_pass": true,
+    "checks": {
+      "class_conservation": true,
+      "transport_hard_deadlines": true,
+      "transport_uav_nonoverlap": true,
+      "transport_battery_nonoverlap": true,
+      "one_relay_per_selected_gap": true,
+      "relay_uav_location_compatible": true,
+      "relay_energy_nonoverlap": true,
+      "relay_energy_limit": true,
+      "relay_end_soc_limit": true,
+      "joint_cmax_consistent": true,
+      "relay_dispatch_nonnegative": true,
+      "relay_arrives_by_coverage": true,
+      "relay_service_covers_gap": true,
+      "relay_uav_release_valid": true,
+      "relay_energy_release_valid": true,
+      "delivery_schedule_matches_selected_tasks": true,
+      "delivery_times_match_offsets": true,
+      "transport_resource_ids_valid": true,
+      "relay_resource_ids_valid": true,
+      "relay_option_in_step7": true,
+      "joint_cmax_exact": true
+    },
+    "actual_cmax_s": 12627.0
+  },
+  "objectives": {
+    "F1_timeliness": 679141.4,
+    "F2_joint_cmax_s": 12627.0,
+    "F3_total_energy_kWh": 70.138408,
+    "F4_total_sorties": 26
+  },
+  "input_sha256": {
+    "q3_joint_transport_schedule.csv": "95c17dfe94cf392fe3399d9687b3ee196661c15826d0a64cc8b7679e1cf40751",
+    "q3_joint_relay_schedule.csv": "8359c012dabe5e65c70bb8225bbd7f84031ed7253dedf1ba7a8733616ee70fd1",
+    "q3_joint_delivery_schedule.csv": "b6441d2f4ee990797c633e18b83497913c7b015409dc8332419443a4ed28921b",
+    "q3_joint_resource_summary.csv": "ae99954b5aae22fe0c2bd550b534a837e4544975c3e64cfb5d61a264a1600790",
+    "q3_step8_manifest.json": "8e3e21d835db360da26a20e5c33e1083faa1fa4a6179d12ca3b608d6faa1c6f6"
+  }
+}
