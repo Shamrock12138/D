@@ -53,9 +53,9 @@ try:
         obj = solver.ObjectiveValue()
         print(f"Objective value: {obj}")
         # Count selected occurrences
-        n_selected = sum(1 for v in select.values() if solver.Value(v))
+        n_selected = sum(1 for v in select if solver.Value(v))
         print(f"Selected transport occurrences: {n_selected}")
-        n_relay_selected = sum(1 for v in relay_select.values() if solver.Value(v))
+        n_relay_selected = sum(1 for v in relay_select if solver.Value(v))
         print(f"Selected relay options: {n_relay_selected}")
         print("\nFEASIBLE: Model has valid solutions!")
     elif status == cpm.INFEASIBLE:

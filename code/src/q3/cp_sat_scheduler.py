@@ -703,10 +703,18 @@ def validate_q3_solution(problem, transport, relay, joint_cmax_s):
     class_params = problem["class_params"]
     occurrences = problem["occurrences"]
 
+    # 0. build lookup maps (occurrence map + start times, 不依赖 CSV dict 序列化)
+    occ_by_sortie = {occ.sortie_id: occ for occ in occurrences}
+    starts = dict(zip(
+        transport["sortie_id"].astype(str),
+        transport["start_time_s"].astype(float),
+    ))
+
     # 1. class conservation
     selected_class_counts = defaultdict(int)
-    for _, row in transport.iterrows():
-        for class_id, amount in row["class_counts"].items():
+    for sid in transport["sortie_id"].astype(str):
+        occ = occ_by_sortie[sid]
+        for class_id, amount in occ.class_counts.items():
             selected_class_counts[str(class_id)] += int(amount)
     conservation_ok = True
     for class_id, supply in class_supply.items():
@@ -716,7 +724,6 @@ def validate_q3_solution(problem, transport, relay, joint_cmax_s):
     checks["class_conservation"] = conservation_ok
 
     # 2. hard deadlines
-    occ_by_sortie = {occ.sortie_id: occ for occ in occurrences}
     deadline_ok = True
     for _, row in transport.iterrows():
         sid = row["sortie_id"]
@@ -761,6 +768,49 @@ def validate_q3_solution(problem, transport, relay, joint_cmax_s):
     transport_end = float(transport["end_time_s"].max()) if not transport.empty else 0.0
     actual_cmax = max(transport_end, relay_end)
     checks["joint_cmax_consistent"] = actual_cmax <= float(joint_cmax_s) + 1.0 + 1e-9
+
+    # 8. relay timing coverage checks (occurrence-gap coupling 验证)
+    if not relay.empty:
+        checks["relay_dispatch_nonnegative"] = bool((relay["dispatch_time_s"] >= 0).all())
+
+        coverage_start = pd.Series([
+            starts[str(row.sortie_id)] + float(row.coverage_start_offset_s)
+            for row in relay.itertuples(index=False)
+        ], index=relay.index, dtype=float)
+        checks["relay_arrives_by_coverage"] = bool(
+            (relay["arrival_time_s"].astype(float) <= coverage_start + 1e-9).all()
+        )
+
+        coverage_end = pd.Series([
+            starts[str(row.sortie_id)] + float(row.coverage_end_offset_s)
+            for row in relay.itertuples(index=False)
+        ], index=relay.index, dtype=float)
+        checks["relay_service_covers_gap"] = (
+            bool((relay["service_start_s"].astype(float) <= coverage_start + 1e-9).all())
+            and bool((relay["service_end_s"].astype(float) >= coverage_end - 1e-9).all())
+        )
+
+        uav_release_ok = True
+        for row in relay.itertuples(index=False):
+            s = starts[str(row.sortie_id)]
+            expected = s + float(row.dispatch_offset_s) + float(row.relay_uav_occupancy_s)
+            if row.uav_release_time_s < expected - 1e-9:
+                uav_release_ok = False
+        checks["relay_uav_release_valid"] = uav_release_ok
+
+        energy_release_ok = True
+        for row in relay.itertuples(index=False):
+            s = starts[str(row.sortie_id)]
+            expected = s + float(row.dispatch_offset_s) + float(row.energy_component_occupancy_s)
+            if row.energy_release_time_s < expected - 1e-9:
+                energy_release_ok = False
+        checks["relay_energy_release_valid"] = energy_release_ok
+    else:
+        checks["relay_dispatch_nonnegative"] = True
+        checks["relay_arrives_by_coverage"] = True
+        checks["relay_service_covers_gap"] = True
+        checks["relay_uav_release_valid"] = True
+        checks["relay_energy_release_valid"] = True
 
     return {"all_pass": all(checks.values()), "checks": checks, "actual_cmax_s": actual_cmax}
 

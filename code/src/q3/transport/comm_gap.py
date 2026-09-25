@@ -666,6 +666,28 @@ def extract_pattern_gap_templates(
     print(f"输出: {PATTERN_GAPS.name} ({len(gaps)} 行)", flush=True)
     print(f"输出: {PATTERN_GAP_STATES.name} ({len(gap_states)} 行)", flush=True)
 
+    # ---- 写入 manifest ----
+    _sha256 = lambda p: hashlib.sha256(p.read_bytes()).hexdigest() if p.exists() else ""
+    manifest = {
+        "step": "Q3 pattern communication gaps (Step5)",
+        "dt_s": dt,
+        "inputs": {
+            "q3_compact_patterns.csv": _sha256(CANDIDATE_PATTERNS),
+            "q3_compact_pattern_counts.csv": _sha256(CANDIDATE_COUNTS),
+        },
+        "outputs": {
+            "q3_outage_states.csv": _sha256(OUTAGE_STATES),
+            "q3_pattern_comm_gaps.csv": _sha256(PATTERN_GAPS),
+            "q3_pattern_gap_states.csv": _sha256(PATTERN_GAP_STATES),
+        },
+        "stats": stats,
+    }
+    GAP_MANIFEST.write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    print(f"输出: {GAP_MANIFEST.name}", flush=True)
+
     return (
         outage_states,
         gaps,

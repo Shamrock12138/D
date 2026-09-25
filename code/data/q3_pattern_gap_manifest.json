@@ -1,0 +1,23 @@
+{
+  "step": "Q3 pattern communication gaps (Step5)",
+  "dt_s": 10.0,
+  "inputs": {
+    "q3_compact_patterns.csv": "b170f5531b838e77a95628ad084f8f9d3b390ceceea521c77e0a89d73297c96e",
+    "q3_compact_pattern_counts.csv": "725b642bbf241d7acd72d9ddbc29a63366ee41089650538001144bc9f575597e"
+  },
+  "outputs": {
+    "q3_outage_states.csv": "8750f8a3e38a53c689c15ce45476ab2300034ee4f83556cc4068a86d76612b86",
+    "q3_pattern_comm_gaps.csv": "9435f6b02daa12f8fb8a098f467a1fafcbd9afc24f63bb55e0d09c60434da8b5",
+    "q3_pattern_gap_states.csv": "09770fdf87d2274613ee440bf47aeae9b595575f1b3cd865f6050cdd296c63cb"
+  },
+  "stats": {
+    "n_templates_total": 6324,
+    "n_direct_tasks": 709,
+    "n_relay_tasks": 5615,
+    "n_total_gaps": 6792,
+    "n_unique_outage_states": 11277,
+    "n_outage_states_before_prune": 11601,
+    "n_orphan_states_pruned": 324,
+    "dt_s": 10.0
+  }
+}

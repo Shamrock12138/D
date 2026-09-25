@@ -2,8 +2,8 @@
   "step": "Step7",
   "description": "中继飞行/能耗/时间 profile 与 gap job options 预计算",
   "inputs": {
-    "q3_relay_sites.csv": "1f584e82a22028d142d67241ecd09eefb6647d1fcb55c52084ac19bbf3dfd9f9",
-    "q3_gap_relay_options.csv": "f1235cbea0f854530d65d930ff9816a6b8569ec9cfbdcd4cee0ef897caa660f5",
+    "q3_relay_sites.csv": "2437adaa3917014ce3832f90d30cc8f0bdf02676e5052e2e7ea0b606a5f460a2",
+    "q3_gap_relay_options.csv": "ce1c84c3c7dc3e1a9f35d0d61fb0a46c2cfd4ad21d11a76cb84c8f53ac4df384",
     "q3_pattern_comm_gaps.csv": "9435f6b02daa12f8fb8a098f467a1fafcbd9afc24f63bb55e0d09c60434da8b5",
     "中继无人机数据.xlsx": "be52643ff29419233e6a141dca03a04160a8af551cab36d8c49b51bb836bea04",
     "中继无人机_共享电池.csv": "08946e69850472ff2f6d12e5cb223ed50d7f1cfa7f29c2fadd443c1f55a466c4",
@@ -11,8 +11,8 @@
     "镇龙乡及周边30米DEM.tif": "741fe6de0b2bcaffd0f4007f574ee698d46197094f52cc954b532c4f90fc7c03"
   },
   "outputs": {
-    "q3_relay_operation_profiles.csv": "070f217cd36d04d5138e58940dfb6522aabdaea1a15c5aa96826a4d4b5da23cf",
-    "q3_relay_job_options.csv": "f56c37afa414c6fd5f57c19226686711dd3d462e1e47bcf26719e893a859c623"
+    "q3_relay_operation_profiles.csv": "46b86233156b22cc7a4e4f937e6fce9cc87a75c161d433951639554ec7d3bf9c",
+    "q3_relay_job_options.csv": "51d77413c02d0c91aecaf84eb73444b488183ac18637849e20b4b90d4bfe0ff7"
   },
   "stats": {
     "relay_sites": 385,
