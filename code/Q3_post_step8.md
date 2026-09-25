@@ -11,6 +11,8 @@ Step 8 的当前入口 `python code/Q3_step8.py` 使用运输任务选择 Master
 5. Step 12：保留四个 Anchor 和 Pareto 权衡表，选一份折中方案，输出运输、中继、逐箱配送、四类资源、通信保障和四目标指标。
 6. Step 13：冻结选定的 Q3 方案及输入哈希，作为 Q4 的固定输入。Q4 只做分区与资源配置，不改变已选任务、组批、访问顺序与通信保障关系。
 
+Q3→Q4 接口现已补充：`write_step8_outputs()` 保存运输 `visit_order`、逐箱 `service/mass_kg` 及能源汇总；`accept_step8()` 按当前 compact occurrence 的 `sortie_id` 口径复核。Step8 首解仍只存入 `q3_step8_frozen/`。选定最终 Q3 方案并取得含四张源表 SHA-256 的验收记录后，可调用 `Q3_step13_freeze_for_q4.py --source <最终方案目录> --acceptance <最终验收 JSON> --selection-id <最终方案编号>`，由独立导出器生成 `q3_final_frozen/` 和 `acceptance.json`。已有目标目录时导出器拒绝覆盖，避免中间解静默替换最终方案。
+
 四目标统一定义为：
 
 - F1：对无硬截止且有期望送达时间的货箱，累计 `priority × max(0, 实际送达秒数 − 期望送达秒数)`；单位为优先级加权秒。医疗物资期望时间和首批截止时间继续作为硬约束。当前输入包含 49 个 F1 评价货箱和 31 个硬截止货箱。

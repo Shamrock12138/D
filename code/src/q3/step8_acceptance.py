@@ -8,6 +8,7 @@ from pathlib import Path
 import pandas as pd
 
 from src.q3.cp_sat_scheduler import DATA, prepare_q3_problem, validate_q3_solution
+from src.q2.compact_classes import decode_box_deliveries
 from src.q3.objectives import evaluate_objectives
 
 
@@ -47,23 +48,34 @@ def accept_step8(freeze=True):
         raise AssertionError("Step8 resource summary must have exactly one row")
     cmax = float(summary.iloc[0]["joint_Cmax_s"])
     validation = validate_q3_solution(problem, transport, relay, cmax)
-    selected_ids = set(transport["task_id"].astype(str))
-    expected_deliveries = problem["deliveries"].loc[
-        problem["deliveries"]["task_id"].astype(str).isin(selected_ids)
+    selected_ids = set(transport["sortie_id"].astype(str))
+    occ_by_sortie = {occ.sortie_id: occ for occ in problem["occurrences"]}
+    selected = [
+        {"sortie_id": str(row.sortie_id),
+         "pattern_id": str(row.pattern_id),
+         "start_time_s": float(row.start_time_s),
+         "class_counts": occ_by_sortie[str(row.sortie_id)].class_counts}
+        for row in transport.itertuples(index=False)
     ]
-    validation["checks"]["delivery_schedule_matches_selected_tasks"] = (
-        len(delivery) == len(expected_deliveries)
-        and set(zip(delivery["task_id"].astype(str), delivery["box_id"].astype(str)))
-        == set(zip(expected_deliveries["task_id"].astype(str), expected_deliveries["box_id"].astype(str)))
+    expected_deliveries = decode_box_deliveries(
+        selected, problem["classes"], problem["pattern_counts"]
     )
-    start_by_task = dict(zip(transport["task_id"].astype(str), transport["start_time_s"]))
+    validation["checks"]["delivery_schedule_matches_selected_tasks"] = (
+        len(delivery) == len(expected_deliveries) == 80
+        and delivery["box_id"].is_unique
+        and set(zip(delivery["sortie_id"].astype(str), delivery["box_id"].astype(str),
+                    delivery["class_id"].astype(str)))
+        == set(zip(expected_deliveries["sortie_id"].astype(str),
+                    expected_deliveries["box_id"].astype(str),
+                    expected_deliveries["class_id"].astype(str)))
+    )
     expected_times = {
-        (str(row.task_id), str(row.box_id)): start_by_task[str(row.task_id)] + float(row.delivery_offset_s)
+        (str(row.sortie_id), str(row.box_id)): float(row.delivery_time_s)
         for row in expected_deliveries.itertuples(index=False)
     }
     validation["checks"]["delivery_times_match_offsets"] = all(
-        (str(row.task_id), str(row.box_id)) in expected_times
-        and abs(float(row.delivery_time_s) - expected_times[(str(row.task_id), str(row.box_id))]) <= 1e-6
+        (str(row.sortie_id), str(row.box_id)) in expected_times
+        and abs(float(row.delivery_time_s) - expected_times[(str(row.sortie_id), str(row.box_id))]) <= 1e-6
         for row in delivery.itertuples(index=False)
     )
     validation["checks"]["transport_resource_ids_valid"] = all(
@@ -75,9 +87,9 @@ def accept_step8(freeze=True):
         set(relay["relay_uav_id"].astype(str)) <= {"R01", "R02"}
         and set(relay["energy_component_id"].astype(str)) <= {f"E0{i}" for i in range(1, 7)}
     )
-    allowed = problem["relay"][["gap_id", "task_id", "candidate_id"]].astype(str)
+    allowed = problem["relay"][["gap_id", "pattern_id", "candidate_id"]].astype(str)
     allowed_keys = set(map(tuple, allowed.itertuples(index=False, name=None)))
-    actual_keys = set(map(tuple, relay[["gap_id", "task_id", "candidate_id"]].astype(str).itertuples(index=False, name=None)))
+    actual_keys = set(map(tuple, relay[["gap_id", "pattern_id", "candidate_id"]].astype(str).itertuples(index=False, name=None)))
     validation["checks"]["relay_option_in_step7"] = actual_keys <= allowed_keys
     validation["checks"]["joint_cmax_exact"] = abs(validation["actual_cmax_s"] - cmax) <= 1.0 + 1e-9
     validation["all_pass"] = all(validation["checks"].values())

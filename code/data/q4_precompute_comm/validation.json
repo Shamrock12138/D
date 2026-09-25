@@ -1,13 +1,14 @@
 {
+  "status": "PROVISIONAL_TRANSPORT_ONLY",
   "all_pass": true,
   "checks": {
-    "frozen_q3_accepted": true,
     "service_coverage": true,
     "transport_dependencies": true,
-    "relay_dependencies": true,
     "resource_minima_verified": true,
     "inventory_gap_verified": true,
     "partition_enumeration_complete": true,
-    "work_cv_verified": true
-  }
+    "work_cv_verified": true,
+    "comm_transport_snapshot_hash_verified": true
+  },
+  "relay_resource_checks": "NOT_RUN"
 }

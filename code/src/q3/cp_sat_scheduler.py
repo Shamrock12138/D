@@ -897,15 +897,45 @@ def solve_q3_joint(tier="tier1", time_limit_s=600, workers=8, random_seed=2026,
 def write_step8_outputs(result):
     if result["status"] not in ("OPTIMAL", "FEASIBLE"):
         raise RuntimeError(f"Cannot write Step8 outputs for {result['status']}")
-    result["transport"].to_csv(DATA / "q3_joint_transport_schedule.csv", index=False, encoding="utf-8-sig")
+    transport = result["transport"].copy()
+    delivery = result["delivery"].copy()
+    if "visit_order" not in transport:
+        routes = pd.read_csv(CANDIDATE_PATTERNS, encoding="utf-8-sig")[["pattern_id", "visit_order"]]
+        if routes["pattern_id"].duplicated().any():
+            raise ValueError("Q3 pattern route map has duplicate pattern_id")
+        transport = transport.merge(routes, on="pattern_id", how="left", validate="many_to_one")
+    if transport["visit_order"].isna().any() or transport["visit_order"].eq("").any():
+        raise ValueError("Selected Q3 sortie is missing visit_order")
+    if "service" not in delivery or "mass_kg" not in delivery:
+        boxes = data_model.load_boxes()[["box_id", "service", "mass"]].rename(columns={"mass": "mass_kg"})
+        if boxes["box_id"].duplicated().any():
+            raise ValueError("Q3 box metadata has duplicate box_id")
+        delivery = delivery.merge(boxes, on="box_id", how="left", validate="one_to_one")
+    if (len(delivery) != 80 or delivery["box_id"].nunique() != 80
+            or delivery[["service", "mass_kg"]].isna().any().any()):
+        raise ValueError("Q3 delivery table lacks unique 80-box service and mass metadata")
+    visits = dict(zip(transport["sortie_id"].astype(str), transport["visit_order"].astype(str)))
+    if any(str(row.service) not in visits[str(row.sortie_id)].split(">")
+           for row in delivery.itertuples(index=False)):
+        raise ValueError("Q3 delivered box service is outside its frozen sortie route")
+    result["transport"] = transport
+    result["delivery"] = delivery
+    transport.to_csv(DATA / "q3_joint_transport_schedule.csv", index=False, encoding="utf-8-sig")
     result["relay"].to_csv(DATA / "q3_joint_relay_schedule.csv", index=False, encoding="utf-8-sig")
-    result["delivery"].to_csv(DATA / "q3_joint_delivery_schedule.csv", index=False, encoding="utf-8-sig")
+    delivery.to_csv(DATA / "q3_joint_delivery_schedule.csv", index=False, encoding="utf-8-sig")
+    transport_energy = float(transport["energy_kWh"].sum())
+    relay_energy = float(result["relay"]["relay_energy_kWh"].sum())
     pd.DataFrame([{
         "transport_Cmax_s": result["transport_cmax_s"],
         "relay_Cmax_s": result["relay_cmax_s"],
         "joint_Cmax_s": result["joint_cmax_s"],
         "transport_sorties": len(result["transport"]),
         "relay_jobs": len(result["relay"]),
+        "transport_energy_kWh": transport_energy,
+        "relay_energy_kWh": relay_energy,
+        "total_energy_kWh": transport_energy + relay_energy,
+        "relay_uav_capacity": RELAY_UAV_CAPACITY,
+        "relay_energy_capacity": RELAY_ENERGY_CAPACITY,
         "status": result["status"],
         "tier": result["tier"],
     }]).to_csv(DATA / "q3_joint_resource_summary.csv", index=False, encoding="utf-8-sig")

@@ -1,16 +1,152 @@
 {
-  "status": "UNKNOWN",
-  "reason": "search limit reached before a validated joint schedule was found",
+  "status": "SEARCHING",
   "attempts": [
     {
       "iteration": 1,
       "master": {
-        "status": "UNKNOWN",
-        "wall_time_s": 32.8608951
-      }
+        "status": "FEASIBLE",
+        "wall_time_s": 128.0580395,
+        "surrogate_cost": 121211966,
+        "start_hint": {
+          "P001196-1": 0,
+          "P001300-1": 0,
+          "P001316-1": 0,
+          "P001979-1": 0,
+          "P002867-1": 3811,
+          "P002888-1": 1887,
+          "P003088-1": 2127,
+          "P003511-1": 5672,
+          "P003515-1": 4589,
+          "P005216-1": 0,
+          "P007960-1": 0,
+          "P008330-1": 7871,
+          "P008395-1": 7634,
+          "P008451-1": 5310,
+          "P008547-1": 2822,
+          "P008594-1": 5128,
+          "P016895-1": 0,
+          "P050624-1": 0,
+          "P051203-1": 2613
+        }
+      },
+      "sortie_ids": [
+        "P001196-1",
+        "P001300-1",
+        "P001316-1",
+        "P001979-1",
+        "P002867-1",
+        "P002888-1",
+        "P003088-1",
+        "P003511-1",
+        "P003515-1",
+        "P005216-1",
+        "P007960-1",
+        "P008330-1",
+        "P008395-1",
+        "P008451-1",
+        "P008547-1",
+        "P008594-1",
+        "P016895-1",
+        "P050624-1",
+        "P051203-1"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.117454,
+          "occurrence_count": 19,
+          "relay_options": 58
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.6567648,
+          "occurrence_count": 19,
+          "relay_options": 209
+        }
+      ],
+      "feedback": "proven_infeasible_occurrence_set"
+    },
+    {
+      "iteration": 2,
+      "master": {
+        "status": "FEASIBLE",
+        "wall_time_s": 128.3482572,
+        "surrogate_cost": 111013883,
+        "start_hint": {
+          "P000001-1": 3624,
+          "P000078-1": 0,
+          "P000103-1": 2263,
+          "P000112-1": 0,
+          "P001237-1": 0,
+          "P002408-1": 2585,
+          "P002700-1": 5189,
+          "P002700-2": 6340,
+          "P002704-1": 4038,
+          "P002770-1": 5615,
+          "P002811-1": 1869,
+          "P002902-1": 0,
+          "P004996-1": 3643,
+          "P007953-1": 2147,
+          "P008215-1": 0,
+          "P008329-1": 9913,
+          "P008434-1": 0,
+          "P008452-1": 5040,
+          "P008547-1": 2822,
+          "P008594-1": 7410,
+          "P008608-1": 9805,
+          "P008703-1": 5289,
+          "P016120-1": 0,
+          "P050623-1": 2112
+        }
+      },
+      "sortie_ids": [
+        "P000001-1",
+        "P000078-1",
+        "P000103-1",
+        "P000112-1",
+        "P001237-1",
+        "P002408-1",
+        "P002700-1",
+        "P002700-2",
+        "P002704-1",
+        "P002770-1",
+        "P002811-1",
+        "P002902-1",
+        "P004996-1",
+        "P007953-1",
+        "P008215-1",
+        "P008329-1",
+        "P008434-1",
+        "P008452-1",
+        "P008547-1",
+        "P008594-1",
+        "P008608-1",
+        "P008703-1",
+        "P016120-1",
+        "P050623-1"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.1175013,
+          "occurrence_count": 24,
+          "relay_options": 48
+        },
+        {
+          "tier": "all",
+          "status": "INFEASIBLE",
+          "wall_time_s": 13.5393433,
+          "occurrence_count": 24,
+          "relay_options": 172
+        }
+      ],
+      "feedback": "proven_infeasible_occurrence_set"
     }
   ],
-  "proven_infeasible_occurrence_sets": 0,
+  "proven_infeasible_occurrence_sets": 2,
   "deferred_unknown_occurrence_sets": 0,
   "input_sha256": {
     "q3_compact_patterns.csv": "b170f5531b838e77a95628ad084f8f9d3b390ceceea521c77e0a89d73297c96e",
@@ -20,5 +156,5 @@
     "q3_pattern_gap_manifest.json": "f5b08e07f7b9ba9b14ec6b74305d8dacd9e64f541c99ea9583700af4e84ee4e5",
     "q3_step7_manifest.json": "f8234d5c0b6afacf1b5e4886e3cd8c297463f7ed5f6772da590efde63949567b"
   },
-  "master_min_transport_sorties_search_heuristic": 0
+  "master_min_transport_sorties_search_heuristic": 16
 }
