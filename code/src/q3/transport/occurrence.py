@@ -35,6 +35,7 @@ class SortieOccurrence:
     route: List[str]
     n_boxes: int
     class_counts: Dict[str, int]
+    delivery_offsets: Dict[str, float]
     service_counts: Dict[str, int]
     energy_kWh: float
     duration_s: float
@@ -111,6 +112,7 @@ def generate_occurrences(
                 route=list(template.route),
                 n_boxes=template.n_boxes,
                 class_counts=dict(slot["class_counts"]),
+                delivery_offsets=dict(template.delivery_offsets),
                 service_counts=dict(template.service_counts),
                 energy_kWh=template.energy_kWh,
                 duration_s=template.duration_s,
@@ -120,6 +122,36 @@ def generate_occurrences(
                 gap_ids=gap_map.get(pid, []),
             )
         )
+
+    # ── 4 项断言 ──
+    assert len({occ.sortie_id for occ in occurrences}) == len(occurrences), \
+        "sortie_id 不唯一"
+
+    occurrence_classes = {
+        class_id
+        for occ in occurrences
+        for class_id in occ.class_counts
+    }
+    assert occurrence_classes == set(class_supply), \
+        f"class 未全覆盖: missing={set(class_supply) - occurrence_classes}"
+
+    relay_pattern_ids = set(
+        patterns.loc[
+            patterns["needs_relay"] == 1,
+            "pattern_id"
+        ].astype(str)
+    )
+    patterns_with_gap = {
+        occ.pattern_id
+        for occ in occurrences
+        if occ.gap_ids
+    }
+    assert relay_pattern_ids <= patterns_with_gap, \
+        f"needs_relay pattern 缺少 gap: {sorted(relay_pattern_ids - patterns_with_gap)[:10]}"
+
+    for occ in occurrences:
+        assert sum(occ.class_counts.values()) == occ.n_boxes, \
+            f"{occ.sortie_id}: class_counts 总和 {sum(occ.class_counts.values())} != n_boxes {occ.n_boxes}"
 
     if save_csv:
         rows = [

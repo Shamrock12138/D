@@ -224,6 +224,7 @@ def filter_compact_candidates(top_k: int = TOP_K_PER_DIM):
             columns=[
                 "uav_type", "n_stops", "visit_order",
                 "duration_s", "energy_kWh", "n_boxes",
+                "latest_start_s",
             ],
             errors="ignore",
         ),

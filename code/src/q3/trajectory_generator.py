@@ -212,3 +212,52 @@ class TrajectoryGenerator:
                 f"{flight.end_time:.3f}s 相差 {t - flight.end_time:.3f}s"
             )
         return points
+
+    def generate_relative(
+        self, uav_type: str, route: list, services_list: list,
+        uav_params: dict, strict: bool = False, verbose: bool = False,
+    ):
+        u"""生成 pattern 模板的相对轨迹，从 t=0 开始。
+
+        返回简单对象，含 n_points/times/x/y/z 属性，
+        供 communication_summary 校验用。
+        """
+        if len(route) < 3 or route[0] != DEPOT_ID or route[-1] != DEPOT_ID:
+            raise ValueError(f"Pattern route 没有完整往返: {route}")
+        visits = route[1:-1]
+        cargo_counts = Counter()
+        for svc in services_list:
+            if svc not in visits:
+                raise ValueError(f"服务区 {svc} 不在路线上")
+            cargo_counts[svc] += 1
+
+        points: List[TrajectoryPoint] = []
+        t = 0.0
+        depot = self.nodes[DEPOT_ID]
+        prep_s = uav_params["setup_time"] + uav_params["load_time_per_box"] * len(services_list)
+        self._extend(points, self._sample_phase(
+            t, prep_s, "setup",
+            lambda r: (depot["x"], depot["y"], depot["operation_height"]), DEPOT_ID,
+        ))
+        t += prep_s
+        for i, j in zip(route, route[1:]):
+            segment, t = self.generate_segment(i, j, t, uav_params)
+            self._extend(points, segment)
+            if j != DEPOT_ID:
+                handover_s = uav_params["handover_time"] + uav_params["handover_time_per_box"] * cargo_counts[j]
+                node = self.nodes[j]
+                self._extend(points, self._sample_phase(
+                    t, handover_s, "handover",
+                    lambda r, node=node: (node["x"], node["y"], node["operation_height"]), j,
+                ))
+                t += handover_s
+
+        class _RelativeTrajectory:
+            def __init__(self, pts):
+                self.n_points = len(pts)
+                self.times = [p.time for p in pts]
+                self.x = [p.x for p in pts]
+                self.y = [p.y for p in pts]
+                self.z = [p.z for p in pts]
+
+        return _RelativeTrajectory(points)

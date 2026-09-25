@@ -1,0 +1,9 @@
+{
+  "dt_s": 10.0,
+  "pattern_count": 53106,
+  "q2_patterns_sha256": "c79e1e70e8bcab98a140a90d749055211edb85ec4e9622849a10590bccd37493",
+  "q2_counts_sha256": "865143fd882486cd8201a88908a8aad4d43a5b4b04feb5d50fc0bd2640b18c02",
+  "output_sha256": "e5fb4f6119ac01e908b92fc8baedbe04465403fd4049729d38c6da6c61b9ac65",
+  "validation_patterns": 30,
+  "validation_mismatches": 0
+}

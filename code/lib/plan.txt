@@ -1,0 +1,2264 @@
+我重新检查了你最新 `main`，当前最新提交是 **`fb5c9be4503673bc14c888f3864d12c81f0a3261`**。这次更新后，前处理部分已经基本封口：Step4/Step5 入口、stale anchor、Step3 manifest、Step5 gap 一致性、`occurrence.py` 的 `row.count` 都已经修正。
+
+所以接下来不应该再继续改 Step3–7 的架构，而是正式进入：
+
+```text
+Occurrence
+→ Joint CP-SAT
+→ First Feasible
+→ Acceptance
+→ 4 Anchors
+→ MOEA/D
+→ Final Validation
+```
+
+题目真正要求的是联合安排运输、中继和能源资源，并在可行方案基础上做多指标优化和最终独立核验。:chatgpt-content-reference{index="0"}
+
+下面给你**最终代码修改计划，具体到函数**。
+
+---
+
+# 0. 当前代码先冻结哪些
+
+这些模块暂时不要再重构：
+
+```text
+src/q3/transport/compact_loader.py
+src/q3/transport/communication_summary.py
+src/q3/transport/candidate_filter.py
+src/q3/transport/comm_gap.py
+src/q3/relay/coverage_library.py
+src/q3/relay/operation_profile.py
+```
+
+只允许修运行 bug，不再改模型含义。
+
+当前下一主文件：
+
+```text
+src/q3/transport/occurrence.py
+src/q3/cp_sat_scheduler.py
+src/q3/bootstrap.py
+src/q3/decomposition.py
+src/q3/step8_acceptance.py
+src/q3/objectives.py
+src/q3/anchors.py
+```
+
+最后新增：
+
+```text
+src/q3/moead_cp_sat.py
+src/q3/validation.py
+```
+
+---
+
+# 1. `occurrence.py`：补齐 Joint CP-SAT 所需信息
+
+当前 `SortieOccurrence` 已有：
+
+```python
+sortie_id
+pattern_id
+uav_type
+class_counts
+service_counts
+energy_kWh
+duration_s
+latest_start_s
+gap_ids
+```
+
+但是还缺一个很重要的字段：
+
+```python
+delivery_offsets
+```
+
+否则后面 class-level hard deadline 和 F1 都得重新查表。
+
+## 1.1 修改 `SortieOccurrence`
+
+改成：
+
+```python
+@dataclass
+class SortieOccurrence:
+    sortie_id: str
+    pattern_id: str
+    copy_index: int
+
+    uav_type: str
+    visit_order: List[str]
+    route: List[str]
+
+    n_boxes: int
+
+    class_counts: Dict[str, int]
+    delivery_offsets: Dict[str, float]
+    service_counts: Dict[str, int]
+
+    energy_kWh: float
+    duration_s: float
+    end_SOC: float
+
+    has_hard_deadline: bool
+    latest_start_s: float
+
+    gap_ids: List[str]
+```
+
+---
+
+## 1.2 修改 `generate_occurrences()`
+
+构造 occurrence 时增加：
+
+```python
+delivery_offsets=dict(template.delivery_offsets)
+```
+
+---
+
+## 1.3 给 `generate_occurrences()` 增加 4 个断言
+
+结束前检查：
+
+```python
+assert len({
+    occ.sortie_id
+    for occ in occurrences
+}) == len(occurrences)
+```
+
+检查所有 class 都有 occurrence：
+
+```python
+occurrence_classes = {
+    class_id
+    for occ in occurrences
+    for class_id in occ.class_counts
+}
+
+assert occurrence_classes == set(class_supply)
+```
+
+检查 gap：
+
+```python
+relay_pattern_ids = set(
+    patterns.loc[
+        patterns["needs_relay"] == 1,
+        "pattern_id"
+    ].astype(str)
+)
+
+patterns_with_gap = {
+    occ.pattern_id
+    for occ in occurrences
+    if occ.gap_ids
+}
+
+assert relay_pattern_ids <= patterns_with_gap
+```
+
+以及：
+
+```python
+for occ in occurrences:
+    assert sum(occ.class_counts.values()) == occ.n_boxes
+```
+
+---
+
+# 2. `cp_sat_scheduler.py`：这是当前最大改动
+
+当前这个文件还是旧模型：
+
+```text
+q3_candidate_tasks.csv
+q3_candidate_deliveries.csv
+80-box ExactlyOne
+task_id + gap_id
+```
+
+这一套全部退出正式主线。
+
+---
+
+# 3. 替换 `_read_q3_inputs()`
+
+当前：
+
+```python
+def _read_q3_inputs():
+```
+
+删除旧：
+
+```python
+q3_candidate_tasks.csv
+q3_candidate_deliveries.csv
+q3_task_comm_gaps.csv
+```
+
+新函数建议直接改名：
+
+```python
+def _read_compact_q3_inputs():
+```
+
+读取：
+
+```python
+classes, patterns, pattern_counts =
+    load_q2_compact_artifacts()
+
+patterns =
+    pd.read_csv("q3_compact_patterns.csv")
+
+pattern_counts =
+    pd.read_csv("q3_compact_pattern_counts.csv")
+
+gaps =
+    pd.read_csv("q3_pattern_comm_gaps.csv")
+
+relay_options =
+    pd.read_csv("q3_relay_job_options.csv")
+
+occurrences =
+    generate_occurrences(
+        classes,
+        patterns,
+        pattern_counts,
+        gaps,
+    )
+```
+
+同时继续加载：
+
+```python
+uavs
+batteries
+运输无人机机型参数
+```
+
+注意：
+
+**求解阶段不要生成 80 个 physical box 变量。**
+
+---
+
+# 4. 删除旧 `_deadlines()`，改成 class 参数
+
+当前：
+
+```python
+def _deadlines(boxes):
+```
+
+是 physical-box 口径。
+
+改成：
+
+```python
+def _build_class_parameters(classes):
+```
+
+输出：
+
+```python
+{
+    class_id: {
+        "supply": int(row.count),
+        "hard_deadline_s": float(...),
+        "expected_time_s": float(...),
+        "priority": int(...),
+        "service": ...
+    }
+}
+```
+
+实际上 `Q2 compact_classes.py` 已经保证 class key 包含：
+
+```text
+service
+cargo_type
+mass
+volume
+hard_deadline_s
+expected_time_s
+priority
+is_first_batch
+```
+
+所以 class-level 求解是无损的。
+
+---
+
+# 5. 替换 `_validate_q3_input()`
+
+改名：
+
+```python
+def _validate_compact_q3_input(
+    classes,
+    patterns,
+    pattern_counts,
+    occurrences,
+    gaps,
+    relay,
+):
+```
+
+必须检查 7 项。
+
+### 5.1 62 classes 全覆盖
+
+```python
+assert set(classes.class_id) == {
+    c
+    for occ in occurrences
+    for c in occ.class_counts
+}
+```
+
+---
+
+### 5.2 occurrence ID 唯一
+
+```python
+assert len(ids) == len(set(ids))
+```
+
+---
+
+### 5.3 每个 occurrence pattern 存在
+
+```python
+assert {
+    occ.pattern_id for occ in occurrences
+} <= set(patterns.pattern_id)
+```
+
+---
+
+### 5.4 needs_relay pattern 必须有 gap
+
+---
+
+### 5.5 每个 gap 至少一个 relay option
+
+```python
+required = set(gaps.gap_id)
+available = set(relay.gap_id)
+
+assert required <= available
+```
+
+---
+
+### 5.6 relay option 能耗安全
+
+保留当前：
+
+```python
+relay_energy_kWh <= usable_energy
+end_soc >= safety_margin
+```
+
+但不要硬编码：
+
+```python
+2.56
+0.20
+```
+
+改成从：
+
+```python
+load_relay_flight_parameters()
+```
+
+读取。
+
+---
+
+### 5.7 Step7 只接受 full-cover
+
+因为当前正式路线是一 gap 一中继完整覆盖：
+
+```python
+assert set(relay.gap_id) == set(gaps.gap_id)
+```
+
+而 Step7 已过滤 `full_cover == 1`。
+
+---
+
+# 6. 重写 `prepare_q3_problem()`
+
+最终返回结构建议固定成：
+
+```python
+{
+    "classes": classes,
+    "patterns": patterns,
+    "pattern_counts": pattern_counts,
+
+    "occurrences": occurrences,
+
+    "class_supply": class_supply,
+    "class_params": class_params,
+
+    "gaps": gaps,
+    "relay": relay,
+
+    "occurrence_gaps": occurrence_gaps,
+    "gap_option_map": gap_option_map,
+
+    "uav_ids": uav_ids,
+    "battery_ids": battery_ids,
+
+    "energy_capacity": energy_capacity,
+    "charge_full": charge_full,
+
+    "horizon_s": 36000,
+}
+```
+
+---
+
+# 7. `occurrence_gaps` 的结构
+
+不要再：
+
+```python
+task_gaps
+```
+
+改成：
+
+```python
+occurrence_gaps = {
+    occ.sortie_id: tuple(occ.gap_ids)
+    for occ in occurrences
+}
+```
+
+因为同一个 Pattern：
+
+```text
+P00123
+```
+
+可能有：
+
+```text
+P00123-1
+P00123-2
+```
+
+它们的 gap template 相同，但绝对时间不同。
+
+---
+
+# 8. `_reduce_relay_options()` 可以保留
+
+当前逻辑：
+
+```text
+Top energy
+Top lead
+Top margin
+```
+
+暂时合理。
+
+不用改 DataFrame 成 occurrence 级。
+
+继续保持：
+
+```text
+gap_id
+→ relay template options
+```
+
+真正建变量时再：
+
+```text
+occurrence × gap × option
+```
+
+否则 CSV 会爆炸。
+
+---
+
+# 9. `_build_q3_model()`：Transport 层改成 occurrence
+
+这里直接参考 Q2：
+
+```python
+build_compact_master()
+```
+
+不要参考旧 Q3 physical task 模型。
+
+---
+
+## 9.1 transport 变量
+
+对每个 occurrence $o$：
+
+```python
+x[o]
+s[o]
+```
+
+分别表示：
+
+```text
+是否选择 occurrence
+开始时间
+```
+
+---
+
+## 9.2 class conservation
+
+删除：
+
+```python
+for bid in boxes:
+    model.AddExactlyOne(...)
+```
+
+正式替换为：
+
+```python
+for class_id, supply in class_supply.items():
+    terms = []
+
+    for i, occ in enumerate(occurrences):
+        amount = occ.class_counts.get(class_id, 0)
+
+        if amount:
+            terms.append(
+                amount * select[i]
+            )
+
+    model.Add(
+        sum(terms) == supply
+    )
+```
+
+或者直接复用：
+
+```python
+add_class_conservation()
+```
+
+---
+
+# 10. hard deadline 约束
+
+对 occurrence $o$ 中每个 class $c$：
+
+```python
+deadline = class_params[c]["hard_deadline_s"]
+offset = occ.delivery_offsets[c]
+```
+
+如果：
+
+```python
+math.isfinite(deadline)
+```
+
+加：
+
+```python
+model.Add(
+    starts[i] + ceil(offset)
+    <= floor(deadline)
+).OnlyEnforceIf(select[i])
+```
+
+这和 Q2 `build_compact_master()` 一致。
+
+---
+
+# 11. Transport UAV / Battery 资源
+
+当前这部分可以直接保留。
+
+每个 occurrence：
+
+```text
+flight interval
+battery interval
+```
+
+其中：
+
+```python
+flight_duration =
+    ceil(occ.duration_s)
+
+battery_duration =
+    ceil(
+        occ.duration_s
+        + charge_time
+    )
+```
+
+继续：
+
+```python
+model.AddCumulative(
+    intervals,
+    demands,
+    capacity,
+)
+```
+
+---
+
+# 12. occurrence 对称性必须加
+
+一个 Pattern 可能有：
+
+```text
+P000123-1
+P000123-2
+P000123-3
+```
+
+如果不加对称破除，CP-SAT 会浪费大量时间。
+
+直接复用 Q2 逻辑：
+
+```python
+previous = {}
+
+for occurrence:
+    prior = previous.get(
+        occurrence.pattern_id
+    )
+
+    if prior:
+        prior_x, prior_start = prior
+
+        model.Add(
+            prior_x >= x
+        )
+
+        model.Add(
+            prior_start <= start
+        ).OnlyEnforceIf(x)
+
+    previous[pattern_id] = (
+        x,
+        start,
+    )
+```
+
+这项很重要。
+
+---
+
+# 13. Relay 变量改成 occurrence 级
+
+当前旧模型：
+
+```python
+(task_id, gap_id)
+```
+
+改成：
+
+```python
+(sortie_id, pattern_gap_id)
+```
+
+变量：
+
+```python
+y[o, g, r]
+```
+
+---
+
+## 13.1 生成 relay option variable
+
+不要遍历：
+
+```python
+for row in relay_df:
+```
+
+直接变成每个：
+
+```text
+selected occurrence
+×
+该 occurrence 的 gap
+×
+该 gap 的 relay option
+```
+
+逻辑上：
+
+```python
+for occ_idx, occ in enumerate(occurrences):
+
+    for gap_id in occ.gap_ids:
+
+        for option_idx in gap_option_map[gap_id]:
+
+            y = NewBoolVar(...)
+```
+
+---
+
+# 14. Relay 与 Transport 时间耦合
+
+每个 option 都来自 Pattern 相对时间：
+
+```text
+dispatch_offset_s
+return_offset_s
+coverage_start_s
+coverage_end_s
+```
+
+所以：
+
+```python
+relay_start
+=
+transport_start
++
+dispatch_offset
+```
+
+即：
+
+```python
+model.Add(
+    relay_start
+    ==
+    starts[occ_idx]
+    + dispatch_int
+).OnlyEnforceIf(y)
+```
+
+---
+
+# 15. 每个 selected gap 恰好选一个中继
+
+核心约束：
+
+```python
+model.Add(
+    sum(option_vars)
+    ==
+    select[occ_idx]
+)
+```
+
+于是：
+
+```text
+occurrence 未选
+→ relay options 全 0
+
+occurrence 选中
+→ 每个 gap 恰好 1 个 relay option
+```
+
+这是 Q3 最核心的通信耦合。
+
+---
+
+# 16. Relay UAV / Energy component
+
+当前两条可以继续：
+
+```python
+AddCumulative(
+    relay_uav_intervals,
+    capacity=2
+)
+```
+
+```python
+AddCumulative(
+    relay_energy_intervals,
+    capacity=6
+)
+```
+
+但容量最好不要硬编码。
+
+增加：
+
+```python
+def _load_relay_resource_ids():
+```
+
+返回：
+
+```python
+relay_uav_ids
+energy_component_ids
+```
+
+然后：
+
+```python
+capacity = len(...)
+```
+
+---
+
+# 17. Cmax 保留
+
+正式：
+
+```python
+transport_cmax
+relay_cmax
+joint_cmax
+```
+
+并：
+
+```python
+joint_cmax =
+    max(
+        transport_cmax,
+        relay_cmax,
+    )
+```
+
+当前逻辑是对的。
+
+---
+
+# 18. 重写 `_decode_q3_resources()`
+
+这个函数要从：
+
+```text
+task_id
+```
+
+切到：
+
+```text
+sortie_id
+pattern_id
+```
+
+transport 输出：
+
+```text
+sortie_id
+pattern_id
+uav_id
+uav_type
+battery_id
+start_time_s
+end_time_s
+energy_kWh
+charge_end_s
+visit_order
+class_counts
+```
+
+---
+
+## 18.1 Physical box decode
+
+这里只在**求解成功之后**调用：
+
+```python
+selected_sorties = [
+    {
+        "sortie_id": ...,
+        "pattern_id": ...,
+        "class_counts": ...,
+        "start_time_s": ...
+    }
+]
+```
+
+然后：
+
+```python
+delivery = decode_box_deliveries(
+    selected_sorties,
+    classes,
+    pattern_counts,
+)
+```
+
+这样得到最终：
+
+```text
+80 physical boxes
+```
+
+但物理箱 ID 从始至终没有进入 CP-SAT。
+
+这是最关键的口径。
+
+---
+
+# 19. Relay schedule 输出字段
+
+改成：
+
+```text
+sortie_id
+pattern_id
+gap_id
+candidate_id
+
+relay_uav_id
+energy_component_id
+
+dispatch_time_s
+arrival_time_s
+service_start_s
+service_end_s
+return_time_s
+
+relay_energy_kWh
+end_soc
+```
+
+不要再输出：
+
+```text
+task_id
+```
+
+---
+
+# 20. 重写 `validate_q3_solution()`
+
+这是 Step8 第一层验证。
+
+建议拆成 6 个内部函数。
+
+---
+
+## 20.1 `_validate_class_conservation()`
+
+检查：
+
+```python
+sum(
+    selected occurrence class counts
+)
+==
+class supply
+```
+
+必须：
+
+```text
+62 / 62 classes exact
+```
+
+而不是只看 80 个物理 delivery 数量。
+
+---
+
+## 20.2 `_validate_hard_deadlines()`
+
+先 class-level 检查：
+
+```text
+start + delivery_offset <= deadline
+```
+
+然后 physical decode 后再验证一次。
+
+---
+
+## 20.3 `_validate_transport_resources()`
+
+检查：
+
+```text
+UAV non-overlap
+Battery use + recharge non-overlap
+```
+
+---
+
+## 20.4 `_validate_relay_assignment()`
+
+对每个 selected occurrence：
+
+```text
+期望 gap 数
+=
+实际 relay job 数
+```
+
+而且：
+
+```text
+(sortie_id, gap_id)
+```
+
+唯一。
+
+---
+
+## 20.5 `_validate_relay_resources()`
+
+检查：
+
+```text
+relay UAV non-overlap
+energy component non-overlap
+```
+
+---
+
+## 20.6 `_validate_joint_cmax()`
+
+重新计算：
+
+```python
+actual_cmax = max(
+    max transport end,
+    max relay return,
+)
+```
+
+必须和模型输出一致。
+
+---
+
+# 21. `solve_q3_joint()` 结构保留
+
+这个函数不需要大改接口。
+
+仍然：
+
+```python
+def solve_q3_joint(
+    tier="tier1",
+    time_limit_s=...,
+    problem=None,
+    feasibility_only=False,
+    hint=None,
+):
+```
+
+内部调用新版：
+
+```python
+prepare_q3_problem()
+_build_q3_model()
+_decode_q3_resources()
+validate_q3_solution()
+```
+
+---
+
+# 22. `bootstrap.py`：全部切 occurrence
+
+当前还是：
+
+```text
+task
+box
+Q2 N/E/T old seed
+```
+
+都要改。
+
+---
+
+## 22.1 `shortlist_task_ids()`
+
+改名：
+
+```python
+shortlist_occurrence_ids()
+```
+
+不要按：
+
+```python
+(box_id, UAV type)
+```
+
+分组。
+
+改成：
+
+```python
+(class_id, UAV type)
+```
+
+---
+
+## 22.2 `subset_problem()`
+
+改参数：
+
+```python
+subset_problem(
+    problem,
+    sortie_ids,
+)
+```
+
+只筛：
+
+```python
+occurrences
+```
+
+但：
+
+```text
+relay template options
+classes
+class supply
+```
+
+保持完整。
+
+---
+
+## 22.3 `exact_cover_possible()`
+
+改成：
+
+```python
+class_conservation_possible()
+```
+
+使用：
+
+```python
+add_class_conservation()
+```
+
+而不是：
+
+```python
+AddExactlyOne(box)
+```
+
+---
+
+## 22.4 `find_bootstrap()`
+
+删除旧：
+
+```text
+Q2_joint_selected_N.csv
+Q2_joint_selected_E.csv
+Q2_joint_selected_T.csv
+```
+
+不要再碰。
+
+流程改成：
+
+```text
+K=1 shortlist
+→ class conservation possible?
+→ joint feasibility
+
+K=2
+→ ...
+
+K=4
+→ ...
+```
+
+Q2 Anchor 如果有效，仅做额外 seed，不是必需。
+
+---
+
+# 23. `decomposition.py`：建议这次反而简化
+
+当前这个文件考虑了：
+
+```text
+infeasible core shrinking
+partial task infeasibility
+各种 task set cut
+```
+
+对于新模型第一版，不要全迁过去。
+
+先实现最小可靠版本。
+
+---
+
+## 23.1 `build_master()`
+
+改成 occurrence master。
+
+变量：
+
+```python
+x_o
+s_o
+```
+
+约束：
+
+```text
+class conservation
+hard deadline
+transport UAV
+transport battery
+```
+
+但**不放 relay scheduling**。
+
+目标仍是搜索引导：
+
+```text
+sortie count
++ relay burden estimate
++ energy
+```
+
+不是正式 Q3 目标。
+
+---
+
+## 23.2 `solve_master()`
+
+返回：
+
+```python
+sortie_ids
+start_hint
+surrogate_cost
+```
+
+---
+
+## 23.3 `add_task_set_exclusion()`
+
+改：
+
+```python
+add_occurrence_set_exclusion()
+```
+
+---
+
+## 23.4 `_selected_problem()`
+
+输入：
+
+```python
+sortie_ids
+```
+
+---
+
+## 23.5 暂时删除/禁用
+
+```python
+_partial_task_set_infeasible()
+shrink_infeasible_core()
+```
+
+第一版没有必要做。
+
+因为 class-count 模型里“部分 occurrence core”不像 physical exact cover 那么容易正确解释。
+
+先：
+
+```text
+整个 occurrence set 联合不可行
+→ 排除整个 set
+```
+
+足够。
+
+---
+
+# 24. `run_step8_decomposed()`
+
+最终逻辑：
+
+```text
+prepare full occurrence problem
+
+↓
+
+master
+选一个满足 class conservation 的 transport set
+
+↓
+
+joint subproblem
+固定 transport occurrence set
+重新联合优化：
+start
+relay option
+relay UAV
+energy component
+
+↓
+
+FEASIBLE
+→ 停
+
+INFEASIBLE
+→ 排除该 set
+
+UNKNOWN
+→ 不当成不可行证明
+→ 换下一个 set
+```
+
+---
+
+# 25. Step8 结果必须满足什么
+
+这是第一道强验收。
+
+必须全部 PASS：
+
+```text
+class_conservation
+hard_deadlines
+transport_uav_nonoverlap
+transport_battery_nonoverlap
+one_relay_per_selected_gap
+relay_uav_nonoverlap
+relay_energy_nonoverlap
+relay_energy_limit
+relay_end_soc_limit
+relay_service_covers_gap
+joint_cmax_consistent
+80_box_decode
+```
+
+只要有一项 false：
+
+```text
+Step8 不接受
+```
+
+---
+
+# 26. `step8_acceptance.py` 重写字段
+
+当前仍大量：
+
+```text
+task_id
+problem["deliveries"]
+```
+
+需要改。
+
+---
+
+## 26.1 `accept_step8()`
+
+读取 transport 后：
+
+```python
+selected_sortie_ids
+```
+
+不是：
+
+```python
+selected_task_ids
+```
+
+---
+
+## 26.2 delivery 验证
+
+直接检查：
+
+```python
+len(delivery) == 80
+delivery.box_id.nunique() == 80
+```
+
+并：
+
+```python
+set(delivery.box_id)
+==
+set(original_boxes.box_id)
+```
+
+---
+
+## 26.3 relay allowed key
+
+从旧：
+
+```python
+(gap_id, task_id, candidate_id)
+```
+
+改成：
+
+```python
+(sortie_id, gap_id, candidate_id)
+```
+
+---
+
+# 27. `objectives.py`
+
+四目标定义本身不用改：
+
+```text
+F1_timeliness
+F2_joint_cmax_s
+F3_total_energy_kWh
+F4_total_sorties
+```
+
+但需要增加一个 compact 求值函数。
+
+---
+
+## 27.1 新增
+
+```python
+def evaluate_compact_f1(
+    problem,
+    selected_sorties,
+):
+```
+
+直接调用/复制 Q2：
+
+```python
+class_timeliness()
+```
+
+公式：
+
+```text
+count
+× priority
+× lateness
+```
+
+---
+
+## 27.2 `evaluate_objectives()`
+
+仍可用于最终 physical delivery。
+
+然后增加一致性检查：
+
+```python
+compact_f1
+==
+physical_box_f1
+```
+
+允许浮点容差。
+
+这是证明 62→80 无损的一个很好证据。
+
+---
+
+# 28. `anchors.py`
+
+这是 Step8 之后第二个大改文件。
+
+---
+
+## 28.1 `_build_objective_expression()`
+
+### F2
+
+保持：
+
+```python
+joint_cmax
+```
+
+### F4
+
+保持概念：
+
+```python
+sum(transport_select)
++
+sum(relay_select)
+```
+
+### F3
+
+改 occurrence：
+
+```python
+sum(
+    occ.energy_kWh * x_o
+)
++
+sum(
+    relay_energy * y
+)
+```
+
+### F1
+
+不能再遍历：
+
+```python
+problem["deliveries"]
+```
+
+改成 occurrence class：
+
+```python
+for occurrence:
+    for class_id, amount in occurrence.class_counts.items():
+```
+
+如果：
+
+```text
+hard deadline finite
+```
+
+不进入 F1。
+
+否则：
+
+```python
+lateness
+=
+max(
+  0,
+  start
+  + delivery_offset
+  - expected_time
+)
+```
+
+目标项：
+
+```python
+amount
+* priority
+* lateness
+```
+
+---
+
+# 29. `solve_anchor()`
+
+hint 改成：
+
+```text
+sortie_id
+```
+
+Relay hint：
+
+```text
+(sortie_id, gap_id, candidate_id)
+```
+
+---
+
+# 30. `run_anchors()`
+
+仍然跑：
+
+```text
+F1
+F2
+F3
+F4
+```
+
+每个都必须：
+
+```text
+FEASIBLE or OPTIMAL
+```
+
+输出：
+
+```text
+q3_anchor_table.csv
+```
+
+至少包含：
+
+| anchor | F1 | F2 | F3 | F4 | status |
+|---|---:|---:|---:|---:|---|
+| F1 | ... | ... | ... | ... | |
+| F2 | ... | ... | ... | ... | |
+| F3 | ... | ... | ... | ... | |
+| F4 | ... | ... | ... | ... | |
+
+---
+
+# 31. Anchor 验证
+
+每个 anchor 必须：
+
+```text
+validate_q3_solution == PASS
+80 boxes == PASS
+objective expression == reported objective
+```
+
+如果：
+
+```text
+status == OPTIMAL
+```
+
+才写：
+
+```text
+proven optimum
+```
+
+否则写：
+
+```text
+best feasible incumbent
+```
+
+---
+
+# 32. 新增 `moead_cp_sat.py`
+
+这个文件最后再写。
+
+建议只实现以下函数。
+
+```python
+build_weight_vectors()
+```
+
+生成 4D 权重。
+
+```python
+normalize_objectives()
+```
+
+用 anchors 的 ideal/nadir 尺度。
+
+```python
+initialize_population()
+```
+
+从：
+
+```text
+4 anchors
++
+Step8 feasible
+```
+
+初始化。
+
+```python
+destroy_solution()
+```
+
+删除少量：
+
+```text
+2~5 occurrences
+```
+
+及其 relay jobs。
+
+```python
+repair_with_cp_sat()
+```
+
+固定剩余方案，让 CP-SAT 重选局部 occurrence + relay。
+
+```python
+evaluate_individual()
+```
+
+计算：
+
+```text
+F1 F2 F3 F4
+```
+
+```python
+update_neighborhood()
+```
+
+MOEA/D 邻域更新。
+
+```python
+update_archive()
+```
+
+维护非支配 Pareto 集。
+
+```python
+run_moead()
+```
+
+总入口。
+
+---
+
+# 33. MOEA/D 第一版不要做复杂 mutation
+
+第一版只要：
+
+```text
+anchor/feasible solution
+↓
+destroy small subset
+↓
+CP-SAT repair
+↓
+evaluate
+↓
+Pareto update
+```
+
+就足够。
+
+不要再引入：
+
+```text
+NSGA-II
+遗传交叉
+复杂编码
+连续变量进化
+```
+
+会重复建模。
+
+---
+
+# 34. 新建 `validation.py`
+
+这是正式结果最后一层。
+
+建议函数固定如下。
+
+---
+
+## 34.1 `validate_physical_boxes()`
+
+检查：
+
+```text
+80 rows
+80 unique box_id
+no missing
+no duplicate
+```
+
+---
+
+## 34.2 `validate_box_deadlines()`
+
+逐箱检查：
+
+```python
+delivery_time <= hard_deadline
+```
+
+---
+
+## 34.3 `validate_transport_resources()`
+
+逐：
+
+```text
+uav_id
+battery_id
+```
+
+检查不重叠。
+
+---
+
+## 34.4 `validate_relay_resources()`
+
+逐：
+
+```text
+relay_uav_id
+energy_component_id
+```
+
+检查不重叠。
+
+---
+
+## 34.5 `validate_relay_energy()`
+
+检查：
+
+```text
+relay energy
+end SOC
+recharge
+```
+
+---
+
+## 34.6 `validate_continuous_communication()`
+
+这是最后最重要的通信验证。
+
+不要只用 Step3 的 10 s profile。
+
+最终：
+
+```python
+dt = 1.0
+```
+
+重新生成每个 selected occurrence 实际轨迹。
+
+每个时刻判断：
+
+```python
+direct_to_G01
+OR
+(
+    transport_to_relay
+    AND
+    relay_to_G01
+)
+```
+
+---
+
+## 34.7 额外加入边界点
+
+1 s 采样本身仍不能严格证明采样点之间完全没有中断。:chatgpt-content-reference{index="1"}
+
+因此额外检查：
+
+```text
+gap start
+gap end
+relay service start
+relay service end
+direct-link state transition boundary
+```
+
+以及：
+
+```text
+boundary ± ε
+```
+
+例如：
+
+```python
+eps = 0.05
+```
+
+---
+
+# 35. `validate_final_q3_solution()`
+
+总入口：
+
+```python
+def validate_final_q3_solution(...):
+```
+
+内部：
+
+```python
+checks = {
+    "80_boxes": ...,
+    "hard_deadlines": ...,
+    "transport_uav": ...,
+    "transport_battery": ...,
+    "relay_uav": ...,
+    "relay_energy_component": ...,
+    "relay_energy": ...,
+    "continuous_communication": ...,
+    "objectives_consistent": ...,
+}
+```
+
+最终：
+
+```python
+all_pass = all(checks.values())
+```
+
+没有全部 PASS：
+
+```text
+不得作为论文正式结果
+```
+
+---
+
+# 36. 最后重写 `Q3.py`
+
+当前 `Q3.py` 还是：
+
+```text
+固定 Q2 solution
+→ trajectory
+→ communication
+```
+
+这已经是历史入口。
+
+建议最后把 `main()` 改成总 orchestrator：
+
+```text
+preprocess
+feasible
+anchors
+moead
+validate
+```
+
+比如：
+
+```python
+def run_preprocess():
+```
+
+调用：
+
+```text
+Step3
+Step4
+Step5
+Step6
+Step7
+generate_occurrences
+```
+
+---
+
+```python
+def run_feasible():
+```
+
+调用：
+
+```python
+run_step8_decomposed()
+accept_step8()
+```
+
+---
+
+```python
+def run_anchors():
+```
+
+---
+
+```python
+def run_multiobjective():
+```
+
+---
+
+```python
+def run_validation():
+```
+
+---
+
+# 37. 前处理结果验证
+
+你代码已经更新，但仓库目前**还没有提交新版 Pattern 级运行产物**：
+
+```text
+q3_pattern_comm_manifest.json
+q3_compact_filter_manifest.json
+q3_pattern_gap_manifest.json
+q3_sortie_occurrences.csv
+```
+
+所以我现在能确认：
+
+```text
+代码结构已修改
+```
+
+但不能说：
+
+```text
+新版数值结果已经验证通过
+```
+
+下一次实际运行必须检查下面这些。
+
+---
+
+## Step3 PASS
+
+```text
+pattern_count
+=
+Q2_compact_patterns rows
+```
+
+并：
+
+```text
+validation_patterns = 30
+validation_mismatches = 0
+```
+
+---
+
+## Step4 PASS
+
+```text
+classes = 62
+class_coverage = PASS
+anchor_lost = 0
+```
+
+注意 `anchor_seed_patterns=0` 也没问题。
+
+---
+
+## Step5 PASS
+
+必须：
+
+```text
+Step3 needs_relay patterns
+=
+Step5 pattern with gaps
+```
+
+---
+
+## Step6 PASS
+
+必须：
+
+```text
+uncovered_required_states = 0
+gaps_failing_union_coverage = 0
+```
+
+正式最小模型还要求：
+
+```text
+gaps_require_relay_switching = 0
+```
+
+如果 >0：
+
+**先扩大 relay site 候选，暂时不要改 Joint CP-SAT 做 relay switching。**
+
+---
+
+## Step7 PASS
+
+必须：
+
+```text
+Gaps with >=1 energy-feasible option
+=
+total gaps
+```
+
+且：
+
+```text
+max relay energy <= usable energy
+min SOC >= safety margin
+```
+
+---
+
+## Occurrence PASS
+
+必须：
+
+```text
+62 classes represented
+sortie_id unique
+all needs_relay occurrences have gaps
+all class count sums valid
+```
+
+---
+
+# 38. Step8 最终 PASS 标准
+
+建议打印一个固定表：
+
+```text
+[PASS] class conservation
+[PASS] hard deadlines
+[PASS] transport UAV resources
+[PASS] transport battery resources
+[PASS] relay assignment
+[PASS] relay UAV resources
+[PASS] relay energy resources
+[PASS] relay energy safety
+[PASS] relay gap coverage
+[PASS] joint Cmax
+[PASS] 62→80 box decode
+```
+
+只有这个全部通过：
+
+```text
+Step8 = 首个严格联合可行解
+```
+
+---
+
+# 39. 最终 Q3 PASS 标准
+
+最终 Pareto 解必须再经过：
+
+```text
+80 physical boxes
+hard deadline
+transport resources
+relay resources
+continuous communication
+F1/F2/F3/F4 recomputation
+```
+
+全部：
+
+```text
+PASS
+```
+
+才能进入论文。
+
+---
+
+# 40. 实际修改顺序
+
+不要一次把所有文件全改。
+
+按这个顺序最稳：
+
+```text
+第一批
+occurrence.py
+cp_sat_scheduler.py
+```
+
+先做到：
+
+```text
+新版 compact Joint CP-SAT 能建立模型
+```
+
+然后：
+
+```text
+第二批
+bootstrap.py
+decomposition.py
+```
+
+做到：
+
+```text
+找到第一个 FEASIBLE
+```
+
+然后：
+
+```text
+第三批
+step8_acceptance.py
+```
+
+做到：
+
+```text
+首个联合解冻结
+```
+
+然后：
+
+```text
+第四批
+objectives.py
+anchors.py
+```
+
+得到：
+
+```text
+F1/F2/F3/F4 anchors
+```
+
+最后：
+
+```text
+第五批
+moead_cp_sat.py
+validation.py
+Q3.py
+```
+
+完成正式 Q3。
+
+---
+
+## 当前最应该马上做的
+
+就是第一批：
+
+```text
+occurrence.py
++
+cp_sat_scheduler.py
+```
+
+尤其 `cp_sat_scheduler.py` 中这 7 个函数是下一步的核心修改对象：
+
+```python
+_read_q3_inputs()
+_deadlines()
+_validate_q3_input()
+prepare_q3_problem()
+_build_q3_model()
+_decode_q3_resources()
+validate_q3_solution()
+```
+
+其中前 3 个直接换成 compact/class 口径，后 4 个改为 `sortie_id + class conservation + occurrence gap`。**先把这 7 个函数改完并跑出一个模型可行性测试，再碰 decomposition 和 MOEA/D。**

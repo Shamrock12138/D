@@ -1,0 +1,21 @@
+{
+  "step": "Q3 compact joint candidate filter",
+  "inputs": {
+    "q3_pattern_comm_summary.csv": "e5fb4f6119ac01e908b92fc8baedbe04465403fd4049729d38c6da6c61b9ac65",
+    "Q2_compact_candidates_manifest.json": "ca4218207c2855548a17795be789189e2349c83bb2a7a002baf9d87e853e27bd"
+  },
+  "outputs": {
+    "q3_compact_patterns.csv": "b170f5531b838e77a95628ad084f8f9d3b390ceceea521c77e0a89d73297c96e",
+    "q3_compact_pattern_counts.csv": "725b642bbf241d7acd72d9ddbc29a63366ee41089650538001144bc9f575597e"
+  },
+  "stats": {
+    "full_patterns": 53106,
+    "transport_selected": 5554,
+    "communication_selected": 2333,
+    "anchor_seed_patterns": 42,
+    "anchor_lost": 0,
+    "final_selected": 6324,
+    "classes": 62,
+    "class_coverage": "PASS"
+  }
+}
