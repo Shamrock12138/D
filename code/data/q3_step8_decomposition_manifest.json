@@ -1,5 +1,6 @@
 {
-  "status": "SEARCHING",
+  "status": "UNKNOWN",
+  "reason": "search limit reached before a validated joint schedule was found",
   "attempts": [
     {
       "iteration": 1,
@@ -79,10 +80,73 @@
         "P050624-1",
         "P051203-1"
       ]
+    },
+    {
+      "iteration": 2,
+      "master": {
+        "status": "FEASIBLE",
+        "wall_time_s": 129.8883256,
+        "surrogate_cost": 95228098,
+        "start_hint": {
+          "P000131-1": 0,
+          "P002319-1": 0,
+          "P002580-1": 0,
+          "P002770-1": 1924,
+          "P002874-1": 1869,
+          "P002888-1": 0,
+          "P002902-1": 0,
+          "P008326-1": 9110,
+          "P008376-1": 0,
+          "P008384-1": 8872,
+          "P008452-1": 4307,
+          "P008547-1": 4060,
+          "P008594-1": 6577,
+          "P008641-1": 0,
+          "P020086-1": 1561,
+          "P050623-1": 1694,
+          "P050955-1": 6677
+        }
+      },
+      "sortie_ids": [
+        "P000131-1",
+        "P002319-1",
+        "P002580-1",
+        "P002770-1",
+        "P002874-1",
+        "P002888-1",
+        "P002902-1",
+        "P008326-1",
+        "P008376-1",
+        "P008384-1",
+        "P008452-1",
+        "P008547-1",
+        "P008594-1",
+        "P008641-1",
+        "P020086-1",
+        "P050623-1",
+        "P050955-1"
+      ],
+      "subproblems": [
+        {
+          "tier": "tier1",
+          "status": "INFEASIBLE",
+          "wall_time_s": 0.3897837,
+          "occurrence_count": 17,
+          "relay_options": 42
+        },
+        {
+          "tier": "all",
+          "status": "UNKNOWN",
+          "wall_time_s": 60.1492128,
+          "occurrence_count": 17,
+          "relay_options": 156
+        }
+      ],
+      "feedback": "deferred_unknown_not_a_proof"
     }
   ],
   "proven_infeasible_occurrence_sets": 1,
-  "deferred_unknown_occurrence_sets": 0,
+  "deferred_unknown_occurrence_sets": 1,
   "input_sha256": {
     "q3_compact_patterns.csv": "b170f5531b838e77a95628ad084f8f9d3b390ceceea521c77e0a89d73297c96e",
     "q3_compact_pattern_counts.csv": "725b642bbf241d7acd72d9ddbc29a63366ee41089650538001144bc9f575597e",
