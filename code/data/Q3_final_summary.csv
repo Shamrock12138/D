@@ -1,0 +1,2 @@
+﻿status,transport_sorties,relay_sorties,total_sorties,transport_energy_kWh,relay_energy_kWh,total_energy_kWh,transport_Cmax_s,relay_Cmax_s,joint_Cmax_s,joint_Cmax_h,physical_boxes,relay_uav_capacity,relay_energy_capacity
+OPTIMAL,15,12,27,60.360733508396336,5.575321293567311,65.93605480196365,12001.0,11779.0,12001.0,3.3336111111111113,80,4,6
