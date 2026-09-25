@@ -1,0 +1,12 @@
+{
+  "tier1": {
+    "status": "INFEASIBLE",
+    "tier": "tier1",
+    "wall_time_s": 47.307840500000005
+  },
+  "all": {
+    "status": "INFEASIBLE",
+    "tier": "all",
+    "wall_time_s": 33.731570000000005
+  }
+}

@@ -13,7 +13,7 @@ from ortools.sat.python import cp_model
 
 from src.q2.battery import charge_time_to_full, soc_after_task
 from src.q3.bootstrap import subset_problem
-from src.q3.relay_master import add_relay_master_cuts, relay_conflict_core
+from src.q3.relay_master import add_relay_master_cuts
 from src.q3.cp_sat_scheduler import (
     DATA,
     _reduce_relay_options,
@@ -29,7 +29,7 @@ MASTER_SORTIE_PENALTY = 1_000_000
 MASTER_RELAY_OCCUPANCY_PENALTY_PER_S = 2_000
 
 
-def build_master(problem, min_transport_sorties=0):
+def build_master(problem, min_transport_sorties=0, allow_relay_sharing=False):
     u"""Transport-only master: class conservation + cumulative + surrogate objective.
 
     复制 _build_q3_model 的 Transport 部分，不放 Relay 变量。
@@ -128,7 +128,17 @@ def build_master(problem, min_transport_sorties=0):
     if min_transport_sorties:
         model.Add(sum(select) >= int(min_transport_sorties))
 
-    add_relay_master_cuts(model, select, problem)
+    # These cuts prove infeasibility only for the old one-gap-one-UAV relay
+    # interpretation. Shared same-site relay sessions invalidate that proof.
+    if not allow_relay_sharing:
+        add_relay_master_cuts(model, select, problem)
+    else:
+        problem["relay_master_cuts"] = {
+            "enabled": False,
+            "reason": "same_site_relay_sharing_changes_gap_capacity_semantics",
+            "forbidden_patterns": [],
+            "prefix_times_s": [],
+        }
     costs = []
     relay_burden = {}
     relay_df = problem.get("relay")
@@ -261,6 +271,7 @@ def run_step8_decomposed(max_occurrence_sets=30, master_time_s=30,
     model, selected, starts = build_master(
         full_problem,
         min_transport_sorties=min_transport_sorties,
+        allow_relay_sharing=True,
     )
     sortie_ids = [occ.sortie_id for occ in full_problem["occurrences"]]
     occurrence_index = {sid: i for i, sid in enumerate(sortie_ids)}
@@ -271,8 +282,11 @@ def run_step8_decomposed(max_occurrence_sets=30, master_time_s=30,
     cut_report = dict(full_problem["relay_master_cuts"], input_sha256=input_sha256)
     (DATA / "q3_step8_relay_master_cuts.json").write_text(
         json.dumps(cut_report, indent=2) + "\n", encoding="utf-8")
-    print(f"Relay master cuts: {len(cut_report['forbidden_patterns'])} forbidden patterns; "
-          f"{len(cut_report['prefix_times_s'])} prefix workload rows", flush=True)
+    if cut_report.get("enabled", True):
+        print(f"Relay master cuts: {len(cut_report['forbidden_patterns'])} forbidden patterns; "
+              f"{len(cut_report['prefix_times_s'])} prefix workload rows", flush=True)
+    else:
+        print("Relay master cuts disabled: shared relay sessions use different capacity semantics", flush=True)
     output_manifest = DATA / "q3_step8_decomposition_manifest.json"
 
     for iteration in range(1, int(max_occurrence_sets) + 1):
@@ -309,6 +323,7 @@ def run_step8_decomposed(max_occurrence_sets=30, master_time_s=30,
                 problem=small,
                 feasibility_only=True,
                 transport_start_hint=master["start_hint"],
+                allow_relay_sharing=True,
             )
             detail = {
                 "tier": tier,
@@ -363,10 +378,10 @@ def run_step8_decomposed(max_occurrence_sets=30, master_time_s=30,
 
         if all_status == "INFEASIBLE":
             proven_infeasible_sets += 1
-            core_result = relay_conflict_core(full_problem, chosen_ids)
-            attempt["relay_core_check"] = core_result
-            core = core_result["sortie_ids"] or chosen_ids
-            attempt["feedback"] = "proven_infeasible_occurrence_core"
+            # The former relay-only core extractor assumes exclusive relay use.
+            # Under sharing it cannot certify a valid smaller conflict core.
+            core = chosen_ids
+            attempt["feedback"] = "proven_infeasible_occurrence_set"
             attempt["infeasible_core_sortie_ids"] = list(core)
             add_occurrence_set_exclusion(
                 model, selected, occurrence_index, core,

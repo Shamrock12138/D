@@ -135,6 +135,25 @@ def load_final_q3(folder: Path = FROZEN) -> dict:
             "summary": summary[0], "sha256": {name: digest(folder / name) for name in FILES}}
 
 
+def relay_sessions(q3: dict) -> list[dict]:
+    """Collapse gap certificates into physical relay hover sessions.
+
+    Older Q3 exports have no session identifier, so each row remains a session.
+    """
+    grouped = {}
+    for index, row in enumerate(q3["relay"]):
+        session_id = row.get("relay_session_id") or f"legacy-row-{index}"
+        key = (str(row.get("relay_uav_id", "")), str(session_id))
+        item = grouped.setdefault(key, {"_sorties": set(), "dispatch_time_s": math.inf,
+                                        "uav_release_time_s": -math.inf,
+                                        "energy_release_time_s": -math.inf})
+        item["_sorties"].update(row["_sorties"])
+        item["dispatch_time_s"] = min(item["dispatch_time_s"], float(row["dispatch_time_s"]))
+        item["uav_release_time_s"] = max(item["uav_release_time_s"], float(row["uav_release_time_s"]))
+        item["energy_release_time_s"] = max(item["energy_release_time_s"], float(row["energy_release_time_s"]))
+    return [{**item, "_sorties": tuple(sorted(item["_sorties"]))} for item in grouped.values()]
+
+
 def dependency_blocks(q3: dict) -> tuple[tuple[str, ...], ...]:
     parent = {site: site for site in SERVICES}
 
@@ -152,7 +171,7 @@ def dependency_blocks(q3: dict) -> tuple[tuple[str, ...], ...]:
     by_sortie = {row["sortie_id"]: row for row in q3["transport"]}
     for row in q3["transport"]:
         union(row["_sites"])
-    for row in q3["relay"]:
+    for row in relay_sessions(q3):
         union(site for sid in row["_sorties"] for site in by_sortie[sid]["_sites"])
     blocks = {}
     for site in SERVICES:
@@ -173,7 +192,7 @@ def intervals(q3: dict, blocks: tuple) -> tuple[list[tuple[int, int, float, floa
                      (block, KINDS.index("TBAT_" + typ), start, charge)))
         weights[block] += end - start
     by_sortie = {row["sortie_id"]: row for row in q3["transport"]}
-    for row in q3["relay"]:
+    for row in relay_sessions(q3):
         block = site_block[by_sortie[row["_sorties"][0]]["_sites"][0]]
         start = float(row["dispatch_time_s"])
         end = float(row["uav_release_time_s"])
@@ -312,7 +331,7 @@ def attach_group_details(description: dict, q3: dict) -> None:
         sorties = {row["sortie_id"] for row in q3["transport"] if row["_sites"][0] in services}
         boxes = [row for row in q3["delivery"] if row["sortie_id"] in sorties]
         group["transport_sorties"] = len(sorties)
-        group["relay_tasks"] = sum(row["_sorties"][0] in sorties for row in q3["relay"])
+        group["relay_tasks"] = sum(bool(set(row["_sorties"]) & sorties) for row in relay_sessions(q3))
         group["boxes"] = len(boxes)
         group["mass_kg"] = sum(row["_mass_kg"] for row in boxes)
 
@@ -383,7 +402,7 @@ def validate_q4(q3: dict, result: dict) -> dict:
             for row in q3["transport"]:
                 checks["transport_dependencies"] &= len({service_group[site] for site in row["_sites"]}) == 1
             by_sortie = {row["sortie_id"]: row for row in q3["transport"]}
-            for row in q3["relay"]:
+            for row in relay_sessions(q3):
                 sites = [site for sid in row["_sorties"] for site in by_sortie[sid]["_sites"]]
                 checks["relay_dependencies"] &= len({service_group[site] for site in sites}) == 1
             site_block = {site: i for i, block in enumerate(blocks) for site in block}

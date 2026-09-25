@@ -268,7 +268,8 @@ def prepare_q3_problem(tier="tier2"):
     }
 
 
-def _build_q3_model(problem, relay_uav_capacity=None, relay_energy_capacity=None):
+def _build_q3_model(problem, relay_uav_capacity=None, relay_energy_capacity=None,
+                    allow_relay_sharing=False):
     u"""构建 Q3 联合 CP-SAT 模型：Transport (occurrence) + Relay + Communication Coupling。
 
     Transport 变量：
@@ -427,6 +428,10 @@ def _build_q3_model(problem, relay_uav_capacity=None, relay_energy_capacity=None
     relay_energy_intervals = []
     relay_return_ends = []
     relay_meta = []
+    relay_ids = [f"R0{i + 1}" for i in range(
+        RELAY_UAV_CAPACITY if relay_uav_capacity is None else relay_uav_capacity
+    )]
+    relay_assign = {}
 
     # Build relay variables per (occurrence, gap, gap_option)
     occ_index = {occ.sortie_id: i for i, occ in enumerate(occurrences)}
@@ -501,6 +506,34 @@ def _build_q3_model(problem, relay_uav_capacity=None, relay_energy_capacity=None
                     "return_var": rr,
                 })
 
+    # In sharing mode a physical relay may protect several simultaneous gaps at
+    # one candidate site, but it cannot occupy two different sites at once.
+    # The option-selection equations below remain unchanged: every gap still
+    # chooses exactly one Step7-certified option.
+    if allow_relay_sharing:
+        for j, y in enumerate(relay_select):
+            assigned = []
+            for relay_id in relay_ids:
+                a = model.NewBoolVar(f"relay_assign_{j}_{relay_id}")
+                relay_assign[(j, relay_id)] = a
+                model.Add(a <= y)
+                assigned.append(a)
+            model.Add(sum(assigned) == y)
+
+        for relay_id in relay_ids:
+            for j, left in enumerate(relay_meta):
+                for k in range(j + 1, len(relay_meta)):
+                    right = relay_meta[k]
+                    if str(left["candidate_id"]) == str(right["candidate_id"]):
+                        continue
+                    before = model.NewBoolVar(f"relay_order_{relay_id}_{j}_{k}")
+                    model.Add(left["uav_end_var"] <= relay_starts[k]).OnlyEnforceIf(
+                        [relay_assign[(j, relay_id)], relay_assign[(k, relay_id)], before]
+                    )
+                    model.Add(right["uav_end_var"] <= relay_starts[j]).OnlyEnforceIf(
+                        [relay_assign[(j, relay_id)], relay_assign[(k, relay_id)], before.Not()]
+                    )
+
     # Each selected occurrence gets exactly one relay option per gap
     gap_option_idx_by_occ_gap = defaultdict(list)
     for var_idx, meta in enumerate(relay_meta):
@@ -517,7 +550,7 @@ def _build_q3_model(problem, relay_uav_capacity=None, relay_energy_capacity=None
                 )
 
     # Relay UAV cumulative (capacity = 2)
-    if relay_uav_intervals:
+    if relay_uav_intervals and not allow_relay_sharing:
         model.AddCumulative(
             relay_uav_intervals, [1] * len(relay_uav_intervals),
             RELAY_UAV_CAPACITY if relay_uav_capacity is None else relay_uav_capacity
@@ -542,6 +575,9 @@ def _build_q3_model(problem, relay_uav_capacity=None, relay_energy_capacity=None
         "transport": transport_meta,
         "relay": relay_meta,
         "occ_index": occ_index,
+        "relay_assign": relay_assign,
+        "relay_ids": relay_ids,
+        "allow_relay_sharing": allow_relay_sharing,
     }
     return (model, select, starts, relay_select, relay_starts,
             transport_cmax, relay_cmax, joint_cmax, metadata)
@@ -605,7 +641,6 @@ def _decode_q3_resources(problem, solver, select_vars, start_vars, relay_select_
     ).reset_index(drop=True)
 
     # Relay 解码
-    relay_uav_ready = {f"R0{i + 1}": 0 for i in range(RELAY_UAV_CAPACITY)}
     energy_ready = {f"E0{i + 1}": 0 for i in range(RELAY_ENERGY_CAPACITY)}
     relay_rows = []
 
@@ -623,11 +658,18 @@ def _decode_q3_resources(problem, solver, select_vars, start_vars, relay_select_
         uav_end = transport_start + int(meta["uav_release_offset_int"])
         energy_end = transport_start + int(meta["energy_release_offset_int"])
         relay_return = transport_start + int(meta["return_offset_int"])
-        relay_uav = next((rid for rid, ready in relay_uav_ready.items() if ready <= start), None)
+        if metadata.get("allow_relay_sharing"):
+            relay_uav = next(
+                rid for rid in metadata["relay_ids"]
+                if solver.Value(metadata["relay_assign"][(j, rid)])
+            )
+        else:
+            relay_uav = next((rid for rid, ready in relay_uav_ready.items() if ready <= start), None)
         energy_id = next((eid for eid, ready in energy_ready.items() if ready <= start), None)
         if relay_uav is None or energy_id is None:
             raise AssertionError("Cumulative capacity cannot be decoded to relay resources")
-        relay_uav_ready[relay_uav] = uav_end
+        if not metadata.get("allow_relay_sharing"):
+            relay_uav_ready[relay_uav] = uav_end
         energy_ready[energy_id] = energy_end
         relay_rows.append({
             "sortie_id": str(meta["sortie_id"]),
@@ -652,9 +694,33 @@ def _decode_q3_resources(problem, solver, select_vars, start_vars, relay_select_
             "dispatch_offset_s": float(option["dispatch_offset_s"]),
         })
 
+    # Each connected overlapping run at one relay/candidate is one physical
+    # hover session; individual rows remain gap-level coverage certificates.
+    if relay_rows:
+        by_session = []
+        for relay_id, group in pd.DataFrame(relay_rows).groupby("relay_uav_id", sort=True):
+            active = []
+            session = 0
+            for index, row in group.sort_values(["candidate_id", "dispatch_time_s"]).iterrows():
+                candidate = str(row["candidate_id"])
+                start = float(row["dispatch_time_s"])
+                end = float(row["uav_release_time_s"])
+                compatible = [item for item in active if item[0] == candidate and item[1] > start]
+                if compatible:
+                    session_id = compatible[0][2]
+                    active = [(site, max(stop, end) if sid == session_id else stop, sid)
+                              for site, stop, sid in active]
+                else:
+                    session += 1
+                    session_id = f"{relay_id}-RS{session:03d}"
+                    active.append((candidate, end, session_id))
+                by_session.append((index, session_id))
+        for index, session_id in by_session:
+            relay_rows[index]["relay_session_id"] = session_id
+
     relay_columns = [
         "sortie_id", "pattern_id", "gap_id", "candidate_id",
-        "relay_uav_id", "energy_component_id",
+        "relay_uav_id", "relay_session_id", "energy_component_id",
         "dispatch_time_s", "arrival_time_s", "service_start_s", "service_end_s",
         "return_time_s", "uav_release_time_s", "energy_release_time_s",
         "relay_energy_kWh", "end_soc", "coverage_start_offset_s", "coverage_end_offset_s",
@@ -763,7 +829,7 @@ def validate_q3_solution(problem, transport, relay, joint_cmax_s):
     )
 
     # 5. relay resources non-overlap
-    checks["relay_uav_nonoverlap"] = _nonoverlap(relay, "relay_uav_id", "dispatch_time_s", "uav_release_time_s")
+    checks["relay_uav_location_compatible"] = _relay_uav_location_compatible(relay)
     checks["relay_energy_nonoverlap"] = _nonoverlap(relay, "energy_component_id", "dispatch_time_s", "energy_release_time_s")
 
     # 6. relay energy / soc limits
@@ -832,6 +898,21 @@ def _nonoverlap(frame, resource_col, start_col, end_col):
     return True
 
 
+def _relay_uav_location_compatible(relay):
+    """Overlapping tasks may share a relay only when at the same candidate."""
+    if relay.empty:
+        return True
+    for _, group in relay.groupby("relay_uav_id"):
+        rows = list(group.itertuples(index=False))
+        for i, left in enumerate(rows):
+            for right in rows[i + 1:]:
+                overlaps = (float(left.dispatch_time_s) < float(right.uav_release_time_s)
+                            and float(right.dispatch_time_s) < float(left.uav_release_time_s))
+                if overlaps and str(left.candidate_id) != str(right.candidate_id):
+                    return False
+    return True
+
+
 def _add_joint_hint(model, problem, select, starts, relay_select, relay_starts, hint):
     occ_index = {occ.sortie_id: i for i, occ in enumerate(problem["occurrences"])}
     transport_starts = dict(zip(
@@ -855,10 +936,10 @@ def _add_joint_hint(model, problem, select, starts, relay_select, relay_starts, 
 
 def solve_q3_joint(tier="tier1", time_limit_s=600, workers=8, random_seed=2026,
                    problem=None, feasibility_only=False, hint=None,
-                   transport_start_hint=None):
+                   transport_start_hint=None, allow_relay_sharing=False):
     if problem is None:
         problem = prepare_q3_problem(tier=tier)
-    built = _build_q3_model(problem)
+    built = _build_q3_model(problem, allow_relay_sharing=allow_relay_sharing)
     model, select, starts, relay_select, relay_starts, transport_cmax, relay_cmax, joint_cmax, metadata = built
     if hint is not None:
         # 创建临时 relay_meta_for_hint
@@ -870,7 +951,7 @@ def solve_q3_joint(tier="tier1", time_limit_s=600, workers=8, random_seed=2026,
             if sid in occ_index:
                 model.AddHint(starts[occ_index[sid]], int(start_val))
     solver, status = _solve_q3(
-        model, joint_cmax, select + starts + relay_select, time_limit_s,
+        model, joint_cmax, select + starts + relay_select + list(metadata["relay_assign"].values()), time_limit_s,
         workers, random_seed, feasibility_only=feasibility_only,
     )
     if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
@@ -890,6 +971,7 @@ def solve_q3_joint(tier="tier1", time_limit_s=600, workers=8, random_seed=2026,
         "joint_cmax_s": int(solver.Value(joint_cmax)), "validation": validation,
         "occurrence_count": len(problem["occurrences"]),
         "relay_option_count": len(metadata["relay"]),
+        "allow_relay_sharing": bool(allow_relay_sharing),
         "solve_mode": "feasibility" if feasibility_only else "min_joint_cmax",
     }
 
