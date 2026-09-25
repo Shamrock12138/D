@@ -1,6 +1,6 @@
 """Step8 master/subproblem search for a first joint Q3 feasible schedule.
 
-Master:  transport-only occurrence selection (surrogate objective)
+Master: transport selection with necessary relay capacity cuts (surrogate objective)
 Subproblem:  fix occurrence set, joint solve transport+relay
 """
 
@@ -13,6 +13,7 @@ from ortools.sat.python import cp_model
 
 from src.q2.battery import charge_time_to_full, soc_after_task
 from src.q3.bootstrap import subset_problem
+from src.q3.relay_master import add_relay_master_cuts, relay_conflict_core
 from src.q3.cp_sat_scheduler import (
     DATA,
     _reduce_relay_options,
@@ -127,6 +128,7 @@ def build_master(problem, min_transport_sorties=0):
     if min_transport_sorties:
         model.Add(sum(select) >= int(min_transport_sorties))
 
+    add_relay_master_cuts(model, select, problem)
     costs = []
     relay_burden = {}
     relay_df = problem.get("relay")
@@ -266,6 +268,11 @@ def run_step8_decomposed(max_occurrence_sets=30, master_time_s=30,
     proven_infeasible_sets = 0
     deferred_unknown_sets = 0
     input_sha256 = _input_hashes()
+    cut_report = dict(full_problem["relay_master_cuts"], input_sha256=input_sha256)
+    (DATA / "q3_step8_relay_master_cuts.json").write_text(
+        json.dumps(cut_report, indent=2) + "\n", encoding="utf-8")
+    print(f"Relay master cuts: {len(cut_report['forbidden_patterns'])} forbidden patterns; "
+          f"{len(cut_report['prefix_times_s'])} prefix workload rows", flush=True)
     output_manifest = DATA / "q3_step8_decomposition_manifest.json"
 
     for iteration in range(1, int(max_occurrence_sets) + 1):
@@ -356,16 +363,20 @@ def run_step8_decomposed(max_occurrence_sets=30, master_time_s=30,
 
         if all_status == "INFEASIBLE":
             proven_infeasible_sets += 1
-            attempt["feedback"] = "proven_infeasible_occurrence_set"
+            core_result = relay_conflict_core(full_problem, chosen_ids)
+            attempt["relay_core_check"] = core_result
+            core = core_result["sortie_ids"] or chosen_ids
+            attempt["feedback"] = "proven_infeasible_occurrence_core"
+            attempt["infeasible_core_sortie_ids"] = list(core)
             add_occurrence_set_exclusion(
-                model, selected, occurrence_index, chosen_ids,
+                model, selected, occurrence_index, core,
             )
         else:
             deferred_unknown_sets += 1
             attempt["feedback"] = "deferred_unknown_not_a_proof"
-            add_occurrence_set_exclusion(
-                model, selected, occurrence_index, chosen_ids,
-            )
+            # Do not permanently remove a potentially feasible occurrence set.
+            # Return UNKNOWN so a longer run can revisit it without a false cut.
+            break
 
         output_manifest.write_text(
             json.dumps(
