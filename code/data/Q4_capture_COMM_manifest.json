@@ -1,0 +1,27 @@
+{
+  "status": "PROVISIONAL_TRANSPORT_ONLY",
+  "relay_capacity_constraints_in_comm_master": false,
+  "q3_relay_feasibility_claimed": false,
+  "transport_all_pass": true,
+  "transport_sorties": 16,
+  "comm_gap_count": 13,
+  "master_status": "FEASIBLE",
+  "transport_status": "OPTIMAL",
+  "transport_checks": {
+    "physical_cache_equivalence": true,
+    "class_quantity_conservation": true,
+    "every_box_exactly_once": true,
+    "box_class_identity": true,
+    "hard_deadlines": true,
+    "first_batch_deadlines": true,
+    "medical_deadlines": true,
+    "flight_horizon": true,
+    "uav_nonoverlap": true,
+    "battery_nonoverlap": true,
+    "master_start_times_preserved": true,
+    "master_F1_preserved": true,
+    "master_Cmax_preserved": true,
+    "delivery_time_mapping": true
+  },
+  "comm_manifest_sha256": "a0926f11adbd196221b65073c965c2eff84b680ae666f079bfe1656123e20fb7"
+}
