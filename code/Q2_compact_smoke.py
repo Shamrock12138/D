@@ -398,6 +398,12 @@ def run_smoke(services=("S001", "S002"), top_k=3, master_time_s=30,
                    "transport_cmax_s": float(schedule["end_time_s"].max()),
                    "transport_energy_kWh": float(schedule["energy_kWh"].sum()),
                    "F1_weighted_lateness": class_timeliness(sorties, classes, counts)})
+    report["objectives"] = {
+        "F1": float(report["F1_weighted_lateness"]),
+        "Cmax_s": float(report["transport_cmax_s"]),
+        "E_kWh": float(report["transport_energy_kWh"]),
+        "N": int(report["selected_sorties"]),
+    }
     report["anchor_ready"] = bool(
         report["all_pass"]
         and report["anchor_optimal"]

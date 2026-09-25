@@ -26,18 +26,21 @@
   "python_version": "3.11.7",
   "ortools_version": "9.15.6755",
   "classes": 62,
-  "physical_patterns": 25851,
-  "retained_patterns": 972,
-  "sortie_slots": 1036,
+  "physical_patterns": 53106,
+  "retained_patterns": 2225,
+  "sortie_slots": 2313,
   "physical_cache_equivalence": true,
   "master_status": "OPTIMAL",
-  "master_wall_time_s": 14.236259,
+  "master_wall_time_s": 57.0154964,
   "seed": 2026,
+  "seed_source": null,
   "input_sha256": "bbc22fa4df3ba1202471d050ddf3fb1caba027767735227a2b6ec89d44e63c2d",
   "master_objective_value": 0.0,
   "master_best_bound": 0.0,
-  "selected_sorties": 35,
-  "repeated_patterns": 0,
+  "master_relative_gap": 0.0,
+  "anchor_optimal": true,
+  "selected_sorties": 44,
+  "repeated_patterns": 2,
   "transport_status": "OPTIMAL",
   "checks": {
     "physical_cache_equivalence": true,
@@ -57,14 +60,21 @@
   },
   "all_pass": true,
   "master_F1_weighted_lateness": 0.0,
-  "master_cmax_s": 11668.044640635813,
-  "transport_cmax_s": 11668.044640635813,
-  "transport_energy_kWh": 97.71099657905518,
+  "master_cmax_s": 12125.20984697682,
+  "transport_cmax_s": 12125.20984697682,
+  "transport_energy_kWh": 119.31509781657414,
   "F1_weighted_lateness": 0.0,
-  "output_sha256": {
-    "selected": "33ae202cda83ab6da6487cf9735122547f968d1751d7244e1e5aa9b737dfceb3",
-    "schedule": "7233e75f5453c98331accc08817531f23debdd815addbb41bd2118b46ae52ec5",
-    "deliveries": "90485ec70a3c243f9bbd55a0157d4a3ab13ccea5d31c6aafcb6845684e76b1d0"
+  "objectives": {
+    "F1": 0.0,
+    "Cmax_s": 12125.20984697682,
+    "E_kWh": 119.31509781657414,
+    "N": 44
   },
-  "candidate_manifest_sha256": "33d0506d78392f30f11fd762c5db757f8a0d29e870e6e66d5f9778aece0c3a60"
+  "anchor_ready": true,
+  "output_sha256": {
+    "selected": "8b3fc4dc80fe2c5ea457bf9bfabf0ab1002618c847c9f6492bd452f5af5b4354",
+    "schedule": "eabec49b9826e7b798f6fed4c60c8df55958f7dc130e340617d0dc13f86f970c",
+    "deliveries": "12bb7d9d5e39e794b12b51f0e4eb1b95629062e8cca4782b46f43fb2494a08a5"
+  },
+  "candidate_manifest_sha256": "ca4218207c2855548a17795be789189e2349c83bb2a7a002baf9d87e853e27bd"
 }
