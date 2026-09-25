@@ -157,7 +157,7 @@ def _q3_communication_check(tasks, deliveries):
 
 def run_smoke(services=("S001", "S002"), top_k=3, master_time_s=30,
               transport_time_s=20, workers=1, q3_comm=False,
-              q3_relay=False):
+              q3_relay=False, objective="N"):
     """Return an evidence report; never overwrite existing Q2/Q3 outputs."""
     data = load_q2_data()
     boxes = data["boxes"].loc[data["boxes"]["service"].isin(services)].copy()
@@ -173,10 +173,12 @@ def run_smoke(services=("S001", "S002"), top_k=3, master_time_s=30,
         patterns, counts, classes, boxes, models)
     resources = _resources(data)
     model, slots, chosen, starts = build_compact_master(
-        patterns, counts, classes, *resources, horizon_s=36000)
+        patterns, counts, classes, *resources, horizon_s=36000,
+        objective=objective)
     master = _solver(master_time_s, workers)
     master_status = master.Solve(model)
     report = {"services": list(services), "boxes": len(boxes),
+              "objective": objective,
               "classes": len(classes), "physical_patterns": full_pattern_count,
               "retained_patterns": len(patterns), "sortie_slots": len(slots),
               "physical_cache_equivalence": cache_equivalent,
@@ -273,6 +275,8 @@ if __name__ == "__main__":
     parser.add_argument("--master-time", type=float, default=30)
     parser.add_argument("--transport-time", type=float, default=20)
     parser.add_argument("--workers", type=int, default=1)
+    parser.add_argument("--objective", choices=("F1", "Cmax", "E", "N"),
+                        default="N")
     parser.add_argument("--q3-comm", action="store_true",
                         help="Also evaluate Q3 direct-link profiles for selected sorties")
     parser.add_argument("--q3-relay", action="store_true",
@@ -280,5 +284,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
     print(json.dumps(run_smoke(tuple(args.service) if args.service else ("S001", "S002"),
                                args.top_k, args.master_time, args.transport_time,
-                               args.workers, args.q3_comm, args.q3_relay),
+                               args.workers, args.q3_comm, args.q3_relay,
+                               args.objective),
                      ensure_ascii=False, indent=2))

@@ -70,7 +70,7 @@ def test_repeatable_pattern_and_final_box_assignment():
     assert class_timeliness(
         [dict(slot, start_time_s=100.0)
          for slot in selected], classes, pattern_counts
-    ) == 4 * 3 * 25.0
+    ) == 3 * 3 * 25.0
     task_table, delivery_table = materialize_selected_sorties(
         [dict(slot, start_time_s=solver.Value(starts[i]))
          for i, (slot, x) in enumerate(zip(slots, chosen)) if solver.Value(x)],
@@ -108,3 +108,61 @@ def test_filter_preserves_unit_pattern_for_each_class():
         patterns, counts, classes, top_k=1)
     assert set(selected["pattern_id"]) == {"P1", "P2"}
     assert set(selected_counts["class_id"]) == {first, regular}
+
+
+def test_compact_master_supports_all_four_q2_anchor_objectives():
+    classes, _ = build_box_classes(_boxes())
+    first = classes.loc[classes["is_first_batch"], "class_id"].iloc[0]
+    regular = classes.loc[~classes["is_first_batch"], "class_id"].iloc[0]
+    patterns = pd.DataFrame([
+        {"pattern_id": "P1", "uav_type": "A", "duration_s": 10,
+         "energy_kWh": 1.0, "latest_start_s": 40.0},
+        {"pattern_id": "P2", "uav_type": "A", "duration_s": 10,
+         "energy_kWh": 1.0, "latest_start_s": float("inf")},
+    ])
+    counts = pd.DataFrame([
+        {"pattern_id": "P1", "class_id": first, "count": 1,
+         "delivery_offset_s": 5.0},
+        {"pattern_id": "P2", "class_id": regular, "count": 1,
+         "delivery_offset_s": 5.0},
+    ])
+    for objective in ("F1", "Cmax", "E", "N"):
+        model, slots, chosen, _ = build_compact_master(
+            patterns, counts, classes, {"A": ["U1"]}, {"A": ["BAT1"]},
+            {"A": 10.0}, {"A": 0.0}, 100, objective=objective)
+        solver = cp_model.CpSolver()
+        assert solver.Solve(model) == cp_model.OPTIMAL
+        assert sum(solver.Value(x) for x in chosen) == 4
+        assert len({slot["sortie_id"] for slot in slots}) == len(slots)
+
+
+def test_f1_optimizes_soft_delivery_time_not_energy():
+    boxes = pd.DataFrame([{
+        "box_id": "B1", "service": "S001", "cargo_type": "饮用水",
+        "mass": 1.0, "volume": 0.01, "first_deadline": float("nan"),
+        "expected_time": 50.0, "priority": 3, "is_first_batch": False,
+    }])
+    classes, _ = build_box_classes(boxes)
+    cid = classes.iloc[0].class_id
+    patterns = pd.DataFrame([
+        {"pattern_id": "FAST", "uav_type": "A", "duration_s": 30,
+         "energy_kWh": 2.0},
+        {"pattern_id": "SLOW", "uav_type": "A", "duration_s": 100,
+         "energy_kWh": 1.0},
+    ])
+    counts = pd.DataFrame([
+        {"pattern_id": "FAST", "class_id": cid, "count": 1,
+         "delivery_offset_s": 20.0},
+        {"pattern_id": "SLOW", "class_id": cid, "count": 1,
+         "delivery_offset_s": 90.0},
+    ])
+    def chosen_pattern(objective):
+        model, slots, chosen, _ = build_compact_master(
+            patterns, counts, classes, {"A": ["U1"]}, {"A": ["BAT1"]},
+            {"A": 10.0}, {"A": 0.0}, 200, objective=objective)
+        solver = cp_model.CpSolver()
+        assert solver.Solve(model) == cp_model.OPTIMAL
+        return next(slot["pattern_id"] for slot, x in zip(slots, chosen)
+                    if solver.Value(x))
+    assert chosen_pattern("F1") == "FAST"
+    assert chosen_pattern("E") == "SLOW"

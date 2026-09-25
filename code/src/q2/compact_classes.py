@@ -257,7 +257,8 @@ def class_timeliness(selected_sorties, classes, pattern_counts):
     for sortie in selected_sorties:
         for class_id, amount in sortie["class_counts"].items():
             row = class_rows.loc[class_id]
-            if math.isfinite(float(row.expected_time_s)):
+            if (not math.isfinite(float(row.hard_deadline_s))
+                    and math.isfinite(float(row.expected_time_s))):
                 delivery_time = (float(sortie["start_time_s"])
                                  + offsets[(sortie["pattern_id"], class_id)])
                 total += (int(amount) * float(row.priority)
@@ -290,11 +291,17 @@ def materialize_selected_sorties(selected_sorties, patterns, pattern_counts, cla
 
 
 def build_compact_master(patterns, pattern_counts, classes, uav_ids,
-                         battery_ids, energy_capacity, charge_full, horizon_s):
-    """Build transport-feasible class-count master with repeatable patterns."""
+                         battery_ids, energy_capacity, charge_full, horizon_s,
+                         objective="N"):
+    """Build transport-feasible class-count master with a Q2 single objective."""
+    if objective not in {"F1", "Cmax", "E", "N"}:
+        raise ValueError(f"Unknown compact Q2 objective: {objective}")
     supply = dict(zip(classes["class_id"], classes["count"]))
     counts = {pid: dict(zip(group["class_id"], group["count"]))
               for pid, group in pattern_counts.groupby("pattern_id")}
+    count_rows = {pid: tuple(group.itertuples(index=False))
+                  for pid, group in pattern_counts.groupby("pattern_id")}
+    class_rows = classes.set_index("class_id")
     class_deadlines = dict(zip(classes["class_id"], classes["hard_deadline_s"]))
     pattern_deadlines = {}
     for pattern_id, group in pattern_counts.groupby("pattern_id"):
@@ -309,6 +316,9 @@ def build_compact_master(patterns, pattern_counts, classes, uav_ids,
     model = cp_model.CpModel()
     chosen = []
     starts = []
+    active_ends = []
+    energy_terms = []
+    lateness_terms = []
     flight_intervals = defaultdict(list)
     battery_intervals = defaultdict(list)
     battery_horizon = horizon_s + math.ceil(max(
@@ -340,10 +350,39 @@ def build_compact_master(patterns, pattern_counts, classes, uav_ids,
         previous[slot["pattern_id"]] = x
         chosen.append(x)
         starts.append(s)
+        if objective == "Cmax":
+            active_end = model.NewIntVar(0, horizon_s, f"active_end_{i}")
+            model.Add(active_end == f_end).OnlyEnforceIf(x)
+            model.Add(active_end == 0).OnlyEnforceIf(x.Not())
+            active_ends.append(active_end)
+        elif objective == "E":
+            energy_terms.append(int(round(float(row.energy_kWh) * 1_000_000)) * x)
+        elif objective == "F1":
+            for item in count_rows[slot["pattern_id"]]:
+                cls = class_rows.loc[item.class_id]
+                if (math.isfinite(float(cls.hard_deadline_s))
+                        or not math.isfinite(float(cls.expected_time_s))):
+                    continue
+                diff_ms = math.ceil(1000 * (float(item.delivery_offset_s)
+                                            - float(cls.expected_time_s)))
+                upper = max(0, 1000 * horizon_s + diff_ms)
+                late = model.NewIntVar(0, upper, f"late_ms_{i}_{item.class_id}")
+                model.Add(late >= 1000 * s + diff_ms).OnlyEnforceIf(x)
+                model.Add(late == 0).OnlyEnforceIf(x.Not())
+                lateness_terms.append(int(item.count) * int(cls.priority) * late)
     add_class_conservation(model, slots, chosen, supply)
     for typ, intervals in flight_intervals.items():
         model.AddCumulative(intervals, [1] * len(intervals), len(uav_ids[typ]))
     for typ, intervals in battery_intervals.items():
         model.AddCumulative(intervals, [1] * len(intervals), len(battery_ids[typ]))
-    model.Minimize(sum(chosen))
+    if objective == "N":
+        model.Minimize(sum(chosen))
+    elif objective == "E":
+        model.Minimize(sum(energy_terms))
+    elif objective == "Cmax":
+        cmax = model.NewIntVar(0, horizon_s, "cmax")
+        model.AddMaxEquality(cmax, active_ends)
+        model.Minimize(cmax)
+    else:
+        model.Minimize(sum(lateness_terms))
     return model, slots, chosen, starts

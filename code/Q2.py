@@ -1,9 +1,10 @@
-u"""Q2 全流程入口：基础检查、候选生成、CP-SAT 基准或 MOEA/D + CP-SAT。
+u"""Q2 入口：旧版正式流程及紧凑类别模型的小规模闭环检查。
 
 用法:
   python code/Q2.py --method cp-sat   # 仅 N/E/T 字典序基准
   python code/Q2.py --method moead    # MOEA/D + CP-SAT 多目标搜索
   python code/Q2.py --method all      # 基准 + MOEA/D 完整流程
+  python code/Q2.py --method compact-smoke --compact-service S001 --compact-service S002
 """
 
 import argparse
@@ -78,9 +79,18 @@ def main():
         description="Q2 运输调优: CP-SAT 基准 或 MOEA/D + CP-SAT",
     )
     parser.add_argument(
-        "--method", choices=["cp-sat", "moead", "all"], default="all",
+        "--method", choices=["cp-sat", "moead", "all", "compact-smoke"], default="all",
         help="求解方法 (默认: all)",
     )
+    parser.add_argument("--compact-service", action="append", default=None,
+                        help="紧凑闭环检查使用的服务区；默认 S001 和 S002")
+    parser.add_argument("--compact-top-k", type=int, default=3,
+                        help="紧凑闭环每类别、机型、排序维度保留数")
+    parser.add_argument("--compact-master-time", type=float, default=30.0)
+    parser.add_argument("--compact-transport-time", type=float, default=20.0)
+    parser.add_argument("--compact-workers", type=int, default=1)
+    parser.add_argument("--compact-objective", choices=("F1", "Cmax", "E", "N"),
+                        default="N", help="紧凑闭环的单目标验算方向")
     args = parser.parse_args()
 
     print("=" * 50)
@@ -100,6 +110,23 @@ def main():
         return
 
     print("基础检查通过。")
+    if args.method == "compact-smoke":
+        from Q2_compact_smoke import run_smoke
+
+        report = run_smoke(
+            services=tuple(args.compact_service or ("S001", "S002")),
+            top_k=args.compact_top_k,
+            master_time_s=args.compact_master_time,
+            transport_time_s=args.compact_transport_time,
+            workers=args.compact_workers,
+            objective=args.compact_objective,
+        )
+        print(json.dumps(report, ensure_ascii=False, indent=2))
+        if not report.get("all_pass"):
+            raise SystemExit("紧凑 Q2 闭环检查未通过；旧版 Q2 结果未被修改。")
+        return
+    print("注意：当前 cp-sat/moead/all 仍使用旧逐箱候选及 N/E/T 三目标，"
+          "仅供历史结果复现，不能作为最终紧凑四目标 Q2 结果。")
     _ensure_candidates()
 
     if args.method in ("cp-sat", "all"):
