@@ -79,7 +79,8 @@ def main():
         description="Q2 运输调优: CP-SAT 基准 或 MOEA/D + CP-SAT",
     )
     parser.add_argument(
-        "--method", choices=["cp-sat", "moead", "all", "compact-smoke"], default="all",
+        "--method", choices=["cp-sat", "moead", "all", "compact-smoke",
+                              "compact-feasible", "compact-anchors"], default="all",
         help="求解方法 (默认: all)",
     )
     parser.add_argument("--compact-service", action="append", default=None,
@@ -124,6 +125,49 @@ def main():
         print(json.dumps(report, ensure_ascii=False, indent=2))
         if not report.get("all_pass"):
             raise SystemExit("紧凑 Q2 闭环检查未通过；旧版 Q2 结果未被修改。")
+        return
+    if args.method == "compact-feasible":
+        from Q2_compact_smoke import run_smoke
+
+        report = run_smoke(
+            top_k=args.compact_top_k,
+            master_time_s=args.compact_master_time,
+            transport_time_s=args.compact_transport_time,
+            workers=args.compact_workers,
+            objective=args.compact_objective,
+            full_candidates=True,
+            save_feasible=True,
+        )
+        print(json.dumps(report, ensure_ascii=False, indent=2))
+        if not report.get("all_pass"):
+            raise SystemExit("80 箱 compact 可行性检查未通过。")
+        return
+    if args.method == "compact-anchors":
+        from Q2_compact_smoke import run_smoke
+
+        summary = []
+        for objective in ("F1", "Cmax", "E", "N"):
+            report = run_smoke(
+                top_k=args.compact_top_k,
+                master_time_s=args.compact_master_time,
+                transport_time_s=args.compact_transport_time,
+                workers=args.compact_workers,
+                objective=objective,
+                full_candidates=True,
+                save_anchor=True,
+            )
+            summary.append({
+                "objective": objective,
+                "status": report["master_status"],
+                "all_pass": report["all_pass"],
+                "F1": report.get("F1_weighted_lateness"),
+                "Cmax_s": report.get("transport_cmax_s"),
+                "energy_kWh": report.get("transport_energy_kWh"),
+                "sorties": report.get("selected_sorties"),
+            })
+            print(json.dumps(summary[-1], ensure_ascii=False), flush=True)
+            if not report["all_pass"]:
+                raise SystemExit(f"{objective} anchor 未通过 80 箱复核。")
         return
     print("注意：当前 cp-sat/moead/all 仍使用旧逐箱候选及 N/E/T 三目标，"
           "仅供历史结果复现，不能作为最终紧凑四目标 Q2 结果。")

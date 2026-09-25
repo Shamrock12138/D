@@ -60,3 +60,13 @@ def test_independent_schedule_keeps_nonzero_master_start():
     assert status in ("FEASIBLE", "OPTIMAL")
     assert actual == {"P-test-1": 500}
     assert schedule.iloc[0]["start_time_s"] == 500
+
+
+def test_saved_full_compact_candidates_schedule_all_boxes():
+    report = run_smoke(top_k=3, master_time_s=60, transport_time_s=30,
+                       workers=8, full_candidates=True)
+    assert report["boxes"] == 80
+    assert report["classes"] == 62
+    assert report["all_pass"]
+    assert report["checks"]["every_box_exactly_once"]
+    assert report["checks"]["master_start_times_preserved"]

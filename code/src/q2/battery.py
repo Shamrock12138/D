@@ -6,7 +6,7 @@ Q2 电池 SOC 与充电模型
 ----
 soc_after_task    — 任务结束后的 SOC
 charge_time_to_full — SOC → 满充所需时间
-battery_ready_time  — 电池下次可用时刻
+
 
 充电规则 (题目要求)
 --------------------
@@ -80,24 +80,7 @@ def charge_time_to_full(soc, full_charge_time):
         return (1.0 - soc) / (1.0 - SOC_THRESHOLD) * (SLOW_FRAC * T_full)
 
 
-def battery_ready_time(task_end_time, soc, full_charge_time):
-    u"""计算电池完成充电后恢复可用的绝对时刻。
 
-    Parameters
-    ----------
-    task_end_time : float
-        任务结束的绝对时间 (s)
-    soc : float
-        任务结束后的 SOC (0~1)
-    full_charge_time : float
-        该电池满充时间 (s)
-
-    Returns
-    -------
-    float
-        电池下次可用的时刻 (s)
-    """
-    return task_end_time + charge_time_to_full(soc, full_charge_time)
 
 
 # ── 自检 ──────────────────────────────────────────────────

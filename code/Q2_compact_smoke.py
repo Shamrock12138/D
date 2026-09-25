@@ -1,13 +1,15 @@
-"""Small Q2 closed-loop test of class-count patterns (S001/S002 by default)."""
+"""Q2 class-count closed loop: subset smoke or saved 80-box feasible check."""
 
 import argparse
 import hashlib
 import json
 import math
+import platform
 import sys
 from pathlib import Path
 
 import pandas as pd
+import ortools
 from ortools.sat.python import cp_model
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -15,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from src.physics import load_models
 from src.q2.compact_classes import (
-    build_compact_master, class_timeliness, decode_box_deliveries,
+    build_box_classes, build_compact_master, class_timeliness, decode_box_deliveries,
     generate_compact_patterns, materialize_selected_sorties,
     select_compact_patterns,
 )
@@ -25,6 +27,36 @@ from src.q2.route_evaluator import _box_data, evaluate_route
 
 
 DATA = Path(__file__).resolve().parent / "data"
+
+
+def _load_saved_compact_candidates(boxes):
+    """Load Step 1 artifacts and reject stale or mismatched class identities."""
+    manifest = json.loads((DATA / "Q2_compact_candidates_manifest.json").read_text(
+        encoding="utf-8"))
+    names = {"classes": "Q2_compact_classes.csv",
+             "class_members": "Q2_compact_class_members.csv",
+             "patterns": "Q2_compact_patterns.csv",
+             "pattern_counts": "Q2_compact_pattern_counts.csv"}
+    for key, name in names.items():
+        actual = hashlib.sha256((DATA / name).read_bytes()).hexdigest()
+        if actual != manifest["outputs_sha256"][key]:
+            raise ValueError(f"Compact candidate artifact changed: {name}")
+    classes, _ = build_box_classes(boxes)
+    saved_classes = pd.read_csv(DATA / names["classes"], encoding="utf-8-sig")
+    pd.testing.assert_frame_equal(classes.drop(columns="box_ids"), saved_classes,
+                                  check_dtype=False)
+    members = pd.DataFrame([
+        {"class_id": row.class_id, "box_id": box_id}
+        for row in classes.itertuples(index=False) for box_id in row.box_ids
+    ])
+    saved_members = pd.read_csv(DATA / names["class_members"], encoding="utf-8-sig")
+    pd.testing.assert_frame_equal(members, saved_members, check_dtype=False)
+    patterns = pd.read_csv(DATA / names["patterns"], encoding="utf-8-sig")
+    counts = pd.read_csv(DATA / names["pattern_counts"], encoding="utf-8-sig")
+    if (len(boxes) != int(manifest["n_boxes"])
+            or len(classes) != int(manifest["n_classes"])):
+        raise ValueError("Compact candidate manifest has stale box/class counts")
+    return classes, patterns, counts
 
 
 def _solver(time_limit_s, workers):
@@ -167,16 +199,28 @@ def _q3_communication_check(tasks, deliveries):
 
 def run_smoke(services=("S001", "S002"), top_k=3, master_time_s=30,
               transport_time_s=20, workers=1, q3_comm=False,
-              q3_relay=False, objective="N"):
-    """Return an evidence report; never overwrite existing Q2/Q3 outputs."""
+              q3_relay=False, objective="N", full_candidates=False,
+              save_feasible=False, save_anchor=False):
+    """Return an evidence report; save only explicitly requested full results."""
     data = load_q2_data()
-    boxes = data["boxes"].loc[data["boxes"]["service"].isin(services)].copy()
+    if (save_feasible or save_anchor) and not full_candidates:
+        raise ValueError("Full solution outputs require saved full candidates")
+    if save_feasible and save_anchor:
+        raise ValueError("Choose either feasible or anchor output names")
+    if full_candidates:
+        boxes = data["boxes"].copy()
+        services = tuple(sorted(boxes["service"].unique()))
+    else:
+        boxes = data["boxes"].loc[data["boxes"]["service"].isin(services)].copy()
     if boxes.empty:
         raise ValueError("No boxes in requested services")
     models = load_models()
-    classes, patterns, counts = generate_compact_patterns(
-        data["boxes"], models, max_stops=2, services=services)
-    classes = classes.loc[classes["service"].isin(services)].reset_index(drop=True)
+    if full_candidates:
+        classes, patterns, counts = _load_saved_compact_candidates(boxes)
+    else:
+        classes, patterns, counts = generate_compact_patterns(
+            data["boxes"], models, max_stops=2, services=services)
+        classes = classes.loc[classes["service"].isin(services)].reset_index(drop=True)
     full_pattern_count = len(patterns)
     patterns, counts = select_compact_patterns(patterns, counts, classes, top_k)
     cache_equivalent = _physical_cache_equivalent(
@@ -185,10 +229,27 @@ def run_smoke(services=("S001", "S002"), top_k=3, master_time_s=30,
     model, slots, chosen, starts = build_compact_master(
         patterns, counts, classes, *resources, horizon_s=36000,
         objective=objective)
+    if full_candidates and objective != "N":
+        seed_path = DATA / "Q2_compact_feasible_selected.csv"
+        if seed_path.exists():
+            seed = pd.read_csv(seed_path, encoding="utf-8-sig")
+            seed_starts = dict(zip(seed["task_id"].astype(str),
+                                   seed["start_time_s"].astype(int)))
+            for i, slot in enumerate(slots):
+                sortie_id = slot["sortie_id"]
+                model.AddHint(chosen[i], int(sortie_id in seed_starts))
+                if sortie_id in seed_starts:
+                    model.AddHint(starts[i], seed_starts[sortie_id])
     master = _solver(master_time_s, workers)
     master_status = master.Solve(model)
     report = {"services": list(services), "boxes": len(boxes),
+              "candidate_source": "saved_full" if full_candidates else "generated_subset",
               "objective": objective,
+              "top_k": top_k, "workers": workers,
+              "master_time_limit_s": master_time_s,
+              "transport_time_limit_s": transport_time_s,
+              "python_version": platform.python_version(),
+              "ortools_version": ortools.__version__,
               "classes": len(classes), "physical_patterns": full_pattern_count,
               "retained_patterns": len(patterns), "sortie_slots": len(slots),
               "physical_cache_equivalence": cache_equivalent,
@@ -199,6 +260,8 @@ def run_smoke(services=("S001", "S002"), top_k=3, master_time_s=30,
     if master_status not in (cp_model.FEASIBLE, cp_model.OPTIMAL):
         report["all_pass"] = False
         return report
+    report["master_objective_value"] = master.ObjectiveValue()
+    report["master_best_bound"] = master.BestObjectiveBound()
     sorties = [dict(slot, start_time_s=int(master.Value(starts[i])))
                for i, (slot, x) in enumerate(zip(slots, chosen)) if master.Value(x)]
     master_starts = {sortie["sortie_id"]: sortie["start_time_s"]
@@ -274,7 +337,33 @@ def run_smoke(services=("S001", "S002"), top_k=3, master_time_s=30,
                    "master_F1_weighted_lateness": master_f1,
                    "master_cmax_s": master_cmax,
                    "transport_cmax_s": float(schedule["end_time_s"].max()),
+                   "transport_energy_kWh": float(schedule["energy_kWh"].sum()),
                    "F1_weighted_lateness": class_timeliness(sorties, classes, counts)})
+    if (save_feasible or save_anchor) and report["all_pass"]:
+        if len(boxes) != 80:
+            raise ValueError("Full feasible outputs require all 80 boxes")
+        final_tasks, final_deliveries = materialize_selected_sorties(
+            sorties, patterns, counts, classes)
+        selected = final_tasks.merge(
+            schedule[["task_id", "uav_id", "battery_id", "start_time_s"]],
+            on="task_id", validate="one_to_one")
+        prefix = f"Q2_anchor_{objective}" if save_anchor else "Q2_compact_feasible"
+        outputs = {key: DATA / f"{prefix}_{key}.csv"
+                   for key in ("selected", "schedule", "deliveries")}
+        selected.to_csv(outputs["selected"], index=False, encoding="utf-8-sig")
+        schedule.to_csv(outputs["schedule"], index=False, encoding="utf-8-sig")
+        final_deliveries.to_csv(outputs["deliveries"], index=False,
+                                encoding="utf-8-sig")
+        report["output_sha256"] = {
+            key: hashlib.sha256(path.read_bytes()).hexdigest()
+            for key, path in outputs.items()
+        }
+        report["candidate_manifest_sha256"] = hashlib.sha256(
+            (DATA / "Q2_compact_candidates_manifest.json").read_bytes()).hexdigest()
+        manifest_path = DATA / f"{prefix}_manifest.json"
+        manifest_path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n",
+                                 encoding="utf-8")
+        report["manifest_file"] = manifest_path.name
     if q3_comm and report["all_pass"]:
         final_tasks, final_deliveries = materialize_selected_sorties(
             sorties, patterns, counts, classes)
@@ -304,6 +393,12 @@ if __name__ == "__main__":
     parser.add_argument("--workers", type=int, default=1)
     parser.add_argument("--objective", choices=("F1", "Cmax", "E", "N"),
                         default="N")
+    parser.add_argument("--full-candidates", action="store_true",
+                        help="Use saved 80-box compact candidate files")
+    parser.add_argument("--save-feasible", action="store_true",
+                        help="Write 80-box feasible outputs after all checks pass")
+    parser.add_argument("--save-anchor", action="store_true",
+                        help="Write objective-specific 80-box anchor outputs")
     parser.add_argument("--q3-comm", action="store_true",
                         help="Also evaluate Q3 direct-link profiles for selected sorties")
     parser.add_argument("--q3-relay", action="store_true",
@@ -312,5 +407,6 @@ if __name__ == "__main__":
     print(json.dumps(run_smoke(tuple(args.service) if args.service else ("S001", "S002"),
                                args.top_k, args.master_time, args.transport_time,
                                args.workers, args.q3_comm, args.q3_relay,
-                               args.objective),
+                               args.objective, args.full_candidates,
+                               args.save_feasible, args.save_anchor),
                      ensure_ascii=False, indent=2))
