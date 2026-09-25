@@ -1357,6 +1357,23 @@ def run_compact_relay_smoke(
     transport = result["transport"].copy()
     relay_schedule = result["relay"].copy()
 
+    # ---- enrich transport with visit_order (for Q4 group assignment) ----
+    template_visits = {
+        t.pattern_id: ">".join(t.visit_order)
+        for t in templates
+    }
+
+    transport["pattern_id"] = (
+        transport["task_id"]
+        .str.replace(r"-\d+$", "", regex=True)
+    )
+
+    transport["visit_order"] = (
+        transport["pattern_id"].map(template_visits)
+    )
+
+    transport.drop(columns=["pattern_id"], inplace=True)
+
     # 1. 运输调度
     transport.to_csv(
         DATA / "Q3_final_transport_schedule.csv",
@@ -1388,6 +1405,17 @@ def run_compact_relay_smoke(
     delivery_schedule["delivery_time_s"] = (
         delivery_schedule["start_time_s"]
         + delivery_schedule["delivery_offset_s"].astype(float)
+    )
+
+    # ---- enrich delivery with service and mass_kg (for Q4) ----
+    box_info = boxes.set_index("box_id")
+
+    delivery_schedule["service"] = (
+        delivery_schedule["box_id"].map(box_info["service"])
+    )
+
+    delivery_schedule["mass_kg"] = (
+        delivery_schedule["box_id"].map(box_info["mass"])
     )
 
     delivery_schedule.to_csv(
@@ -1422,6 +1450,10 @@ def run_compact_relay_smoke(
 
     summary = pd.DataFrame([{
         "status": result["status"],
+
+        "all_pass": bool(
+            report["joint_validation_pass"]
+        ),
 
         "transport_sorties":
             len(transport),

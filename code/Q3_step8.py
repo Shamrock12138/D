@@ -19,9 +19,9 @@ if __name__ == "__main__":
     parser.add_argument("--workers", type=int, default=8)
     args = parser.parse_args()
     run_step8_decomposed(
-        max_task_sets=args.max_task_sets,
+        max_occurrence_sets=args.max_task_sets,
         master_time_s=args.master_time,
         subproblem_time_s=args.subproblem_time,
-        min_transport_tasks=args.min_transport_tasks,
+        min_transport_sorties=args.min_transport_tasks,
         workers=args.workers,
     )

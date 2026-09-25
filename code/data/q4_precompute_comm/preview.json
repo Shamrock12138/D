@@ -1,0 +1,386 @@
+{
+  "status": "PROVISIONAL_TRANSPORT_ONLY",
+  "source": {
+    "manifest_sha256": "a0926f11adbd196221b65073c965c2eff84b680ae666f079bfe1656123e20fb7",
+    "files_sha256": {
+      "selected": "6e38f695a6f81ae235898daca776c417a91bf0a15f47591ea8e497e9b6a57da4",
+      "schedule": "c01c568825e4e8911669b5ed3913f1b732b863367b64bcdac62b75d88ad5099c",
+      "deliveries": "010d1f5746480d96561f9982f3f8ddbd9c87eb50b4651adf1d9f2d8b110c9fb0"
+    },
+    "selected_sorties": 16,
+    "reported_gaps": 13,
+    "master_status": "FEASIBLE",
+    "transport_status": "OPTIMAL",
+    "relay_capacity_constraints_in_master": false,
+    "q3_relay_feasibility_claimed": false
+  },
+  "dependency_blocks_transport_only": [
+    [
+      "S001",
+      "S002",
+      "S009",
+      "S014"
+    ],
+    [
+      "S003",
+      "S006"
+    ],
+    [
+      "S004"
+    ],
+    [
+      "S005"
+    ],
+    [
+      "S007",
+      "S015"
+    ],
+    [
+      "S008",
+      "S011"
+    ],
+    [
+      "S010"
+    ],
+    [
+      "S012",
+      "S013"
+    ]
+  ],
+  "unpartitioned_transport_pool": {
+    "TUAV_A": 2,
+    "TUAV_B": 2,
+    "TUAV_C": 2,
+    "TBAT_A": 2,
+    "TBAT_B": 4,
+    "TBAT_C": 4
+  },
+  "K": {
+    "2": {
+      "partitions_checked": 127,
+      "transport_pareto_count": 7,
+      "transport_shortage_first": {
+        "K": 2,
+        "scheme": "shortage_first",
+        "group_services": [
+          [
+            "S001",
+            "S002",
+            "S009",
+            "S014",
+            "S003",
+            "S006",
+            "S004",
+            "S005",
+            "S007",
+            "S015",
+            "S008",
+            "S011"
+          ],
+          [
+            "S010",
+            "S012",
+            "S013"
+          ]
+        ],
+        "group_transport_resources": [
+          {
+            "TUAV_A": 2,
+            "TUAV_B": 1,
+            "TUAV_C": 2,
+            "TBAT_A": 2,
+            "TBAT_B": 1,
+            "TBAT_C": 4
+          },
+          {
+            "TUAV_A": 0,
+            "TUAV_B": 2,
+            "TUAV_C": 0,
+            "TBAT_A": 0,
+            "TBAT_B": 3,
+            "TBAT_C": 0
+          }
+        ],
+        "group_transport_work_s": [
+          27900.451749266347,
+          5847.7690398322
+        ],
+        "group_boxes": [
+          71,
+          9
+        ],
+        "group_mass_kg": [
+          683.0,
+          75.0
+        ],
+        "transport_total_resources": 17,
+        "transport_shortage": {
+          "TUAV_A": 0,
+          "TUAV_B": 1,
+          "TUAV_C": 0,
+          "TBAT_A": 0,
+          "TBAT_B": 0,
+          "TBAT_C": 0
+        },
+        "transport_redundancy": {
+          "TUAV_A": 0,
+          "TUAV_B": 1,
+          "TUAV_C": 0,
+          "TBAT_A": 0,
+          "TBAT_B": 0,
+          "TBAT_C": 0
+        },
+        "transport_work_cv": 0.6534472690352219
+      },
+      "transport_balance_first": {
+        "K": 2,
+        "scheme": "balance_first",
+        "group_services": [
+          [
+            "S001",
+            "S002",
+            "S009",
+            "S014",
+            "S004",
+            "S008",
+            "S011"
+          ],
+          [
+            "S003",
+            "S006",
+            "S005",
+            "S007",
+            "S015",
+            "S010",
+            "S012",
+            "S013"
+          ]
+        ],
+        "group_transport_resources": [
+          {
+            "TUAV_A": 1,
+            "TUAV_B": 1,
+            "TUAV_C": 2,
+            "TBAT_A": 1,
+            "TBAT_B": 1,
+            "TBAT_C": 3
+          },
+          {
+            "TUAV_A": 1,
+            "TUAV_B": 2,
+            "TUAV_C": 2,
+            "TBAT_A": 1,
+            "TBAT_B": 3,
+            "TBAT_C": 2
+          }
+        ],
+        "group_transport_work_s": [
+          16832.906296499048,
+          16915.314492599504
+        ],
+        "group_boxes": [
+          43,
+          37
+        ],
+        "group_mass_kg": [
+          414.0,
+          344.0
+        ],
+        "transport_total_resources": 20,
+        "transport_shortage": {
+          "TUAV_A": 0,
+          "TUAV_B": 1,
+          "TUAV_C": 2,
+          "TBAT_A": 0,
+          "TBAT_B": 0,
+          "TBAT_C": 1
+        },
+        "transport_redundancy": {
+          "TUAV_A": 0,
+          "TUAV_B": 1,
+          "TUAV_C": 2,
+          "TBAT_A": 0,
+          "TBAT_B": 0,
+          "TBAT_C": 1
+        },
+        "transport_work_cv": 0.0024418530569491697
+      }
+    },
+    "3": {
+      "partitions_checked": 966,
+      "transport_pareto_count": 15,
+      "transport_shortage_first": {
+        "K": 3,
+        "scheme": "shortage_first",
+        "group_services": [
+          [
+            "S001",
+            "S002",
+            "S009",
+            "S014",
+            "S003",
+            "S006",
+            "S004",
+            "S008",
+            "S011"
+          ],
+          [
+            "S005",
+            "S007",
+            "S015"
+          ],
+          [
+            "S010",
+            "S012",
+            "S013"
+          ]
+        ],
+        "group_transport_resources": [
+          {
+            "TUAV_A": 2,
+            "TUAV_B": 1,
+            "TUAV_C": 2,
+            "TBAT_A": 2,
+            "TBAT_B": 1,
+            "TBAT_C": 3
+          },
+          {
+            "TUAV_A": 0,
+            "TUAV_B": 0,
+            "TUAV_C": 1,
+            "TBAT_A": 0,
+            "TBAT_B": 0,
+            "TBAT_C": 1
+          },
+          {
+            "TUAV_A": 0,
+            "TUAV_B": 2,
+            "TUAV_C": 0,
+            "TBAT_A": 0,
+            "TBAT_B": 3,
+            "TBAT_C": 0
+          }
+        ],
+        "group_transport_work_s": [
+          23407.92839793283,
+          4492.523351333521,
+          5847.7690398322
+        ],
+        "group_boxes": [
+          57,
+          14,
+          9
+        ],
+        "group_mass_kg": [
+          554.0,
+          129.0,
+          75.0
+        ],
+        "transport_total_resources": 18,
+        "transport_shortage": {
+          "TUAV_A": 0,
+          "TUAV_B": 1,
+          "TUAV_C": 1,
+          "TBAT_A": 0,
+          "TBAT_B": 0,
+          "TBAT_C": 0
+        },
+        "transport_redundancy": {
+          "TUAV_A": 0,
+          "TUAV_B": 1,
+          "TUAV_C": 1,
+          "TBAT_A": 0,
+          "TBAT_B": 0,
+          "TBAT_C": 0
+        },
+        "transport_work_cv": 0.7658321429099719
+      },
+      "transport_balance_first": {
+        "K": 3,
+        "scheme": "balance_first",
+        "group_services": [
+          [
+            "S001",
+            "S002",
+            "S009",
+            "S014"
+          ],
+          [
+            "S003",
+            "S006",
+            "S012",
+            "S013"
+          ],
+          [
+            "S004",
+            "S005",
+            "S007",
+            "S015",
+            "S008",
+            "S011",
+            "S010"
+          ]
+        ],
+        "group_transport_resources": [
+          {
+            "TUAV_A": 1,
+            "TUAV_B": 1,
+            "TUAV_C": 2,
+            "TBAT_A": 1,
+            "TBAT_B": 1,
+            "TBAT_C": 2
+          },
+          {
+            "TUAV_A": 1,
+            "TUAV_B": 2,
+            "TUAV_C": 1,
+            "TBAT_A": 1,
+            "TBAT_B": 2,
+            "TBAT_C": 1
+          },
+          {
+            "TUAV_A": 0,
+            "TUAV_B": 1,
+            "TUAV_C": 2,
+            "TBAT_A": 0,
+            "TBAT_B": 1,
+            "TBAT_C": 3
+          }
+        ],
+        "group_transport_work_s": [
+          11831.294717612594,
+          10868.219782138302,
+          11048.706289347656
+        ],
+        "group_boxes": [
+          29,
+          20,
+          31
+        ],
+        "group_mass_kg": [
+          285.0,
+          190.0,
+          283.0
+        ],
+        "transport_total_resources": 23,
+        "transport_shortage": {
+          "TUAV_A": 0,
+          "TUAV_B": 2,
+          "TUAV_C": 3,
+          "TBAT_A": 0,
+          "TBAT_B": 0,
+          "TBAT_C": 2
+        },
+        "transport_redundancy": {
+          "TUAV_A": 0,
+          "TUAV_B": 2,
+          "TUAV_C": 3,
+          "TBAT_A": 0,
+          "TBAT_B": 0,
+          "TBAT_C": 2
+        },
+        "transport_work_cv": 0.03715771948809794
+      }
+    }
+  }
+}
