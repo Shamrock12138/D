@@ -1,8 +1,7 @@
-u"""Q3 Step4: 通信感知候选运输任务筛选。
+u"""Q3 Step4: Q2 compact pattern 联合候选筛选。
 
-从 ~71,595 个 Q2 候选任务中，通过多维 Top-K 并集筛选出
-适合 Q3 联合优化的候选池（目标 ~2,000–5,000），同时保留
-Q2 N/E/T-opt 种子任务并验证 80 箱全覆盖。
+运输维度 + 通信维度 + Q2 Anchor（可选 seed）联合压缩，
+按 (class_id, UAV type) 分组 Top-K 并集保留。
 """
 
 import sys
@@ -13,7 +12,7 @@ sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 PROJECT = Path(__file__).resolve().parent
 sys.path.insert(0, str(PROJECT))
 
-from src.q3.transport.candidate_filter import main
+from src.q3.transport.candidate_filter import filter_compact_candidates
 
 if __name__ == "__main__":
-    main()
+    filter_compact_candidates()

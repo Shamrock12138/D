@@ -399,20 +399,14 @@ def _extract_gaps_with_states(
     n_relay = 0
     pattern_gap_counts = {}
     gap_index = 0
-    skipped = 0
 
     for ti, template in enumerate(templates):
         if verbose and (ti + 1) % 500 == 0:
             print(f"  处理 pattern: {ti + 1}/{len(templates)}", flush=True)
 
-        try:
-            source_samples = _assemble_pattern_profile_with_sources(
-                template, cache,
-            )
-        except (ValueError, KeyError, RuntimeError) as exc:
-            print(f"  ⚠ 跳过 {template.pattern_id}: {exc}", flush=True)
-            skipped += 1
-            continue
+        source_samples = _assemble_pattern_profile_with_sources(
+            template, cache,
+        )
 
         has_outage = any(not sample.direct for sample in source_samples)
         if not has_outage:
@@ -504,7 +498,6 @@ def _extract_gaps_with_states(
 
     stats = {
         "n_templates_total": len(templates),
-        "n_skipped": skipped,
         "n_direct_tasks": n_direct,
         "n_relay_tasks": n_relay,
         "n_total_gaps": total_gaps,
@@ -621,6 +614,17 @@ def extract_pattern_gap_templates(
                     needs_relay_pids,
             )
         )
+
+        actual_relay_pids = set(
+            gaps["pattern_id"].astype(str)
+        ) if not gaps.empty else set()
+
+        if actual_relay_pids != needs_relay_pids:
+            raise AssertionError(
+                "Step3 communication summary 的 needs_relay pattern 集合 "
+                f"({len(needs_relay_pids)}) 与 Step5 gap extraction 的 "
+                f"有 gap pattern 集合 ({len(actual_relay_pids)}) 不一致"
+            )
 
     finally:
         cache.close()

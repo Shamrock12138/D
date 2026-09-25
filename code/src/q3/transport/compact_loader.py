@@ -165,9 +165,9 @@ def load_q2_compact_artifacts():
             f"{manifest['n_boxes']}"
         )
 
-    if pattern_counts["pattern_id"].isin(
+    if not pattern_counts["pattern_id"].isin(
         patterns["pattern_id"]
-    ).all() is False:
+    ).all():
         raise RuntimeError(
             "pattern_counts 存在未知 pattern_id"
         )

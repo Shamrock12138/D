@@ -390,6 +390,42 @@ def run_pattern_communication_summary(
             encoding="utf-8-sig",
         )
 
+        validation = validate_pattern_profiles(
+            templates,
+            cache,
+        )
+
+        if any(
+            row["direct_mismatches"] != 0
+            for row in validation
+        ):
+            raise AssertionError(
+                "Pattern communication validation failed: "
+                "direct mismatches detected"
+            )
+
+        manifest = {
+            "dt_s": dt,
+            "pattern_count": len(patterns),
+            "q2_patterns_sha256": _sha256(
+                DATA / "Q2_compact_patterns.csv",
+            ),
+            "q2_counts_sha256": _sha256(
+                DATA / "Q2_compact_pattern_counts.csv",
+            ),
+            "output_sha256": _sha256(SUMMARY_PATH),
+            "validation_patterns": len(validation),
+            "validation_mismatches": sum(
+                x["direct_mismatches"]
+                for x in validation
+            ),
+        }
+
+        MANIFEST_PATH.write_text(
+            json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+
         print(
             f"Pattern 数: {len(result)}"
         )
@@ -397,6 +433,11 @@ def run_pattern_communication_summary(
         print(
             "需中继 Pattern: "
             f"{int(result['needs_relay'].sum())}"
+        )
+
+        print(
+            f"Validation: {len(validation)} patterns, "
+            f"{manifest['validation_mismatches']} mismatches"
         )
 
         return result

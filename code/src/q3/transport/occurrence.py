@@ -77,7 +77,7 @@ def generate_occurrences(
     pattern_counts_dict = {}
     for pattern_id, group in counts.groupby("pattern_id", sort=False):
         pattern_counts_dict[str(pattern_id)] = {
-            str(row.class_id): int(row["count"])
+            str(row.class_id): int(row.count)
             for row in group.itertuples(index=False)
         }
 

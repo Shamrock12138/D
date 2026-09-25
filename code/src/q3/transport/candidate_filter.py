@@ -79,13 +79,23 @@ def _load_q2_anchor_pattern_ids():
             try:
                 manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
             except (json.JSONDecodeError, OSError):
-                print(f"  ⚠ Q2/{objective} anchor manifest 不可读，跳过目标校验", flush=True)
+                print(f"  ⚠ Q2/{objective} anchor manifest 不可读，不使用该 anchor", flush=True)
+                continue
             else:
                 stored = manifest.get("candidate_manifest_sha256", "")
                 if stored and stored != candidate_sha:
-                    print(f"  ⚠ Q2/{objective} anchor manifest 过期，仍保留 seed", flush=True)
+                    print(
+                        f"  ⚠ Q2/{objective} anchor 已过期，"
+                        "不使用该 seed",
+                        flush=True,
+                    )
+                    continue
                 if not manifest.get("anchor_ready", False):
-                    print(f"  ⚠ Q2/{objective} anchor 未证明全局最优，仍保留 seed", flush=True)
+                    print(
+                        f"  ⚠ Q2/{objective} anchor 未证明全局最优，"
+                        "仍保留 seed",
+                        flush=True,
+                    )
 
         try:
             selected = pd.read_csv(selected_path, encoding="utf-8-sig")
