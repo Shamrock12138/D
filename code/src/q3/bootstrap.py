@@ -226,9 +226,11 @@ def _load_q2_transport_seed(problem, seed_source):
     验证:
         1. selected.csv / manifest.json 存在
         2. manifest.all_pass == true
-        3. manifest.anchor_ready != false（不存在该字段则通过）
-        4. 所有 sortie_id 当前 Q3 occurrence pool 中仍存在
-        5. 提取 start_time_s 作为 hint
+        3. 所有 sortie_id 当前 Q3 occurrence pool 中仍存在
+        4. 提取 start_time_s 作为 hint
+
+    不做 SHA 强一致检查（旧 seed 可在最新 pool 上复用）。
+    不做 anchor_ready 检查（FEASIBLE 即可当 seed）。
     """
     registry = {
         entry["source"]: entry
@@ -267,13 +269,6 @@ def _load_q2_transport_seed(problem, seed_source):
         return {
             "valid": False,
             "reason": "Q2_VALIDATION_FAILED",
-            "seed_source": seed_source,
-        }
-
-    if manifest.get("anchor_ready") is False:
-        return {
-            "valid": False,
-            "reason": "ANCHOR_NOT_READY",
             "seed_source": seed_source,
         }
 

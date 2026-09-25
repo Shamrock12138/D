@@ -1,5 +1,80 @@
-"""In-memory Q3 relay inheritance test for materialized compact sorties."""
+可以。为了坚持**最小实现**，我建议现在不要再改 `decomposition.py`，也不要新写一套 Q3 大框架。
 
+直接利用你仓库已经存在的：
+
+```text
+Q2_compact_smoke.py
+        ↓
+当前最新 Q2 compact solution
+        ↓
+compact_smoke_relay.py
+        ↓
+固定货箱组批/访问顺序/运输机型
+只重新优化：
+运输开始时刻 + Relay option + Relay UAV + Energy component
+```
+
+这是现在最快的 fallback。你的原方案要求首个 Q3 联合解至少同时通过运输资源、中继资源和联合时序；这个版本仍然保留这些约束。:chatgpt-content-reference{index="0"}
+
+但论文里要称为**两阶段协同调度/分层启发式**，不要称为“全运输候选空间上的联合全局最优”，因为运输组批已经继承 Q2。
+
+---
+
+# 一、只改一个文件
+
+修改：
+
+```text
+code/src/q3/compact_smoke_relay.py
+```
+
+下面这些现有函数全部保留，不动：
+
+```python
+_templates()
+_gap_tables()
+_relay_options()
+_fine_communication()
+```
+
+它们已经完成：
+
+```text
+Q2 selected sorties
+→ 10 s通信轨迹
+→ 通信 gap
+→ Relay sites
+→ Relay job options
+→ 最后 1 s 通信复核
+```
+
+当前真正有问题的只是最后：
+
+```python
+solve_q3_joint(...)
+```
+
+因为它现在已经变成 occurrence/class 模型，不能再吃旧 task-based problem。
+
+所以我们就在这个文件里增加一个**固定运输任务集的小 CP-SAT**。
+
+---
+
+# 二、先修改 imports
+
+现在开头大概有：
+
+```python
+from collections import defaultdict
+
+import pandas as pd
+
+from src.q3.cp_sat_scheduler import DATA, _deadlines, solve_q3_joint
+```
+
+改成：
+
+```python
 import math
 from collections import defaultdict
 
@@ -9,170 +84,26 @@ from ortools.sat.python import cp_model
 from src.q2.battery import charge_time_to_full, soc_after_task
 from src.q2.cp_sat_scheduler import _deadlines
 
-from src.q3.communication.direct_profile import DirectProfileCache, required_segment_keys
-from src.q3.communication.relay_link import load_relay_link_parameters
-from src.q3.communication.terrain_block import DemTerrain
 from src.q3.cp_sat_scheduler import (
     DATA,
     RELAY_UAV_CAPACITY,
     RELAY_ENERGY_CAPACITY,
 )
-from src.q3.relay.coverage_library import (
-    _actual_coverage, _gap_alternatives, _uncovered_states,
-    build_boundary_states,
-)
-from src.q3.relay.operation_profile import build_gap_job_options, load_relay_flight_parameters
-from src.q3.transport.comm_gap import (
-    _assemble_pattern_profile_with_sources, _build_outage_state_library,
-    _extract_gaps_with_states, _prune_outage_states,
-)
-from src.q3.transport.communication_summary import assemble_pattern_profile, summarize_pattern_profile
-from src.q3.transport.compact_loader import CompactPatternTemplate
+```
 
+也就是说删掉：
 
-def _templates(tasks, deliveries, classes=None):
-    grouped = deliveries.groupby("task_id")
-    result = []
-    for row in tasks.itertuples(index=False):
-        group = grouped.get_group(row.task_id)
-        visit = tuple(str(row.visit_order).split(">"))
-        boxes_list = group["box_id"].astype(str).tolist()
-        if "class_id" in group.columns and classes is not None:
-            service_map = dict(zip(classes["class_id"].astype(str),
-                                   classes["service"].astype(str)))
-            class_counts = group["class_id"].value_counts().to_dict()
-            service_counts = {}
-            for cid, cnt in class_counts.items():
-                srv = service_map.get(str(cid), str(cid))
-                service_counts[srv] = service_counts.get(srv, 0) + int(cnt)
-        else:
-            class_counts = {}
-            service_counts = {s: 0 for s in visit}
-        result.append(CompactPatternTemplate(
-            pattern_id=str(row.task_id), uav_type=str(row.uav_type),
-            n_stops=int(row.n_stops), visit_order=visit,
-            route=("O01",) + visit + ("O01",),
-            n_boxes=len(boxes_list),
-            class_counts=class_counts,
-            delivery_offsets=dict(zip(boxes_list,
-                                      group["delivery_offset_s"].astype(float))),
-            service_counts=service_counts,
-            energy_kWh=float(row.energy_kWh), duration_s=float(row.duration_s),
-            end_SOC=float(row.end_SOC),
-            has_hard_deadline=bool(row.has_hard_deadline),
-            latest_start_s=float(row.latest_start_s),
-        ))
-    return result
+```python
+solve_q3_joint
+```
 
+---
 
-def _gap_tables(templates):
-    cache = DirectProfileCache(dt=10.0)
-    try:
-        cache.build_nodes()
-        cache.build_segments(required_segment_keys(templates), verbose=False)
-        summaries = [summarize_pattern_profile(template, assemble_pattern_profile(
-            template, cache)) for template in templates]
-        state_map, outage = _build_outage_state_library(cache, verbose=False)
-        relay_ids = {row["pattern_id"] for row in summaries if row["needs_relay"]}
-        gaps, gap_states, _ = _extract_gaps_with_states(
-            templates, cache, state_map, verbose=False,
-            needs_relay_pids=relay_ids)
-    finally:
-        cache.close()
-    if gaps.empty:
-        return summaries, gaps, gap_states, outage.iloc[0:0]
-    outage, gap_states, _ = _prune_outage_states(outage, gap_states)
-    return summaries, gaps, gap_states, outage
+# 三、新增 `_nonoverlap()`
 
+放在 `_fine_communication()` 后面：
 
-def _relay_options(gaps, gap_states, outage):
-    boundary, gaps = build_boundary_states(gaps)
-    states = outage[["state_id", "x", "y", "z", "phase"]].copy()
-    states["node"] = ""
-    boundary["state_kind"] = "boundary"
-    states = pd.concat([states, boundary], ignore_index=True, sort=False)
-    state_index = {sid: i for i, sid in enumerate(states["state_id"])}
-    sequences = {gap_id: tuple(state_index[sid] for sid in group["state_id"])
-                 for gap_id, group in gap_states.sort_values(
-                     ["gap_id", "sample_idx"]).groupby("gap_id")}
-    sites = pd.read_csv(DATA / "q3_relay_sites.csv", encoding="utf-8-sig")
-    parameters = load_relay_link_parameters()
-    terrain = DemTerrain()
-    try:
-        packed, _ = _actual_coverage(states, sites, parameters, terrain)
-    finally:
-        terrain.close()
-    missing = _uncovered_states(packed, len(states))
-    if missing:
-        return gaps, None, len(missing)
-    rows = []
-    for gap_id, sequence in sequences.items():
-        for alternative in _gap_alternatives(sequence, packed, sites, states,
-                                              parameters):
-            site = sites.iloc[alternative["candidate_index"]]
-            rows.append({"gap_id": gap_id, "candidate_id": site.candidate_id,
-                         **{key: value for key, value in alternative.items()
-                            if key != "candidate_index"},
-                         "relay_g01_margin_db": site.relay_g01_margin_db,
-                         "lon": site.lon, "lat": site.lat,
-                         "agl_height": site.agl_height})
-    gap_options = pd.DataFrame(rows)
-    profiles = pd.read_csv(DATA / "q3_relay_operation_profiles.csv",
-                           encoding="utf-8-sig")
-    relay = build_gap_job_options(gap_options, gaps, sites, profiles,
-                                  load_relay_flight_parameters())
-    return gaps, relay, 0
-
-
-def _fine_communication(templates, transport, relay):
-    """Recheck every 1 s outage sample against active chosen Relay service."""
-    cache = DirectProfileCache(dt=1.0)
-    try:
-        cache.build_nodes()
-        cache.build_segments(required_segment_keys(templates), verbose=False)
-        starts = dict(zip(transport["task_id"].astype(str),
-                          transport["start_time_s"].astype(float)))
-        outage_rows = []
-        uncovered_time = 0
-        for template in templates:
-            samples = _assemble_pattern_profile_with_sources(template, cache)
-            jobs = relay.loc[relay["pattern_id"].astype(str) == template.pattern_id]
-            for sample in samples:
-                if sample.direct:
-                    continue
-                absolute = starts[template.pattern_id] + sample.tau
-                active = jobs.loc[(jobs["service_start_s"] <= absolute + 1e-6)
-                                  & (jobs["service_end_s"] >= absolute - 1e-6)]
-                if active.empty:
-                    uncovered_time += 1
-                    continue
-                outage_rows.append({"x": sample.x, "y": sample.y, "z": sample.z,
-                                    "candidate_id": str(active.iloc[0].candidate_id),
-                                    "phase": sample.phase})
-    finally:
-        cache.close()
-    if not outage_rows:
-        return {"outage_samples": 0, "unserved_time_samples": uncovered_time,
-                "uncovered_link_samples": 0, "all_pass": uncovered_time == 0}
-    states = pd.DataFrame(outage_rows)
-    sites = pd.read_csv(DATA / "q3_relay_sites.csv", encoding="utf-8-sig")
-    sites = sites.loc[sites["candidate_id"].isin(states["candidate_id"])].reset_index(drop=True)
-    site_index = {str(cid): i for i, cid in enumerate(sites["candidate_id"])}
-    terrain = DemTerrain()
-    try:
-        packed, _ = _actual_coverage(states, sites, load_relay_link_parameters(),
-                                     terrain)
-    finally:
-        terrain.close()
-    uncovered_link = sum(
-        not bool((packed[site_index[row.candidate_id], i // 8] >> (i % 8)) & 1)
-        for i, row in enumerate(states.itertuples(index=False)))
-    return {"outage_samples": len(states) + uncovered_time,
-            "unserved_time_samples": uncovered_time,
-            "uncovered_link_samples": uncovered_link,
-            "all_pass": uncovered_time == 0 and uncovered_link == 0}
-
-
+```python
 def _nonoverlap(
     frame,
     resource_col,
@@ -200,8 +131,17 @@ def _nonoverlap(
             return False
 
     return True
+```
 
+---
 
+# 四、新增核心函数 `_solve_fixed_transport_joint_relay()`
+
+这是整个快速 Q3 的核心。
+
+直接加：
+
+```python
 def _solve_fixed_transport_joint_relay(
     tasks,
     deliveries,
@@ -214,6 +154,23 @@ def _solve_fixed_transport_joint_relay(
     workers=8,
     random_seed=2026,
 ):
+    """固定 Q2 transport composition，只联合重排时间和 Relay。
+
+    固定:
+        - 运输任务集合
+        - 货箱组批
+        - visit_order
+        - uav_type
+
+    优化:
+        - transport start time
+        - relay option
+        - relay UAV
+        - energy component
+
+    第一版只找 FEASIBLE，不做正式多目标优化。
+    """
+
     horizon_s = 36000
 
     tasks = tasks.copy().reset_index(drop=True)
@@ -452,7 +409,7 @@ def _solve_fixed_transport_joint_relay(
 
     gap_task = {
         str(row.gap_id):
-            str(row.pattern_id)
+            str(row.task_id)
         for row in gaps.itertuples(
             index=False
         )
@@ -1011,7 +968,7 @@ def _solve_fixed_transport_joint_relay(
         ] = energy_end
 
         relay_rows.append({
-            "pattern_id":
+            "task_id":
                 task_id,
             "gap_id":
                 str(
@@ -1201,8 +1158,23 @@ def _solve_fixed_transport_joint_relay(
             "checks": checks,
         },
     }
+```
 
+---
 
+# 五、然后替换 `run_compact_relay_smoke()`
+
+你原来的这个函数最后会构造旧 `problem` 然后：
+
+```python
+solve_q3_joint(...)
+```
+
+这一大段全部删掉。
+
+改成：
+
+```python
 def run_compact_relay_smoke(
     tasks,
     deliveries,
@@ -1211,12 +1183,12 @@ def run_compact_relay_smoke(
     transport_start_hint,
     time_limit_s=180,
     workers=8,
-    classes=None,
 ):
+    """Q2 compact solution → 最小 Q3 joint relay scheduling."""
+
     templates = _templates(
         tasks,
         deliveries,
-        classes=classes,
     )
 
     summaries, gaps, gap_states, outage = (
@@ -1435,3 +1407,212 @@ def run_compact_relay_smoke(
     )
 
     return report
+```
+
+---
+
+# 六、这样之后整个最小 Q3 不需要 `bootstrap.py/decomposition.py`
+
+快速路径变成：
+
+```text
+Q2 current compact solution
+        ↓
+materialize_selected_sorties()
+        ↓
+通信 profile
+        ↓
+gap
+        ↓
+relay options
+        ↓
+固定运输任务组成
+        ↓
+CP-SAT 联合优化：
+transport start
+relay option
+relay UAV
+energy component
+        ↓
+1 s communication validation
+```
+
+这就是最小版。
+
+---
+
+# 七、先跑 N 方案
+
+N 通常最快。
+
+直接：
+
+```powershell
+python Q2_compact_smoke.py `
+  --full-candidates `
+  --objective N `
+  --master-time 120 `
+  --transport-time 180 `
+  --workers 8 `
+  --q3-relay
+```
+
+PowerShell 一行版：
+
+```powershell
+python Q2_compact_smoke.py --full-candidates --objective N --master-time 120 --transport-time 180 --workers 8 --q3-relay
+```
+
+注意：
+
+```text
+--transport-time 180
+```
+
+这里会同时给后面的 Q3 fixed-relay solver 180 秒。
+
+---
+
+# 八、结果只看这些
+
+最后 JSON 中需要：
+
+```text
+"all_pass": true
+```
+
+这是 Q2 自身。
+
+还必须：
+
+```text
+"q3_relay": {
+    "status": "FEASIBLE"
+}
+```
+
+并且：
+
+```text
+"joint_validation_pass": true
+```
+
+最后：
+
+```text
+"fine_communication_1s": {
+    "all_pass": true
+}
+```
+
+以及：
+
+```text
+"minimal_q3_all_pass": true
+```
+
+只要这几个全部成立：
+
+```text
+Q3 最小联合可行解 = 成功
+```
+
+---
+
+# 九、N 不行，再跑 E
+
+```powershell
+python Q2_compact_smoke.py --full-candidates --objective E --master-time 180 --transport-time 180 --workers 8 --q3-relay
+```
+
+如果 E 的 Q2 master 180 秒还是 `UNKNOWN`：
+
+```powershell
+python Q2_compact_smoke.py --full-candidates --objective E --master-time 600 --transport-time 180 --workers 8 --q3-relay
+```
+
+---
+
+# 十、再跑 Cmax
+
+```powershell
+python Q2_compact_smoke.py --full-candidates --objective Cmax --master-time 600 --transport-time 180 --workers 8 --q3-relay
+```
+
+F1 已经知道现有 44-occurrence composition 在 Q3 下 `INFEASIBLE`，暂时不用优先跑。
+
+---
+
+# 十一、你最终至少拿 3 个 Q2 骨架
+
+最小情况下：
+
+```text
+N-based Q3
+E-based Q3
+Cmax-based Q3
+```
+
+其中哪个可行就保留。
+
+如果多个可行，计算：
+
+$$
+F_2=C_{\max}^{joint}
+$$
+
+$$
+F_3=E^{transport}+E^{relay}
+$$
+
+$$
+F_4=N^{transport}+N^{relay}
+$$
+
+$F_1$ 后面再复用现有 Q2 `class_timeliness()`。
+
+不需要马上做 MOEA/D。
+
+直接把这几个方案放一起比较即可。
+
+---
+
+# 十二、论文里怎么写
+
+这个 fallback 版本不要写成：
+
+```text
+Q3 在全部 6449 occurrences 上求得全局联合最优。
+```
+
+写成：
+
+```text
+首先由问题二生成若干满足运输资源与时限约束的候选运输方案；
+随后固定各候选方案的货箱组批、访问顺序及运输机型，
+重新优化运输任务开始时刻，并联合确定中继位置、
+中继服务时段、中继无人机及能源组件。
+
+对不同问题二候选运输方案分别进行通信约束下的联合调度，
+从可行方案中进一步比较及时性、联合完成时间、
+总能耗和总架次。
+```
+
+这样和代码完全一致，也不会夸大。
+
+## 最终建议
+
+现在就按这个顺序：
+
+```text
+1. 只改 compact_smoke_relay.py
+2. 不动 decomposition.py
+3. 先跑 N
+4. N 不行跑 E
+5. 再跑 Cmax
+6. 有一个 minimal_q3_all_pass = true
+   → Q3 最小版打通
+7. 再考虑结果比较/四目标
+```
+
+这已经是我认为**在你当前代码基础上最小、最快、最不容易继续扩张模型**的实现。

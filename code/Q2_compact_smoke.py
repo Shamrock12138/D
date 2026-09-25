@@ -444,7 +444,7 @@ def run_smoke(services=("S001", "S002"), top_k=3, master_time_s=30,
             sorties, patterns, counts, classes)
         report["q3_relay"] = run_compact_relay_smoke(
             final_tasks, final_deliveries, boxes, resources, start_map,
-            time_limit_s=transport_time_s, workers=workers)
+            time_limit_s=transport_time_s, workers=workers, classes=classes)
         relay_report = report["q3_relay"]
         report["minimal_q3_all_pass"] = bool(
             relay_report.get("status") in ("FEASIBLE", "OPTIMAL")
