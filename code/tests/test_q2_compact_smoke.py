@@ -38,6 +38,14 @@ def test_time_sensitive_objectives_survive_independent_q2_check(objective):
     assert report["checks"]["master_start_times_preserved"]
     assert report["checks"]["master_F1_preserved"]
     assert report["checks"]["master_Cmax_preserved"]
+    assert "master_relative_gap" in report
+    assert report["anchor_optimal"] == (
+        report["master_status"] == "OPTIMAL"
+    )
+    assert report["anchor_ready"] == (
+        report["all_pass"]
+        and report["master_status"] == "OPTIMAL"
+    )
 
 
 def test_independent_schedule_keeps_nonzero_master_start():

@@ -377,6 +377,7 @@ def build_compact_master(patterns, pattern_counts, classes, uav_ids,
     lateness_terms = []
     flight_intervals = defaultdict(list)
     battery_intervals = defaultdict(list)
+    flight_work_terms = defaultdict(list)
     battery_horizon = horizon_s + math.ceil(max(
         charge_time_to_full(0.0, full) for full in charge_full.values()))
     previous = {}
@@ -396,14 +397,20 @@ def build_compact_master(patterns, pattern_counts, classes, uav_ids,
             model.Add(x == 0)
         f_end = model.NewIntVar(flight, horizon_s, f"flight_end_{i}")
         b_end = model.NewIntVar(battery, battery_horizon, f"battery_end_{i}")
+        model.Add(s == 0).OnlyEnforceIf(x.Not())
+        model.Add(f_end == flight).OnlyEnforceIf(x.Not())
+        model.Add(b_end == battery).OnlyEnforceIf(x.Not())
         flight_intervals[typ].append(model.NewOptionalIntervalVar(
             s, flight, f_end, x, f"flight_{i}"))
         battery_intervals[typ].append(model.NewOptionalIntervalVar(
             s, battery, b_end, x, f"battery_{i}"))
+        flight_work_terms[typ].append(flight * x)
         prior = previous.get(slot["pattern_id"])
         if prior is not None:
-            model.Add(prior >= x)
-        previous[slot["pattern_id"]] = x
+            prior_x, prior_start = prior
+            model.Add(prior_x >= x)
+            model.Add(prior_start <= s).OnlyEnforceIf(x)
+        previous[slot["pattern_id"]] = (x, s)
         chosen.append(x)
         starts.append(s)
         if objective == "Cmax":
@@ -438,6 +445,8 @@ def build_compact_master(patterns, pattern_counts, classes, uav_ids,
     elif objective == "Cmax":
         cmax = model.NewIntVar(0, horizon_s, "cmax")
         model.AddMaxEquality(cmax, active_ends)
+        for typ, terms in flight_work_terms.items():
+            model.Add(len(uav_ids[typ]) * cmax >= sum(terms))
         model.Minimize(cmax)
     else:
         model.Minimize(sum(lateness_terms))

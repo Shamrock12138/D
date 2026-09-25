@@ -177,3 +177,41 @@ def test_f1_optimizes_soft_delivery_time_not_energy():
                     if solver.Value(x))
     assert chosen_pattern("F1") == "FAST"
     assert chosen_pattern("E") == "SLOW"
+
+
+def test_repeated_pattern_start_times_are_symmetry_ordered():
+    boxes = pd.DataFrame([
+        {"box_id": f"B{i}", "service": "S001", "cargo_type": "饮用水",
+         "mass": 1.0, "volume": 0.01, "first_deadline": float("nan"),
+         "expected_time": float("nan"), "priority": 1,
+         "is_first_batch": False}
+        for i in range(1, 4)
+    ])
+    classes, _ = build_box_classes(boxes)
+    cid = classes.iloc[0].class_id
+    patterns = pd.DataFrame([
+        {"pattern_id": "P1", "uav_type": "A", "duration_s": 10,
+         "energy_kWh": 1.0, "latest_start_s": float("inf")},
+    ])
+    counts = pd.DataFrame([
+        {"pattern_id": "P1", "class_id": cid, "count": 1,
+         "delivery_offset_s": 5.0},
+    ])
+    model, slots, chosen, starts = build_compact_master(
+        patterns, counts, classes, {"A": ["U1"]}, {"A": ["BAT1"]},
+        {"A": 10.0}, {"A": 0.0}, 100,
+    )
+    solver = cp_model.CpSolver()
+    assert solver.Solve(model) == cp_model.OPTIMAL
+    assert sum(solver.Value(x) for x in chosen) == 3
+    start_values = [solver.Value(s) for s, x in zip(starts, chosen) if solver.Value(x)]
+    assert len(start_values) == 3
+    assert start_values[0] <= start_values[1] <= start_values[2]
+
+    model2, slots2, chosen2, starts2 = build_compact_master(
+        patterns, counts, classes, {"A": ["U1"]}, {"A": ["BAT1"]},
+        {"A": 10.0}, {"A": 0.0}, 100,
+    )
+    model2.Add(starts2[0] > starts2[1])
+    solver2 = cp_model.CpSolver()
+    assert solver2.Solve(model2) == cp_model.INFEASIBLE

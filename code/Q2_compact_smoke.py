@@ -197,6 +197,39 @@ def _q3_communication_check(tasks, deliveries):
             "all_profiles_complete": len(summary) == len(templates)}
 
 
+def _load_current_anchor_seed(objective, top_k):
+    """Prefer the same objective's old anchor over the generic feasible seed."""
+    candidate_manifest = DATA / "Q2_compact_candidates_manifest.json"
+    candidate_sha = hashlib.sha256(candidate_manifest.read_bytes()).hexdigest()
+
+    prefixes = [
+        f"Q2_anchor_{objective}",
+        "Q2_compact_feasible",
+    ]
+
+    for prefix in prefixes:
+        selected_path = DATA / f"{prefix}_selected.csv"
+        manifest_path = DATA / f"{prefix}_manifest.json"
+
+        if not selected_path.exists() or not manifest_path.exists():
+            continue
+
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+
+        if manifest.get("candidate_manifest_sha256") != candidate_sha:
+            continue
+
+        if int(manifest.get("top_k", -1)) != int(top_k):
+            continue
+
+        return (
+            pd.read_csv(selected_path, encoding="utf-8-sig"),
+            prefix,
+        )
+
+    return None, None
+
+
 def run_smoke(services=("S001", "S002"), top_k=3, master_time_s=30,
               transport_time_s=20, workers=1, q3_comm=False,
               q3_relay=False, objective="N", full_candidates=False,
@@ -229,17 +262,32 @@ def run_smoke(services=("S001", "S002"), top_k=3, master_time_s=30,
     model, slots, chosen, starts = build_compact_master(
         patterns, counts, classes, *resources, horizon_s=36000,
         objective=objective)
+    seed_source = None
+
     if full_candidates and objective != "N":
-        seed_path = DATA / "Q2_compact_feasible_selected.csv"
-        if seed_path.exists():
-            seed = pd.read_csv(seed_path, encoding="utf-8-sig")
-            seed_starts = dict(zip(seed["task_id"].astype(str),
-                                   seed["start_time_s"].astype(int)))
+        seed, seed_source = _load_current_anchor_seed(objective, top_k)
+
+        if seed is not None:
+            seed_starts = dict(
+                zip(
+                    seed["task_id"].astype(str),
+                    seed["start_time_s"].astype(int),
+                )
+            )
+
             for i, slot in enumerate(slots):
                 sortie_id = slot["sortie_id"]
-                model.AddHint(chosen[i], int(sortie_id in seed_starts))
+
+                model.AddHint(
+                    chosen[i],
+                    int(sortie_id in seed_starts)
+                )
+
                 if sortie_id in seed_starts:
-                    model.AddHint(starts[i], seed_starts[sortie_id])
+                    model.AddHint(
+                        starts[i],
+                        seed_starts[sortie_id]
+                    )
     master = _solver(master_time_s, workers)
     master_status = master.Solve(model)
     report = {"services": list(services), "boxes": len(boxes),
@@ -255,6 +303,7 @@ def run_smoke(services=("S001", "S002"), top_k=3, master_time_s=30,
               "physical_cache_equivalence": cache_equivalent,
               "master_status": master.StatusName(master_status),
               "master_wall_time_s": master.WallTime(), "seed": 2026,
+              "seed_source": seed_source,
               "input_sha256": hashlib.sha256(
                   (DATA / "物资需求.csv").read_bytes()).hexdigest()}
     if master_status not in (cp_model.FEASIBLE, cp_model.OPTIMAL):
@@ -262,6 +311,16 @@ def run_smoke(services=("S001", "S002"), top_k=3, master_time_s=30,
         return report
     report["master_objective_value"] = master.ObjectiveValue()
     report["master_best_bound"] = master.BestObjectiveBound()
+    objective_value = float(master.ObjectiveValue())
+    best_bound = float(master.BestObjectiveBound())
+    relative_gap = abs(objective_value - best_bound) / max(
+        1.0,
+        abs(objective_value),
+    )
+    report["master_relative_gap"] = relative_gap
+    report["anchor_optimal"] = (
+        master_status == cp_model.OPTIMAL
+    )
     sorties = [dict(slot, start_time_s=int(master.Value(starts[i])))
                for i, (slot, x) in enumerate(zip(slots, chosen)) if master.Value(x)]
     master_starts = {sortie["sortie_id"]: sortie["start_time_s"]
@@ -339,6 +398,10 @@ def run_smoke(services=("S001", "S002"), top_k=3, master_time_s=30,
                    "transport_cmax_s": float(schedule["end_time_s"].max()),
                    "transport_energy_kWh": float(schedule["energy_kWh"].sum()),
                    "F1_weighted_lateness": class_timeliness(sorties, classes, counts)})
+    report["anchor_ready"] = bool(
+        report["all_pass"]
+        and report["anchor_optimal"]
+    )
     if (save_feasible or save_anchor) and report["all_pass"]:
         if len(boxes) != 80:
             raise ValueError("Full feasible outputs require all 80 boxes")

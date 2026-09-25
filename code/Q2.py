@@ -160,14 +160,37 @@ def main():
                 "objective": objective,
                 "status": report["master_status"],
                 "all_pass": report["all_pass"],
+                "anchor_ready": report.get("anchor_ready", False),
+                "best_bound": report.get("master_best_bound"),
+                "relative_gap": report.get("master_relative_gap"),
                 "F1": report.get("F1_weighted_lateness"),
                 "Cmax_s": report.get("transport_cmax_s"),
                 "energy_kWh": report.get("transport_energy_kWh"),
                 "sorties": report.get("selected_sorties"),
             })
             print(json.dumps(summary[-1], ensure_ascii=False), flush=True)
-            if not report["all_pass"]:
-                raise SystemExit(f"{objective} anchor 未通过 80 箱复核。")
+
+        failed = [
+            row["objective"]
+            for row in summary
+            if not row["all_pass"]
+        ]
+
+        if failed:
+            raise SystemExit(
+                f"Anchor 可行性验证失败: {failed}"
+            )
+
+        not_ready = [
+            row["objective"]
+            for row in summary
+            if not row["anchor_ready"]
+        ]
+
+        if not_ready:
+            raise SystemExit(
+                f"Anchor 尚未证明最优，禁止进入 MOEA/D: {not_ready}"
+            )
         return
     print("注意：当前 cp-sat/moead/all 仍使用旧逐箱候选及 N/E/T 三目标，"
           "仅供历史结果复现，不能作为最终紧凑四目标 Q2 结果。")

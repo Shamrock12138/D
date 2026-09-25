@@ -21,7 +21,7 @@
   "objective": "Cmax",
   "top_k": 3,
   "workers": 8,
-  "master_time_limit_s": 120.0,
+  "master_time_limit_s": 600.0,
   "transport_time_limit_s": 30.0,
   "python_version": "3.11.7",
   "ortools_version": "9.15.6755",
@@ -31,12 +31,15 @@
   "sortie_slots": 1036,
   "physical_cache_equivalence": true,
   "master_status": "FEASIBLE",
-  "master_wall_time_s": 120.1225945,
+  "master_wall_time_s": 600.9015428,
   "seed": 2026,
+  "seed_source": "Q2_anchor_Cmax",
   "input_sha256": "bbc22fa4df3ba1202471d050ddf3fb1caba027767735227a2b6ec89d44e63c2d",
-  "master_objective_value": 8469.0,
-  "master_best_bound": 1990.0,
-  "selected_sorties": 35,
+  "master_objective_value": 7367.0,
+  "master_best_bound": 7044.0,
+  "master_relative_gap": 0.043844169947061216,
+  "anchor_optimal": false,
+  "selected_sorties": 31,
   "repeated_patterns": 0,
   "transport_status": "OPTIMAL",
   "checks": {
@@ -56,15 +59,16 @@
     "delivery_time_mapping": true
   },
   "all_pass": true,
-  "master_F1_weighted_lateness": 229994.2372634997,
-  "master_cmax_s": 8468.20401794761,
-  "transport_cmax_s": 8468.20401794761,
-  "transport_energy_kWh": 94.48367825706043,
-  "F1_weighted_lateness": 229994.2372634997,
+  "master_F1_weighted_lateness": 78441.54528961332,
+  "master_cmax_s": 7366.7583959173335,
+  "transport_cmax_s": 7366.7583959173335,
+  "transport_energy_kWh": 84.86452433146437,
+  "F1_weighted_lateness": 78441.54528961332,
+  "anchor_ready": false,
   "output_sha256": {
-    "selected": "711c39f009e5878c4b69f55353dba21dca37e13c72463b927bdd3defa194c6a8",
-    "schedule": "2c1a13fa31f13ce75c55e2e75e456934c201e3b374f2767ae340e7730c301bd0",
-    "deliveries": "839c9df65b6205c6358cdef1425ae8f3368cefafae1cf3202c42fcb99a099d0a"
+    "selected": "15c35d19bbc2fc60953486a3b2a1911091116c978c6ed8be62b0fb77098a75df",
+    "schedule": "278e3c3b2978fbc3562c7feddc1aa79aaf51f5c7ca2833f339871f1b2cf85985",
+    "deliveries": "169c818638ade5bb7a2e8c33bfe66bb60393292706279436ad0b0fe10c38ca81"
   },
   "candidate_manifest_sha256": "33d0506d78392f30f11fd762c5db757f8a0d29e870e6e66d5f9778aece0c3a60"
 }
