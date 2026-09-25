@@ -1,4 +1,4 @@
-u"""Step7：中继飞行/能耗/时间 profile 与 gap job options 预计算。"""
+u"""Step7：中继飞行/能耗/时间 profile 与 gap job options 预计算（Pattern 级）。"""
 
 import hashlib
 import json
@@ -34,7 +34,7 @@ DEM_TIF = (
 
 SITES_PATH = DATA / "q3_relay_sites.csv"
 GAP_OPTIONS_PATH = DATA / "q3_gap_relay_options.csv"
-GAPS_PATH = DATA / "q3_task_comm_gaps.csv"
+GAPS_PATH = DATA / "q3_pattern_comm_gaps.csv"
 
 OUT_PROFILES_PATH = DATA / "q3_relay_operation_profiles.csv"
 OUT_JOB_OPTIONS_PATH = DATA / "q3_relay_job_options.csv"
@@ -226,7 +226,7 @@ def build_gap_job_options(
     profile_map = profiles.set_index("candidate_id")
 
     gap_info = gaps[
-        ["gap_id", "task_id", "tau_start", "tau_end", "coverage_start", "coverage_end"]
+        ["gap_id", "pattern_id", "tau_start", "tau_end", "coverage_start", "coverage_end"]
     ].copy()
     gap_info["service_duration_s"] = (
         gap_info["coverage_end"] - gap_info["coverage_start"]
@@ -280,7 +280,7 @@ def build_gap_job_options(
 
         rows.append({
             "gap_id": row["gap_id"],
-            "task_id": row["task_id"],
+            "pattern_id": row["pattern_id"],
             "candidate_id": cid,
             "tau_start_s": float(row["tau_start"]),
             "tau_end_s": float(row["tau_end"]),
@@ -474,7 +474,7 @@ def run_step7():
         "inputs": {
             "q3_relay_sites.csv": _sha256(SITES_PATH),
             "q3_gap_relay_options.csv": _sha256(GAP_OPTIONS_PATH),
-            "q3_task_comm_gaps.csv": _sha256(GAPS_PATH),
+            "q3_pattern_comm_gaps.csv": _sha256(GAPS_PATH),
             "中继无人机数据.xlsx": _sha256(RELAY_UAV_XLSX),
             "中继无人机_共享电池.csv": _sha256(RELAY_BATTERY_CSV),
             "服务区数据.csv": _sha256(SERVICE_AREA_CSV),

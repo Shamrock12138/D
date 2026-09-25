@@ -1,4 +1,4 @@
-u"""Step6：唯一通信状态×中继站点的稀疏两跳覆盖与 gap alternatives。"""
+u"""Step6：唯一通信状态×中继站点的稀疏两跳覆盖与 gap alternatives（Pattern 级）。"""
 
 import hashlib
 import json
@@ -27,9 +27,9 @@ PROJECT = Path(__file__).resolve().parents[3]
 DATA = PROJECT / "data"
 CACHE_DIR = DATA / "cache"
 OUTAGE_PATH = DATA / "q3_outage_states.csv"
-GAPS_PATH = DATA / "q3_task_comm_gaps.csv"
-GAP_STATES_PATH = DATA / "q3_task_gap_states.csv"
-STEP5_MANIFEST = DATA / "q3_comm_gap_manifest.json"
+GAPS_PATH = DATA / "q3_pattern_comm_gaps.csv"
+GAP_STATES_PATH = DATA / "q3_pattern_gap_states.csv"
+STEP5_MANIFEST = DATA / "q3_pattern_gap_manifest.json"
 BOUNDARY_PATH = DATA / "q3_boundary_states.csv"
 SITES_PATH = DATA / "q3_relay_sites.csv"
 STATE_COVERAGE_PATH = DATA / "q3_state_relay_coverage.csv"
@@ -39,7 +39,7 @@ MANIFEST_PATH = DATA / "q3_step6_manifest.json"
 PHYSICAL_CACHE_NPZ = CACHE_DIR / "q3_step6_physical_coverage.npz"
 PHYSICAL_MANIFEST = CACHE_DIR / "q3_step6_physical_manifest.json"
 PHYSICAL_SITES_PATH = CACHE_DIR / "q3_step6_physical_sites.csv"
-PHYSICAL_CACHE_VERSION = 2
+PHYSICAL_CACHE_VERSION = 3
 
 
 def _sha256(path: Path):
@@ -451,8 +451,8 @@ def run_step6():
         # ═══════════════════════════════════════════════════════════
         sources = {
             "q3_outage_states.csv": OUTAGE_PATH,
-            "q3_task_comm_gaps.csv": GAPS_PATH,
-            "q3_task_gap_states.csv": GAP_STATES_PATH,
+            "q3_pattern_comm_gaps.csv": GAPS_PATH,
+            "q3_pattern_gap_states.csv": GAP_STATES_PATH,
             "DEM": DEM_PATH,
             "通信链路参数.xlsx": PARAMETER_PATH,
             "中继无人机数据.xlsx": RELAY_UAV_PATH,
@@ -573,7 +573,7 @@ def run_step6():
             for gap_id in gap_ids:
                 gap = gap_lookup.loc[gap_id]
                 summary_rows.append({
-                    "gap_id": gap_id, "task_id": gap.task_id,
+                    "gap_id": gap_id, "pattern_id": gap.pattern_id,
                     "coverage_start_s": gap.coverage_start,
                     "coverage_end_s": gap.coverage_end,
                     "before_state_id": gap.before_state_id,
