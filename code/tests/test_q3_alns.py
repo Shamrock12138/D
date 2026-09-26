@@ -1,4 +1,6 @@
 import sys
+import hashlib
+import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -6,6 +8,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from src.q3.alns_search import TransportSearch
+from src.q3.step8_acceptance import OUTPUTS, _output_hashes, _verify_solver_inputs
 
 
 class AlnsTests(unittest.TestCase):
@@ -37,6 +40,26 @@ class AlnsTests(unittest.TestCase):
             kept = search.destroy((0, 1), op)
             self.assertLess(len(kept), 2)
             self.assertTrue(set(kept) <= {0, 1})
+
+    def test_acceptance_hashes_use_solver_and_candidate_directories(self):
+        with tempfile.TemporaryDirectory() as root:
+            root = Path(root)
+            solver_inputs = root / 'solver_inputs'
+            candidate = root / 'candidate'
+            solver_inputs.mkdir()
+            candidate.mkdir()
+            (solver_inputs / 'patterns.csv').write_bytes(b'solver input')
+            recorded = hashlib.sha256(b'solver input').hexdigest()
+            _verify_solver_inputs({'patterns.csv': recorded}, solver_inputs)
+
+            for name in OUTPUTS:
+                (candidate / name).write_bytes(('candidate:' + name).encode())
+            hashes = _output_hashes(candidate)
+            self.assertEqual(set(hashes), set(OUTPUTS))
+            self.assertEqual(
+                hashes[OUTPUTS[0]],
+                hashlib.sha256(('candidate:' + OUTPUTS[0]).encode()).hexdigest(),
+            )
 
 
 if __name__ == '__main__':

@@ -1,0 +1,26 @@
+{
+  "checks": {
+    "class_quantity_conservation": true,
+    "every_box_exactly_once": true,
+    "box_class_identity": true,
+    "hard_deadlines": true,
+    "starts_integer": true,
+    "objective_values_match": true,
+    "transport_resource_schedule": true,
+    "uav_nonoverlap": true,
+    "battery_nonoverlap": true,
+    "flight_horizon": true,
+    "F1_recomputed": true,
+    "Cmax_recomputed": true,
+    "energy_recomputed": true,
+    "sorties_recomputed": true
+  },
+  "all_pass": true,
+  "objectives": {
+    "F1": 0.0,
+    "Cmax": 7625.7583959173335,
+    "E": 65.25859085441607,
+    "N": 22
+  },
+  "transport_status": "OPTIMAL"
+}

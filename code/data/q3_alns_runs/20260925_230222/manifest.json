@@ -1,0 +1,2904 @@
+{
+  "status": "UNKNOWN",
+  "algorithm": "ALNS_CP_SAT",
+  "seed": 2026,
+  "input_sha256": {
+    "q3_compact_patterns.csv": "b170f5531b838e77a95628ad084f8f9d3b390ceceea521c77e0a89d73297c96e",
+    "q3_compact_pattern_counts.csv": "725b642bbf241d7acd72d9ddbc29a63366ee41089650538001144bc9f575597e",
+    "q3_pattern_comm_gaps.csv": "9435f6b02daa12f8fb8a098f467a1fafcbd9afc24f63bb55e0d09c60434da8b5",
+    "q3_relay_job_options.csv": "51d77413c02d0c91aecaf84eb73444b488183ac18637849e20b4b90d4bfe0ff7",
+    "q3_pattern_gap_manifest.json": "f5b08e07f7b9ba9b14ec6b74305d8dacd9e64f541c99ea9583700af4e84ee4e5",
+    "q3_step7_manifest.json": "f8234d5c0b6afacf1b5e4886e3cd8c297463f7ed5f6772da590efde63949567b"
+  },
+  "iterations": 300,
+  "generated": 300,
+  "unique_candidates": 296,
+  "repair_wall_time_s": 97.58500000002823,
+  "attempts": [
+    {
+      "iteration": 3,
+      "sortie_ids": [
+        "P001324-1",
+        "P002704-1",
+        "P002863-1",
+        "P002874-1",
+        "P002883-1",
+        "P002895-1",
+        "P005049-1",
+        "P008330-1",
+        "P008402-1",
+        "P008464-1",
+        "P008547-1",
+        "P008594-1",
+        "P008617-1",
+        "P016175-1",
+        "P016895-1",
+        "P050623-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.1452785,
+      "score": 260674.13617854973,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 6,
+      "sortie_ids": [
+        "P002704-1",
+        "P002895-1",
+        "P005049-1",
+        "P005313-1",
+        "P008330-1",
+        "P008402-1",
+        "P008500-1",
+        "P008547-1",
+        "P008594-1",
+        "P008706-1",
+        "P008726-1",
+        "P016175-1",
+        "P016895-1",
+        "P045913-1",
+        "P050623-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.1411887,
+      "score": 269788.0387098661,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 9,
+      "sortie_ids": [
+        "P002704-1",
+        "P002863-1",
+        "P002895-1",
+        "P003511-1",
+        "P005049-1",
+        "P005503-1",
+        "P008330-1",
+        "P008402-1",
+        "P008500-1",
+        "P008547-1",
+        "P008594-1",
+        "P008690-1",
+        "P008726-1",
+        "P008729-1",
+        "P016895-1",
+        "P045973-1",
+        "P050623-1",
+        "P050955-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.16636030000000002,
+      "score": 272910.18194053863,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 12,
+      "sortie_ids": [
+        "P002704-1",
+        "P002753-1",
+        "P002863-1",
+        "P002895-1",
+        "P003511-1",
+        "P005049-1",
+        "P008330-1",
+        "P008402-1",
+        "P008500-1",
+        "P008547-1",
+        "P008594-1",
+        "P008726-1",
+        "P008729-1",
+        "P016895-1",
+        "P045973-1",
+        "P050623-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.1414062,
+      "score": 270685.40789673314,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 15,
+      "sortie_ids": [
+        "P001179-1",
+        "P002704-1",
+        "P002753-1",
+        "P002863-1",
+        "P002886-1",
+        "P002895-1",
+        "P003511-1",
+        "P008330-1",
+        "P008402-1",
+        "P008500-1",
+        "P008547-1",
+        "P008594-1",
+        "P008726-1",
+        "P016895-1",
+        "P045973-1",
+        "P050624-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.1424032,
+      "score": 275814.0343501201,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 18,
+      "sortie_ids": [
+        "P001179-1",
+        "P002704-1",
+        "P002863-1",
+        "P002888-1",
+        "P003511-1",
+        "P008330-1",
+        "P008402-1",
+        "P008442-1",
+        "P008500-1",
+        "P008547-1",
+        "P008594-1",
+        "P008738-1",
+        "P016895-1",
+        "P045973-1",
+        "P050624-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.10891590000000001,
+      "score": 239119.36368886416,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 21,
+      "sortie_ids": [
+        "P000038-1",
+        "P002383-1",
+        "P002704-1",
+        "P002866-1",
+        "P002874-1",
+        "P003511-1",
+        "P008330-1",
+        "P008400-1",
+        "P008410-1",
+        "P008443-1",
+        "P008547-1",
+        "P008594-1",
+        "P008729-1",
+        "P008738-1",
+        "P016895-1",
+        "P023022-1",
+        "P050624-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.1509491,
+      "score": 278104.7756304651,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 24,
+      "sortie_ids": [
+        "P002704-1",
+        "P002863-1",
+        "P002888-1",
+        "P005049-1",
+        "P006058-1",
+        "P008320-1",
+        "P008402-1",
+        "P008442-1",
+        "P008500-1",
+        "P008547-1",
+        "P008738-1",
+        "P011689-1",
+        "P016895-1",
+        "P045973-1",
+        "P050624-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.1150708,
+      "score": 271303.83316170843,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 27,
+      "sortie_ids": [
+        "P002704-1",
+        "P002863-1",
+        "P002874-1",
+        "P002888-1",
+        "P005049-1",
+        "P006058-1",
+        "P008320-1",
+        "P008402-1",
+        "P008442-1",
+        "P008500-1",
+        "P008547-1",
+        "P008640-1",
+        "P008738-1",
+        "P011689-1",
+        "P016895-1",
+        "P050623-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.12134760000000001,
+      "score": 267173.42236267996,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 30,
+      "sortie_ids": [
+        "P002704-1",
+        "P002874-1",
+        "P002888-1",
+        "P004999-1",
+        "P006795-1",
+        "P008320-1",
+        "P008441-1",
+        "P008442-1",
+        "P008500-1",
+        "P008547-1",
+        "P008571-1",
+        "P008640-1",
+        "P008738-1",
+        "P011689-1",
+        "P016895-1",
+        "P050624-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.11914570000000001,
+      "score": 274211.99535494315,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 33,
+      "sortie_ids": [
+        "P001324-1",
+        "P001529-1",
+        "P002704-1",
+        "P002863-1",
+        "P002874-1",
+        "P002895-1",
+        "P002934-1",
+        "P008330-1",
+        "P008441-1",
+        "P008464-1",
+        "P008520-1",
+        "P008594-1",
+        "P008617-1",
+        "P008731-1",
+        "P016861-1",
+        "P050624-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.16809410000000002,
+      "score": 281608.2907442217,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 36,
+      "sortie_ids": [
+        "P001324-1",
+        "P002704-1",
+        "P002741-1",
+        "P002863-1",
+        "P002874-1",
+        "P002895-1",
+        "P007741-1",
+        "P008330-1",
+        "P008427-1",
+        "P008464-1",
+        "P008547-1",
+        "P008594-1",
+        "P008617-1",
+        "P016174-1",
+        "P016895-1",
+        "P050624-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.13465680000000002,
+      "score": 291114.4890179527,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 39,
+      "sortie_ids": [
+        "P002704-1",
+        "P002874-1",
+        "P002888-1",
+        "P004999-1",
+        "P006795-1",
+        "P008320-1",
+        "P008441-1",
+        "P008442-1",
+        "P008500-1",
+        "P008547-1",
+        "P008571-1",
+        "P011689-1",
+        "P016895-1",
+        "P047213-1",
+        "P050624-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.11849530000000001,
+      "score": 273194.43403229344,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 42,
+      "sortie_ids": [
+        "P002704-1",
+        "P002874-1",
+        "P004999-1",
+        "P006795-1",
+        "P008320-1",
+        "P008441-1",
+        "P008442-1",
+        "P008500-1",
+        "P008547-1",
+        "P008571-1",
+        "P008597-1",
+        "P008738-1",
+        "P011689-1",
+        "P016371-1",
+        "P047645-1",
+        "P050623-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.1327332,
+      "score": 294198.3562014781,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 45,
+      "sortie_ids": [
+        "P001239-1",
+        "P002400-1",
+        "P002704-1",
+        "P002863-1",
+        "P002875-1",
+        "P002895-1",
+        "P003511-1",
+        "P005503-1",
+        "P005782-1",
+        "P008330-1",
+        "P008392-1",
+        "P008408-1",
+        "P008500-1",
+        "P008541-1",
+        "P008594-1",
+        "P008699-1",
+        "P016895-1",
+        "P045973-1",
+        "P050623-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.20836190000000002,
+      "score": 297443.77443021926,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 48,
+      "sortie_ids": [
+        "P002704-1",
+        "P002874-1",
+        "P004999-1",
+        "P006795-1",
+        "P008320-1",
+        "P008441-1",
+        "P008442-1",
+        "P008500-1",
+        "P008547-1",
+        "P008571-1",
+        "P008731-1",
+        "P011689-1",
+        "P016895-1",
+        "P047213-1",
+        "P050624-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.1291591,
+      "score": 273336.6059495835,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 51,
+      "sortie_ids": [
+        "P001179-1",
+        "P001460-1",
+        "P002704-1",
+        "P002753-1",
+        "P002874-1",
+        "P003512-1",
+        "P008330-1",
+        "P008402-1",
+        "P008500-1",
+        "P008535-1",
+        "P008731-1",
+        "P016895-1",
+        "P038817-1",
+        "P047213-1",
+        "P050624-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.13893550000000002,
+      "score": 279610.43641601986,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 54,
+      "sortie_ids": [
+        "P000001-1",
+        "P002874-1",
+        "P004999-1",
+        "P006795-1",
+        "P008441-1",
+        "P008442-1",
+        "P008500-1",
+        "P008547-1",
+        "P008731-1",
+        "P011455-1",
+        "P011689-1",
+        "P016895-1",
+        "P047213-1",
+        "P050624-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.1154588,
+      "score": 277471.3546461222,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 57,
+      "sortie_ids": [
+        "P001238-1",
+        "P002669-1",
+        "P002704-1",
+        "P002874-1",
+        "P002891-1",
+        "P004935-1",
+        "P008320-1",
+        "P008422-1",
+        "P008442-1",
+        "P008500-1",
+        "P008547-1",
+        "P008571-1",
+        "P008629-1",
+        "P008710-1",
+        "P011689-1",
+        "P016895-1",
+        "P050624-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.1489532,
+      "score": 297927.8103212617,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 60,
+      "sortie_ids": [
+        "P000001-1",
+        "P002811-1",
+        "P002874-1",
+        "P004999-1",
+        "P006795-1",
+        "P008441-1",
+        "P008442-1",
+        "P008500-1",
+        "P008547-1",
+        "P008731-1",
+        "P011455-1",
+        "P011689-1",
+        "P016639-1",
+        "P047645-1",
+        "P050624-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.12282470000000001,
+      "score": 298455.30881819717,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 63,
+      "sortie_ids": [
+        "P000001-1",
+        "P000039-1",
+        "P002874-1",
+        "P002888-1",
+        "P004998-1",
+        "P006795-1",
+        "P008441-1",
+        "P008486-1",
+        "P008547-1",
+        "P011455-1",
+        "P011690-1",
+        "P016895-1",
+        "P047213-1",
+        "P050624-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.1312372,
+      "score": 277357.6621142303,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 66,
+      "sortie_ids": [
+        "P000035-1",
+        "P000069-1",
+        "P002734-1",
+        "P002874-1",
+        "P002910-1",
+        "P008500-1",
+        "P008547-1",
+        "P008731-1",
+        "P011455-1",
+        "P011690-1",
+        "P016895-1",
+        "P020086-1",
+        "P047213-1",
+        "P050624-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.1297151,
+      "score": 264067.8530426559,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 69,
+      "sortie_ids": [
+        "P002734-1",
+        "P002902-1",
+        "P002910-1",
+        "P008500-1",
+        "P008547-1",
+        "P008731-1",
+        "P011455-1",
+        "P011689-1",
+        "P015837-1",
+        "P020086-1",
+        "P021437-1",
+        "P047190-1",
+        "P050624-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.12828140000000002,
+      "score": 263061.57279318786,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 72,
+      "sortie_ids": [
+        "P000001-1",
+        "P000035-1",
+        "P002734-1",
+        "P002874-1",
+        "P002888-1",
+        "P002902-1",
+        "P003986-1",
+        "P006795-1",
+        "P008500-1",
+        "P008547-1",
+        "P009768-1",
+        "P011455-1",
+        "P011690-1",
+        "P047213-1",
+        "P050624-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.1360927,
+      "score": 291812.3809580745,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 75,
+      "sortie_ids": [
+        "P002734-1",
+        "P002888-1",
+        "P002902-1",
+        "P002910-1",
+        "P008500-1",
+        "P008547-1",
+        "P011455-1",
+        "P011689-1",
+        "P015836-1",
+        "P020087-1",
+        "P021437-1",
+        "P047190-1",
+        "P050624-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.12977160000000001,
+      "score": 272944.61315833556,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 78,
+      "sortie_ids": [
+        "P001109-1",
+        "P002734-1",
+        "P002888-1",
+        "P002902-1",
+        "P005311-1",
+        "P008323-1",
+        "P008500-1",
+        "P008547-1",
+        "P011690-1",
+        "P015850-1",
+        "P020087-1",
+        "P047213-1",
+        "P050624-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.13249370000000002,
+      "score": 267726.0987339875,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 81,
+      "sortie_ids": [
+        "P000132-1",
+        "P004546-1",
+        "P005311-1",
+        "P008384-1",
+        "P008500-1",
+        "P008547-1",
+        "P008731-1",
+        "P011455-1",
+        "P011689-1",
+        "P015837-1",
+        "P020086-1",
+        "P047213-1",
+        "P050624-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.1242956,
+      "score": 278013.84184992214,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 84,
+      "sortie_ids": [
+        "P000003-1",
+        "P001109-1",
+        "P002734-1",
+        "P002895-1",
+        "P005311-1",
+        "P008323-1",
+        "P008500-1",
+        "P008547-1",
+        "P008745-1",
+        "P011690-1",
+        "P016339-1",
+        "P020086-1",
+        "P045973-1",
+        "P050624-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.1264395,
+      "score": 273805.1899464301,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 87,
+      "sortie_ids": [
+        "P002888-1",
+        "P002902-1",
+        "P002910-1",
+        "P008441-1",
+        "P008500-1",
+        "P008547-1",
+        "P008710-1",
+        "P011455-1",
+        "P011689-1",
+        "P015836-1",
+        "P021437-1",
+        "P047190-1",
+        "P050624-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.1177991,
+      "score": 296083.86299266305,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 90,
+      "sortie_ids": [
+        "P000003-1",
+        "P001109-1",
+        "P002734-1",
+        "P005311-1",
+        "P008323-1",
+        "P008500-1",
+        "P008547-1",
+        "P008717-1",
+        "P008731-1",
+        "P011690-1",
+        "P016861-1",
+        "P020086-1",
+        "P047213-1",
+        "P050624-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.1311611,
+      "score": 274063.3841128441,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 93,
+      "sortie_ids": [
+        "P000003-1",
+        "P001109-1",
+        "P002734-1",
+        "P002874-1",
+        "P005311-1",
+        "P008323-1",
+        "P008500-1",
+        "P008547-1",
+        "P008731-1",
+        "P011690-1",
+        "P016861-1",
+        "P020087-1",
+        "P047213-1",
+        "P050623-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.12810080000000001,
+      "score": 268939.2168619486,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 96,
+      "sortie_ids": [
+        "P000003-1",
+        "P001109-1",
+        "P002734-1",
+        "P002874-1",
+        "P005314-1",
+        "P008323-1",
+        "P008500-1",
+        "P008547-1",
+        "P008731-1",
+        "P011690-1",
+        "P016861-1",
+        "P020087-1",
+        "P047153-1",
+        "P050624-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.1286717,
+      "score": 268949.84772599017,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 99,
+      "sortie_ids": [
+        "P000003-1",
+        "P001109-1",
+        "P002734-1",
+        "P002874-1",
+        "P002888-1",
+        "P005314-1",
+        "P008323-1",
+        "P008500-1",
+        "P008547-1",
+        "P011690-1",
+        "P016861-1",
+        "P020086-1",
+        "P047153-1",
+        "P050623-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.1299688,
+      "score": 268787.4449134696,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 102,
+      "sortie_ids": [
+        "P000003-1",
+        "P002734-1",
+        "P002867-1",
+        "P002900-1",
+        "P005314-1",
+        "P006587-1",
+        "P008323-1",
+        "P008440-1",
+        "P008500-1",
+        "P008547-1",
+        "P008731-1",
+        "P011690-1",
+        "P015798-1",
+        "P047153-1",
+        "P050624-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.12749480000000002,
+      "score": 278069.4826879434,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 105,
+      "sortie_ids": [
+        "P002741-1",
+        "P002824-1",
+        "P002867-1",
+        "P002874-1",
+        "P002888-1",
+        "P003357-1",
+        "P008323-1",
+        "P008427-1",
+        "P008460-1",
+        "P008547-1",
+        "P008745-1",
+        "P011690-1",
+        "P016639-1",
+        "P022487-1",
+        "P050623-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.1133191,
+      "score": 252844.8137242156,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 108,
+      "sortie_ids": [
+        "P002741-1",
+        "P002824-1",
+        "P002867-1",
+        "P002874-1",
+        "P002888-1",
+        "P008323-1",
+        "P008427-1",
+        "P008460-1",
+        "P008547-1",
+        "P008745-1",
+        "P011408-1",
+        "P011690-1",
+        "P016599-1",
+        "P022487-1",
+        "P050623-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.1170207,
+      "score": 252939.0680586826,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 111,
+      "sortie_ids": [
+        "P002824-1",
+        "P002874-1",
+        "P002888-1",
+        "P003357-1",
+        "P005314-1",
+        "P008323-1",
+        "P008384-1",
+        "P008468-1",
+        "P008547-1",
+        "P008745-1",
+        "P011690-1",
+        "P016639-1",
+        "P020086-1",
+        "P022130-1",
+        "P050624-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.12857190000000002,
+      "score": 269772.40484550333,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 114,
+      "sortie_ids": [
+        "P002741-1",
+        "P002867-1",
+        "P002874-1",
+        "P002888-1",
+        "P005314-1",
+        "P008323-1",
+        "P008427-1",
+        "P008500-1",
+        "P008547-1",
+        "P011408-1",
+        "P011690-1",
+        "P016861-1",
+        "P047153-1",
+        "P050623-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.12194310000000001,
+      "score": 271800.1239818061,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 117,
+      "sortie_ids": [
+        "P000003-1",
+        "P001109-1",
+        "P002734-1",
+        "P005314-1",
+        "P007993-1",
+        "P008022-1",
+        "P008323-1",
+        "P008500-1",
+        "P008547-1",
+        "P011690-1",
+        "P016339-1",
+        "P020086-1",
+        "P047153-1",
+        "P050624-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.11350030000000001,
+      "score": 285740.3703478014,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 120,
+      "sortie_ids": [
+        "P002824-1",
+        "P002888-1",
+        "P003357-1",
+        "P005314-1",
+        "P008323-1",
+        "P008384-1",
+        "P008468-1",
+        "P008547-1",
+        "P008738-1",
+        "P008745-1",
+        "P011690-1",
+        "P015837-1",
+        "P020086-1",
+        "P022130-1",
+        "P050624-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.1230225,
+      "score": 264900.14660354145,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 123,
+      "sortie_ids": [
+        "P002809-1",
+        "P002812-1",
+        "P002824-1",
+        "P002888-1",
+        "P002902-1",
+        "P003357-1",
+        "P005314-1",
+        "P008323-1",
+        "P008384-1",
+        "P008500-1",
+        "P008547-1",
+        "P008738-1",
+        "P011690-1",
+        "P015836-1",
+        "P020086-1",
+        "P050624-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.1203578,
+      "score": 250187.31552694555,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 126,
+      "sortie_ids": [
+        "P002809-1",
+        "P002812-1",
+        "P002824-1",
+        "P002888-1",
+        "P003357-1",
+        "P005314-1",
+        "P008323-1",
+        "P008384-1",
+        "P008500-1",
+        "P008547-1",
+        "P008738-1",
+        "P008745-1",
+        "P011690-1",
+        "P015836-1",
+        "P020087-1",
+        "P050624-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.11301620000000001,
+      "score": 255374.64570556744,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 129,
+      "sortie_ids": [
+        "P002888-1",
+        "P002902-1",
+        "P003357-1",
+        "P005314-1",
+        "P008323-1",
+        "P008384-1",
+        "P008500-1",
+        "P008547-1",
+        "P008635-1",
+        "P008738-1",
+        "P011690-1",
+        "P015836-1",
+        "P020086-1",
+        "P050624-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.10703370000000001,
+      "score": 248186.40388916276,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 132,
+      "sortie_ids": [
+        "P000003-1",
+        "P002888-1",
+        "P003357-1",
+        "P005314-1",
+        "P008323-1",
+        "P008384-1",
+        "P008500-1",
+        "P008547-1",
+        "P008717-1",
+        "P011690-1",
+        "P016848-1",
+        "P020086-1",
+        "P047153-1",
+        "P050623-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.13438640000000002,
+      "score": 253363.45970716272,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 135,
+      "sortie_ids": [
+        "P002888-1",
+        "P002902-1",
+        "P003358-1",
+        "P008384-1",
+        "P008461-1",
+        "P008467-1",
+        "P008547-1",
+        "P008617-1",
+        "P008738-1",
+        "P011690-1",
+        "P012757-1",
+        "P015836-1",
+        "P020086-1",
+        "P050624-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.1056519,
+      "score": 243186.39699902956,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 138,
+      "sortie_ids": [
+        "P002902-1",
+        "P003358-1",
+        "P008384-1",
+        "P008461-1",
+        "P008467-1",
+        "P008547-1",
+        "P008617-1",
+        "P008717-1",
+        "P008738-1",
+        "P011690-1",
+        "P012757-1",
+        "P016371-1",
+        "P020086-1",
+        "P050624-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.1163512,
+      "score": 243196.02456016827,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 141,
+      "sortie_ids": [
+        "P000352-1",
+        "P002089-1",
+        "P002874-1",
+        "P008320-1",
+        "P008384-1",
+        "P008461-1",
+        "P008467-1",
+        "P008547-1",
+        "P008617-1",
+        "P008703-1",
+        "P008738-1",
+        "P011690-1",
+        "P015878-1",
+        "P016371-1",
+        "P020086-1",
+        "P050624-1",
+        "P052657-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.10997760000000001,
+      "score": 236075.46094257513,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 144,
+      "sortie_ids": [
+        "P000352-1",
+        "P001327-1",
+        "P002874-1",
+        "P008145-1",
+        "P008320-1",
+        "P008384-1",
+        "P008461-1",
+        "P008547-1",
+        "P008617-1",
+        "P008703-1",
+        "P008738-1",
+        "P008743-1",
+        "P011690-1",
+        "P015878-1",
+        "P016371-1",
+        "P020086-1",
+        "P050624-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.1125667,
+      "score": 246135.5857221395,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 147,
+      "sortie_ids": [
+        "P000352-1",
+        "P002089-1",
+        "P002874-1",
+        "P008320-1",
+        "P008384-1",
+        "P008461-1",
+        "P008467-1",
+        "P008547-1",
+        "P008617-1",
+        "P008703-1",
+        "P008738-1",
+        "P008740-1",
+        "P011690-1",
+        "P015878-1",
+        "P015917-1",
+        "P016331-1",
+        "P020087-1",
+        "P050623-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.10800710000000001,
+      "score": 256996.574847018,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 150,
+      "sortie_ids": [
+        "P000352-1",
+        "P002874-1",
+        "P008320-1",
+        "P008384-1",
+        "P008461-1",
+        "P008467-1",
+        "P008547-1",
+        "P008641-1",
+        "P008703-1",
+        "P008738-1",
+        "P011690-1",
+        "P015878-1",
+        "P016358-1",
+        "P016693-1",
+        "P020086-1",
+        "P050624-1",
+        "P052657-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.11488970000000001,
+      "score": 261196.54550060374,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 153,
+      "sortie_ids": [
+        "P000075-1",
+        "P000110-1",
+        "P000352-1",
+        "P002895-1",
+        "P008320-1",
+        "P008384-1",
+        "P008461-1",
+        "P008467-1",
+        "P008547-1",
+        "P008617-1",
+        "P008703-1",
+        "P011690-1",
+        "P015878-1",
+        "P016371-1",
+        "P020086-1",
+        "P050623-1",
+        "P052354-1",
+        "P052657-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.1024207,
+      "score": 262747.50104790716,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 156,
+      "sortie_ids": [
+        "P002874-1",
+        "P002888-1",
+        "P002902-1",
+        "P003382-1",
+        "P008384-1",
+        "P008461-1",
+        "P008467-1",
+        "P008547-1",
+        "P008617-1",
+        "P008703-1",
+        "P008738-1",
+        "P011690-1",
+        "P012757-1",
+        "P016080-1",
+        "P020086-1",
+        "P050624-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.09809100000000001,
+      "score": 239196.63077062936,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 159,
+      "sortie_ids": [
+        "P000352-1",
+        "P002089-1",
+        "P002874-1",
+        "P008320-1",
+        "P008401-1",
+        "P008409-1",
+        "P008461-1",
+        "P008467-1",
+        "P008547-1",
+        "P008617-1",
+        "P008703-1",
+        "P008710-1",
+        "P008738-1",
+        "P011690-1",
+        "P015878-1",
+        "P016371-1",
+        "P050623-1",
+        "P052657-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.123795,
+      "score": 265763.78239721875,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 162,
+      "sortie_ids": [
+        "P000352-1",
+        "P002089-1",
+        "P002874-1",
+        "P008384-1",
+        "P008547-1",
+        "P008617-1",
+        "P008703-1",
+        "P008738-1",
+        "P011690-1",
+        "P015878-1",
+        "P016371-1",
+        "P016935-1",
+        "P020087-1",
+        "P025475-1",
+        "P025512-1",
+        "P050200-1",
+        "P052643-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.14328970000000002,
+      "score": 261691.67488292314,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 165,
+      "sortie_ids": [
+        "P001150-1",
+        "P002895-1",
+        "P003525-1",
+        "P005846-1",
+        "P006921-1",
+        "P008335-1",
+        "P008357-1",
+        "P008441-1",
+        "P008500-1",
+        "P008535-1",
+        "P008594-1",
+        "P008703-1",
+        "P008717-1",
+        "P008731-1",
+        "P025508-1",
+        "P047645-1",
+        "P050624-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.11146650000000001,
+      "score": 268007.4996484268,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 168,
+      "sortie_ids": [
+        "P000352-1",
+        "P002089-1",
+        "P008211-1",
+        "P008229-1",
+        "P008320-1",
+        "P008384-1",
+        "P008461-1",
+        "P008467-1",
+        "P008547-1",
+        "P008617-1",
+        "P008703-1",
+        "P011690-1",
+        "P015837-1",
+        "P015878-1",
+        "P020087-1",
+        "P050623-1",
+        "P052657-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.12450850000000001,
+      "score": 269036.7612573056,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 171,
+      "sortie_ids": [
+        "P000007-1",
+        "P003548-1",
+        "P008384-1",
+        "P008547-1",
+        "P008703-1",
+        "P008738-1",
+        "P008743-1",
+        "P011548-1",
+        "P015878-1",
+        "P016331-1",
+        "P016935-1",
+        "P020086-1",
+        "P025475-1",
+        "P025512-1",
+        "P045950-1",
+        "P050200-1",
+        "P052643-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.1234442,
+      "score": 257426.79304310773,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 174,
+      "sortie_ids": [
+        "P003548-1",
+        "P004239-1",
+        "P008384-1",
+        "P008547-1",
+        "P008703-1",
+        "P008738-1",
+        "P008745-1",
+        "P011548-1",
+        "P015878-1",
+        "P016331-1",
+        "P016935-1",
+        "P020086-1",
+        "P025475-1",
+        "P025512-1",
+        "P045950-1",
+        "P050200-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.1091477,
+      "score": 240854.02133748378,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 177,
+      "sortie_ids": [
+        "P004235-1",
+        "P008326-1",
+        "P008384-1",
+        "P008443-1",
+        "P008547-1",
+        "P008703-1",
+        "P008738-1",
+        "P008745-1",
+        "P011548-1",
+        "P012857-1",
+        "P016331-1",
+        "P020086-1",
+        "P025475-1",
+        "P045950-1",
+        "P050200-1",
+        "P052727-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.11148480000000001,
+      "score": 240876.00969338947,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 180,
+      "sortie_ids": [
+        "P001007-1",
+        "P002902-1",
+        "P008326-1",
+        "P008443-1",
+        "P008547-1",
+        "P008703-1",
+        "P008738-1",
+        "P011548-1",
+        "P012857-1",
+        "P015949-1",
+        "P016331-1",
+        "P020086-1",
+        "P020281-1",
+        "P025475-1",
+        "P045950-1",
+        "P050200-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.1111493,
+      "score": 248861.3464563,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 183,
+      "sortie_ids": [
+        "P001007-1",
+        "P002902-1",
+        "P008326-1",
+        "P008443-1",
+        "P008547-1",
+        "P008703-1",
+        "P008738-1",
+        "P011548-1",
+        "P012857-1",
+        "P015949-1",
+        "P016331-1",
+        "P020086-1",
+        "P020281-1",
+        "P025475-1",
+        "P045950-1",
+        "P050199-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.11693650000000001,
+      "score": 248851.28968890436,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 186,
+      "sortie_ids": [
+        "P002630-1",
+        "P002902-1",
+        "P004235-1",
+        "P008326-1",
+        "P008443-1",
+        "P008547-1",
+        "P008703-1",
+        "P008738-1",
+        "P011548-1",
+        "P012857-1",
+        "P016331-1",
+        "P020087-1",
+        "P020281-1",
+        "P025475-1",
+        "P045950-1",
+        "P050200-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.1130366,
+      "score": 248961.2056762114,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 189,
+      "sortie_ids": [
+        "P004235-1",
+        "P007992-1",
+        "P008022-1",
+        "P008326-1",
+        "P008384-1",
+        "P008443-1",
+        "P008547-1",
+        "P008703-1",
+        "P011548-1",
+        "P012857-1",
+        "P016331-1",
+        "P020087-1",
+        "P025475-1",
+        "P047190-1",
+        "P050200-1",
+        "P052727-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.0943717,
+      "score": 262683.2919242113,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 192,
+      "sortie_ids": [
+        "P001007-1",
+        "P002902-1",
+        "P008326-1",
+        "P008443-1",
+        "P008547-1",
+        "P008703-1",
+        "P008738-1",
+        "P011548-1",
+        "P012857-1",
+        "P015949-1",
+        "P016330-1",
+        "P020087-1",
+        "P020281-1",
+        "P025475-1",
+        "P045950-1",
+        "P050199-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.1149175,
+      "score": 263884.2028077257,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 195,
+      "sortie_ids": [
+        "P000434-1",
+        "P001007-1",
+        "P002874-1",
+        "P002888-1",
+        "P008326-1",
+        "P008443-1",
+        "P008547-1",
+        "P008703-1",
+        "P011548-1",
+        "P015949-1",
+        "P016848-1",
+        "P020086-1",
+        "P020281-1",
+        "P025475-1",
+        "P047213-1",
+        "P050199-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.11476,
+      "score": 263929.8703944123,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 198,
+      "sortie_ids": [
+        "P001007-1",
+        "P002902-1",
+        "P008326-1",
+        "P008384-1",
+        "P008443-1",
+        "P008547-1",
+        "P008695-1",
+        "P008738-1",
+        "P011548-1",
+        "P012857-1",
+        "P015949-1",
+        "P016331-1",
+        "P020086-1",
+        "P025475-1",
+        "P045950-1",
+        "P050199-1",
+        "P050887-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.1314075,
+      "score": 267641.615237427,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 201,
+      "sortie_ids": [
+        "P000775-1",
+        "P002893-1",
+        "P002902-1",
+        "P003548-1",
+        "P004239-1",
+        "P007976-1",
+        "P008384-1",
+        "P008547-1",
+        "P008636-1",
+        "P008703-1",
+        "P011548-1",
+        "P016331-1",
+        "P016935-1",
+        "P020086-1",
+        "P025475-1",
+        "P025512-1",
+        "P045412-1",
+        "P050200-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.1210958,
+      "score": 267701.1597043071,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 204,
+      "sortie_ids": [
+        "P001007-1",
+        "P008326-1",
+        "P008384-1",
+        "P008443-1",
+        "P008547-1",
+        "P008695-1",
+        "P008717-1",
+        "P008745-1",
+        "P011548-1",
+        "P012857-1",
+        "P015949-1",
+        "P016331-1",
+        "P020086-1",
+        "P025475-1",
+        "P047190-1",
+        "P050199-1",
+        "P050887-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.1370414,
+      "score": 272805.1405452662,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 207,
+      "sortie_ids": [
+        "P002809-1",
+        "P002812-1",
+        "P002824-1",
+        "P003357-1",
+        "P005314-1",
+        "P008026-1",
+        "P008323-1",
+        "P008384-1",
+        "P008500-1",
+        "P008547-1",
+        "P008703-1",
+        "P008724-1",
+        "P008731-1",
+        "P011690-1",
+        "P016638-1",
+        "P020087-1",
+        "P050623-1",
+        "P052308-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.09548880000000001,
+      "score": 273736.7182247961,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 210,
+      "sortie_ids": [
+        "P000004-1",
+        "P001007-1",
+        "P001421-1",
+        "P002902-1",
+        "P002906-1",
+        "P008326-1",
+        "P008384-1",
+        "P008443-1",
+        "P008547-1",
+        "P008702-1",
+        "P008717-1",
+        "P011548-1",
+        "P012857-1",
+        "P016331-1",
+        "P020086-1",
+        "P025004-1",
+        "P047190-1",
+        "P050803-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.1539501,
+      "score": 274301.0767319164,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 213,
+      "sortie_ids": [
+        "P001007-1",
+        "P002906-1",
+        "P008326-1",
+        "P008384-1",
+        "P008443-1",
+        "P008547-1",
+        "P008695-1",
+        "P008717-1",
+        "P008745-1",
+        "P011548-1",
+        "P012857-1",
+        "P015949-1",
+        "P016331-1",
+        "P020087-1",
+        "P025004-1",
+        "P026057-1",
+        "P047190-1",
+        "P050887-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.1563109,
+      "score": 279441.8517395673,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 216,
+      "sortie_ids": [
+        "P001007-1",
+        "P002902-1",
+        "P003709-1",
+        "P008320-1",
+        "P008443-1",
+        "P008547-1",
+        "P008703-1",
+        "P008738-1",
+        "P011548-1",
+        "P012857-1",
+        "P015949-1",
+        "P016331-1",
+        "P020086-1",
+        "P020281-1",
+        "P025473-1",
+        "P045950-1",
+        "P050199-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.1371212,
+      "score": 279524.80426067725,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 219,
+      "sortie_ids": [
+        "P002734-1",
+        "P002754-1",
+        "P002895-1",
+        "P002902-1",
+        "P003352-1",
+        "P008330-1",
+        "P008499-1",
+        "P008547-1",
+        "P008591-1",
+        "P008600-1",
+        "P008710-1",
+        "P009140-1",
+        "P016339-1",
+        "P045913-1",
+        "P050624-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.11173870000000001,
+      "score": 272391.4234732871,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 222,
+      "sortie_ids": [
+        "P002734-1",
+        "P002754-1",
+        "P002895-1",
+        "P002902-1",
+        "P008330-1",
+        "P008499-1",
+        "P008547-1",
+        "P008594-1",
+        "P008600-1",
+        "P008685-1",
+        "P008710-1",
+        "P009139-1",
+        "P015881-1",
+        "P016339-1",
+        "P045913-1",
+        "P050624-1",
+        "P051027-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.13211340000000002,
+      "score": 280274.3540186077,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 225,
+      "sortie_ids": [
+        "P002734-1",
+        "P002754-1",
+        "P002888-1",
+        "P002902-1",
+        "P003352-1",
+        "P008322-1",
+        "P008330-1",
+        "P008440-1",
+        "P008499-1",
+        "P008547-1",
+        "P008591-1",
+        "P008600-1",
+        "P008710-1",
+        "P016652-1",
+        "P045913-1",
+        "P050623-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.11446500000000001,
+      "score": 273447.97030794807,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 228,
+      "sortie_ids": [
+        "P000352-1",
+        "P008384-1",
+        "P008547-1",
+        "P008595-1",
+        "P008703-1",
+        "P008731-1",
+        "P008743-1",
+        "P011690-1",
+        "P015837-1",
+        "P015878-1",
+        "P016935-1",
+        "P020086-1",
+        "P025475-1",
+        "P025512-1",
+        "P047213-1",
+        "P050200-1",
+        "P052643-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.1472525,
+      "score": 281940.89408552006,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 231,
+      "sortie_ids": [
+        "P002734-1",
+        "P002754-1",
+        "P002902-1",
+        "P003352-1",
+        "P008322-1",
+        "P008330-1",
+        "P008440-1",
+        "P008499-1",
+        "P008547-1",
+        "P008591-1",
+        "P008600-1",
+        "P008635-1",
+        "P008710-1",
+        "P008717-1",
+        "P008731-1",
+        "P016652-1",
+        "P050624-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.12258050000000001,
+      "score": 274603.9601045232,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 234,
+      "sortie_ids": [
+        "P000344-1",
+        "P002734-1",
+        "P002754-1",
+        "P002902-1",
+        "P008322-1",
+        "P008330-1",
+        "P008440-1",
+        "P008499-1",
+        "P008547-1",
+        "P008582-1",
+        "P008600-1",
+        "P008635-1",
+        "P008710-1",
+        "P008717-1",
+        "P008731-1",
+        "P016652-1",
+        "P050624-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.1156553,
+      "score": 279704.10263490485,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 237,
+      "sortie_ids": [
+        "P002734-1",
+        "P002902-1",
+        "P008319-1",
+        "P008322-1",
+        "P008330-1",
+        "P008440-1",
+        "P008442-1",
+        "P008500-1",
+        "P008547-1",
+        "P008594-1",
+        "P008600-1",
+        "P008635-1",
+        "P008710-1",
+        "P008731-1",
+        "P008738-1",
+        "P015850-1",
+        "P050624-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.11275690000000001,
+      "score": 250492.84920333547,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 240,
+      "sortie_ids": [
+        "P000035-1",
+        "P004765-1",
+        "P008319-1",
+        "P008322-1",
+        "P008330-1",
+        "P008441-1",
+        "P008500-1",
+        "P008535-1",
+        "P008594-1",
+        "P008600-1",
+        "P008635-1",
+        "P008710-1",
+        "P008731-1",
+        "P008738-1",
+        "P008745-1",
+        "P015850-1",
+        "P050623-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.1206895,
+      "score": 257100.61634943236,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 243,
+      "sortie_ids": [
+        "P002881-1",
+        "P002888-1",
+        "P002902-1",
+        "P002909-1",
+        "P008319-1",
+        "P008322-1",
+        "P008330-1",
+        "P008392-1",
+        "P008419-1",
+        "P008445-1",
+        "P008547-1",
+        "P008594-1",
+        "P008600-1",
+        "P008635-1",
+        "P008703-1",
+        "P008710-1",
+        "P008738-1",
+        "P015850-1",
+        "P025360-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.1186153,
+      "score": 271214.4290610115,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 246,
+      "sortie_ids": [
+        "P002708-1",
+        "P002902-1",
+        "P004233-1",
+        "P008443-1",
+        "P008547-1",
+        "P008570-1",
+        "P008703-1",
+        "P008738-1",
+        "P011455-1",
+        "P012857-1",
+        "P016330-1",
+        "P016953-1",
+        "P020086-1",
+        "P020281-1",
+        "P025475-1",
+        "P045950-1",
+        "P050199-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.1296553,
+      "score": 284170.83482617524,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 249,
+      "sortie_ids": [
+        "P002734-1",
+        "P002867-1",
+        "P008319-1",
+        "P008322-1",
+        "P008330-1",
+        "P008440-1",
+        "P008442-1",
+        "P008500-1",
+        "P008547-1",
+        "P008594-1",
+        "P008600-1",
+        "P008635-1",
+        "P008703-1",
+        "P008731-1",
+        "P008736-1",
+        "P008745-1",
+        "P015850-1",
+        "P050624-1",
+        "P052587-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.1045595,
+      "score": 265602.4320483105,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 252,
+      "sortie_ids": [
+        "P002734-1",
+        "P002902-1",
+        "P008319-1",
+        "P008322-1",
+        "P008330-1",
+        "P008440-1",
+        "P008442-1",
+        "P008500-1",
+        "P008547-1",
+        "P008594-1",
+        "P008600-1",
+        "P008635-1",
+        "P008710-1",
+        "P008717-1",
+        "P008738-1",
+        "P016378-1",
+        "P050624-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.10658210000000001,
+      "score": 250360.3048471841,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 255,
+      "sortie_ids": [
+        "P002734-1",
+        "P002874-1",
+        "P008319-1",
+        "P008322-1",
+        "P008330-1",
+        "P008440-1",
+        "P008442-1",
+        "P008500-1",
+        "P008547-1",
+        "P008594-1",
+        "P008600-1",
+        "P008710-1",
+        "P008745-1",
+        "P016378-1",
+        "P047153-1",
+        "P050624-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.2149773,
+      "score": 249397.1038090854,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 258,
+      "sortie_ids": [
+        "P002700-1",
+        "P002734-1",
+        "P002902-1",
+        "P008319-1",
+        "P008322-1",
+        "P008330-1",
+        "P008440-1",
+        "P008442-1",
+        "P008500-1",
+        "P008547-1",
+        "P008594-1",
+        "P008600-1",
+        "P008710-1",
+        "P008731-1",
+        "P016624-1",
+        "P045913-1",
+        "P050624-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.1145874,
+      "score": 250451.73025177798,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 261,
+      "sortie_ids": [
+        "P002734-1",
+        "P002874-1",
+        "P008319-1",
+        "P008322-1",
+        "P008330-1",
+        "P008440-1",
+        "P008442-1",
+        "P008500-1",
+        "P008547-1",
+        "P008594-1",
+        "P008600-1",
+        "P008710-1",
+        "P008745-1",
+        "P016378-1",
+        "P047153-1",
+        "P050623-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.1162012,
+      "score": 249386.60724926103,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 264,
+      "sortie_ids": [
+        "P002734-1",
+        "P002763-1",
+        "P002867-1",
+        "P002895-1",
+        "P008319-1",
+        "P008322-1",
+        "P008330-1",
+        "P008440-1",
+        "P008481-1",
+        "P008547-1",
+        "P008594-1",
+        "P008600-1",
+        "P008635-1",
+        "P008731-1",
+        "P008745-1",
+        "P015851-1",
+        "P050623-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.1097396,
+      "score": 245253.51254479337,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 267,
+      "sortie_ids": [
+        "P002734-1",
+        "P002874-1",
+        "P008319-1",
+        "P008322-1",
+        "P008330-1",
+        "P008440-1",
+        "P008442-1",
+        "P008500-1",
+        "P008547-1",
+        "P008594-1",
+        "P008600-1",
+        "P008635-1",
+        "P008710-1",
+        "P008731-1",
+        "P008745-1",
+        "P016653-1",
+        "P050623-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.10480890000000001,
+      "score": 245517.16441244,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 270,
+      "sortie_ids": [
+        "P002734-1",
+        "P002763-1",
+        "P002867-1",
+        "P002895-1",
+        "P003540-1",
+        "P008323-1",
+        "P008378-1",
+        "P008440-1",
+        "P008481-1",
+        "P008547-1",
+        "P008594-1",
+        "P008635-1",
+        "P008717-1",
+        "P008731-1",
+        "P008745-1",
+        "P050623-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.1337102,
+      "score": 254211.28342070244,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 273,
+      "sortie_ids": [
+        "P002734-1",
+        "P002867-1",
+        "P002888-1",
+        "P003540-1",
+        "P007958-1",
+        "P007976-1",
+        "P008323-1",
+        "P008378-1",
+        "P008440-1",
+        "P008460-1",
+        "P008468-1",
+        "P008547-1",
+        "P008594-1",
+        "P008635-1",
+        "P008703-1",
+        "P008724-1",
+        "P008745-1",
+        "P050623-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.1064606,
+      "score": 267381.4474528954,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 276,
+      "sortie_ids": [
+        "P002734-1",
+        "P002867-1",
+        "P002888-1",
+        "P003540-1",
+        "P007958-1",
+        "P007976-1",
+        "P008323-1",
+        "P008378-1",
+        "P008440-1",
+        "P008460-1",
+        "P008468-1",
+        "P008547-1",
+        "P008594-1",
+        "P008635-1",
+        "P008703-1",
+        "P008724-1",
+        "P008745-1",
+        "P050624-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.11765640000000001,
+      "score": 267391.9440127198,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 279,
+      "sortie_ids": [
+        "P002552-1",
+        "P002734-1",
+        "P002867-1",
+        "P003540-1",
+        "P008323-1",
+        "P008460-1",
+        "P008468-1",
+        "P008547-1",
+        "P008594-1",
+        "P008635-1",
+        "P008703-1",
+        "P008724-1",
+        "P008731-1",
+        "P009310-1",
+        "P016599-1",
+        "P050623-1",
+        "P052308-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.09639650000000001,
+      "score": 266957.38555286394,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 282,
+      "sortie_ids": [
+        "P002380-1",
+        "P002734-1",
+        "P002763-1",
+        "P002895-1",
+        "P003540-1",
+        "P008323-1",
+        "P008378-1",
+        "P008440-1",
+        "P008481-1",
+        "P008547-1",
+        "P008594-1",
+        "P008635-1",
+        "P008703-1",
+        "P008717-1",
+        "P008731-1",
+        "P008745-1",
+        "P050623-1",
+        "P051553-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.1398146,
+      "score": 269915.4830176428,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 285,
+      "sortie_ids": [
+        "P002734-1",
+        "P002867-1",
+        "P002888-1",
+        "P002902-1",
+        "P003540-1",
+        "P008323-1",
+        "P008460-1",
+        "P008468-1",
+        "P008547-1",
+        "P008594-1",
+        "P008635-1",
+        "P008703-1",
+        "P008717-1",
+        "P008724-1",
+        "P009310-1",
+        "P016599-1",
+        "P050623-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.1226644,
+      "score": 244397.872986326,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 288,
+      "sortie_ids": [
+        "P002734-1",
+        "P002867-1",
+        "P002902-1",
+        "P003540-1",
+        "P008323-1",
+        "P008460-1",
+        "P008468-1",
+        "P008547-1",
+        "P008594-1",
+        "P008635-1",
+        "P008703-1",
+        "P008717-1",
+        "P008724-1",
+        "P008738-1",
+        "P009310-1",
+        "P016339-1",
+        "P050623-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.11391470000000001,
+      "score": 244427.09455657887,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 291,
+      "sortie_ids": [
+        "P002734-1",
+        "P002867-1",
+        "P002902-1",
+        "P006942-1",
+        "P008323-1",
+        "P008460-1",
+        "P008468-1",
+        "P008547-1",
+        "P008594-1",
+        "P008635-1",
+        "P008703-1",
+        "P008717-1",
+        "P008738-1",
+        "P009310-1",
+        "P015913-1",
+        "P016339-1",
+        "P050623-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.11042830000000001,
+      "score": 244427.60055661807,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 294,
+      "sortie_ids": [
+        "P002734-1",
+        "P002867-1",
+        "P002874-1",
+        "P002902-1",
+        "P006942-1",
+        "P008323-1",
+        "P008460-1",
+        "P008468-1",
+        "P008547-1",
+        "P008594-1",
+        "P008703-1",
+        "P009310-1",
+        "P015913-1",
+        "P016339-1",
+        "P047153-1",
+        "P050624-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.11538060000000001,
+      "score": 238297.30023512797,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 297,
+      "sortie_ids": [
+        "P002734-1",
+        "P002867-1",
+        "P002874-1",
+        "P002888-1",
+        "P002902-1",
+        "P006942-1",
+        "P008323-1",
+        "P008460-1",
+        "P008468-1",
+        "P008547-1",
+        "P008594-1",
+        "P008635-1",
+        "P008703-1",
+        "P009310-1",
+        "P015913-1",
+        "P016598-1",
+        "P050623-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.0992026,
+      "score": 239256.2619986681,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 300,
+      "sortie_ids": [
+        "P002734-1",
+        "P002867-1",
+        "P002874-1",
+        "P002888-1",
+        "P002902-1",
+        "P006942-1",
+        "P008323-1",
+        "P008362-1",
+        "P008460-1",
+        "P008468-1",
+        "P008547-1",
+        "P008594-1",
+        "P008703-1",
+        "P009310-1",
+        "P015913-1",
+        "P047153-1",
+        "P050623-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.10968230000000001,
+      "score": 239223.99494353804,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    }
+  ],
+  "config": {
+    "iterations": 300,
+    "wall_time_s": 600.0,
+    "repair_time_s": 1.0,
+    "joint_time_s": 60.0,
+    "workers": 8,
+    "batch_size": 3
+  },
+  "initial_exact_cover_seeds": 7,
+  "forbidden_occurrences": 0,
+  "max_additional_solutions": 3,
+  "baseline_excluded": true,
+  "run_directory": "D:\\\u6570\u5b66\u5efa\u6a21\\\u7b2c\u4e8c\u5341\u4e09\u5c4a\u4e2d\u56fd\u7814\u7a76\u751f\u6570\u5b66\u5efa\u6a21\u7ade\u8d5b - \u4e2d\u6587\u9898\u76ee\\\u4e2d\u6587\u9898\u76ee\\Project\\code\\data\\q3_alns_runs\\20260925_230222",
+  "solutions": [],
+  "archive_errors": [],
+  "wall_time_s": 181.54699999999866,
+  "operator_weights": {
+    "random": 0.4180063771554965,
+    "relay_load": 0.25976742245932394,
+    "gaps": 0.37910929043640706,
+    "congestion": 0.6019835077963028,
+    "deadline": 0.7683881190610102,
+    "related": 0.3232171884157562
+  },
+  "reason": "Search budget exhausted before requested distinct solution count"
+}

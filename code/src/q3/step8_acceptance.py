@@ -27,6 +27,21 @@ def _hash(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _verify_solver_inputs(input_sha256, input_dir=DATA):
+    """Verify shared Step8 solver inputs, which live outside candidate dirs."""
+    for name, recorded in input_sha256.items():
+        source = Path(input_dir) / name
+        if not source.is_file():
+            raise FileNotFoundError(f"Step8 solver input is missing: {source}")
+        if _hash(source) != recorded:
+            raise AssertionError(f"Step8 input changed since solve: {name}")
+
+
+def _output_hashes(data_dir):
+    """Hash the Step8 artifacts in the candidate directory being accepted."""
+    return {name: _hash(Path(data_dir) / name) for name in OUTPUTS}
+
+
 def accept_step8(freeze=True, data_dir=None):
     data_dir = Path(data_dir) if data_dir is not None else DATA
     missing = [name for name in OUTPUTS if not (data_dir / name).is_file()]
@@ -36,9 +51,8 @@ def accept_step8(freeze=True, data_dir=None):
     status = manifest.get("status")
     if status not in ("FEASIBLE", "OPTIMAL") or manifest.get("validation", {}).get("all_pass") is not True:
         raise AssertionError(f"Step8 status/validation failed: {status}, {manifest.get('validation')}")
-    for name, recorded in manifest.get("input_sha256", {}).items():
-        if _hash(data_dir / name) != recorded:
-            raise AssertionError(f"Step8 input changed since solve: {name}")
+    solver_input_sha256 = manifest.get("input_sha256", {})
+    _verify_solver_inputs(solver_input_sha256)
     tier = manifest.get("tier")
     if tier not in ("tier1", "tier2", "all"):
         raise ValueError(f"Unknown Step8 relay tier: {tier}")
@@ -101,21 +115,25 @@ def accept_step8(freeze=True, data_dir=None):
     if not validation["all_pass"]:
         failed = [key for key, passed in validation["checks"].items() if not passed]
         raise AssertionError(f"Step8.5 failed: {failed}")
+    outputs_sha256 = _output_hashes(data_dir)
     result = {
         "status": status,
         "validation": validation,
         "objectives": evaluate_objectives(problem, transport, relay, delivery),
-        "input_sha256": {name: _hash(DATA / name) for name in OUTPUTS},
+        "outputs_sha256": outputs_sha256,
+        "solver_input_sha256": solver_input_sha256,
+        # Keep the historical field as an alias for downstream compatibility.
+        "input_sha256": outputs_sha256,
     }
     if freeze:
         target = data_dir / "q3_step8_frozen"
         target.mkdir(exist_ok=True)
         for name in OUTPUTS:
             destination = target / name
-            if destination.exists() and _hash(destination) != result["input_sha256"][name]:
+            if destination.exists() and _hash(destination) != outputs_sha256[name]:
                 raise FileExistsError(f"Frozen Step8 file differs: {destination}")
             if not destination.exists():
-                shutil.copy2(DATA / name, destination)
+                shutil.copy2(data_dir / name, destination)
         (target / "acceptance.json").write_text(
             json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
         )

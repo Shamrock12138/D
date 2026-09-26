@@ -80,7 +80,8 @@ def main():
     )
     parser.add_argument(
         "--method", choices=["cp-sat", "moead", "all", "compact-smoke",
-                              "compact-feasible", "compact-anchors"], default="all",
+                              "compact-feasible", "compact-anchors",
+                              "compact-moead"], default="all",
         help="求解方法 (默认: all)",
     )
     parser.add_argument("--compact-service", action="append", default=None,
@@ -92,6 +93,13 @@ def main():
     parser.add_argument("--compact-workers", type=int, default=1)
     parser.add_argument("--compact-objective", choices=("F1", "Cmax", "E", "N"),
                         default="N", help="紧凑闭环的单目标验算方向")
+    parser.add_argument("--moead-h", type=int, default=5)
+    parser.add_argument("--moead-neighbors", type=int, default=10)
+    parser.add_argument("--moead-generations", type=int, default=20)
+    parser.add_argument("--moead-local-time", type=float, default=2.0)
+    parser.add_argument("--moead-polish-time", type=float, default=20.0)
+    parser.add_argument("--moead-workers", type=int, default=2)
+    parser.add_argument("--moead-seed", type=int, default=2026)
     args = parser.parse_args()
 
     print("=" * 50)
@@ -111,6 +119,32 @@ def main():
         return
 
     print("基础检查通过。")
+    if args.method == "compact-moead":
+        from src.q2.compact_moead_cp_sat import (
+            run_compact_moead,
+            save_compact_moead_results,
+        )
+        population, archive, stats = run_compact_moead(
+            top_k=args.compact_top_k,
+            H=args.moead_h,
+            T=args.moead_neighbors,
+            generations=args.moead_generations,
+            local_time_s=args.moead_local_time,
+            polish_time_s=args.moead_polish_time,
+            workers=args.moead_workers,
+            seed=args.moead_seed,
+        )
+        manifest = save_compact_moead_results(population, archive, stats)
+        print(json.dumps({
+            "population_size": len(population),
+            "pareto_size": len(archive),
+            "validated_pareto_size": manifest["pareto_size"],
+            "manifest": "data/Q2_compact_moead_manifest.json",
+        }, ensure_ascii=False, indent=2))
+        if manifest["pareto_size"] == 0:
+            raise SystemExit("Compact MOEA/D produced no independently validated Pareto point")
+        return
+
     if args.method == "compact-smoke":
         from Q2_compact_smoke import run_smoke
 
