@@ -131,6 +131,17 @@ def migrate(source=None, target=None):
     relay.to_csv(target / OUTPUTS[1], index=False, encoding="utf-8-sig")
     sessions.to_csv(target / SESSION_OUTPUT, index=False, encoding="utf-8-sig")
 
+    summary = pd.read_csv(target / OUTPUTS[3], encoding="utf-8-sig")
+    summary["relay_sessions"] = len(sessions)
+    summary["relay_energy_kWh"] = float(sessions["relay_session_energy_kWh"].sum())
+    summary["relay_session_energy_kWh"] = summary["relay_energy_kWh"]
+    summary["total_energy_kWh"] = (
+        summary["transport_energy_kWh"] + summary["relay_energy_kWh"]
+    )
+    summary["objective_schema"] = "relay_session_v2"
+    summary["status"] = manifest["status"]
+    summary.to_csv(target / OUTPUTS[3], index=False, encoding="utf-8-sig")
+
     checked = accept_step8(freeze=False, data_dir=target)
     manifest_path = target / OUTPUTS[4]
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))

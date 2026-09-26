@@ -103,10 +103,12 @@ def test_f1_distinguishes_tenth_second_delivery_offsets():
 def test_shared_relay_session_counts_flight_energy_once():
     relay = pd.DataFrame([
         {"relay_session_id": "R01-RS001", "relay_energy_kWh": .21,
+         "arrival_time_s": 20, "service_end_s": 100,
          "outbound_energy_kWh": .1, "return_energy_kWh": .1,
          "service_energy_kWh": .01},
         {"relay_session_id": "R01-RS001", "relay_energy_kWh": .21,
+         "arrival_time_s": 25, "service_end_s": 80,
          "outbound_energy_kWh": .1, "return_energy_kWh": .1,
          "service_energy_kWh": .01},
     ])
-    assert relay_session_energy_kwh(relay) == .22
+    assert relay_session_energy_kwh(relay) == .224444

@@ -7,6 +7,7 @@ from src.q2.battery import charge_time_to_full, soc_after_task
 
 SESSION_COLUMNS = (
     "relay_session_id", "relay_uav_id", "candidate_id", "dispatch_time_s",
+    "arrival_time_s", "service_end_time_s", "service_duration_s",
     "return_time_s", "uav_release_time_s", "outbound_energy_kWh",
     "return_energy_kWh", "service_energy_kWh", "relay_session_energy_kWh",
     "end_soc", "charge_duration_s", "energy_release_time_s",
@@ -34,8 +35,8 @@ def _with_energy_components(relay, relay_options=None):
     return merged
 
 
-def session_energy_by_id(relay, relay_options=None):
-    """Compute the canonical rounded energy for each physical session."""
+def session_energy_by_id(relay, relay_params, relay_options=None):
+    """Compute physical session energy from one flight and continuous dwell."""
     if relay is None or relay.empty:
         return {}
     required = {"outbound_energy_kWh", "return_energy_kWh", "service_energy_kWh"}
@@ -54,15 +55,23 @@ def session_energy_by_id(relay, relay_options=None):
         return {str(index): float(value)
                 for index, value in relay["relay_energy_kWh"].items()}
     frame = _with_energy_components(relay, relay_options)
+    required_times = {"arrival_time_s", "service_end_s"}
+    if not required_times <= set(frame.columns):
+        raise ValueError("Relay rows need arrival_time_s and service_end_s for session energy")
     session_col = "relay_session_id" if "relay_session_id" in frame else "gap_id"
     energy_scale = 1_000_000
     result = {}
     for session_id, group in frame.groupby(session_col, sort=False):
+        dwell_s = max(
+            0.0,
+            float(group["service_end_s"].max())
+            - float(group["arrival_time_s"].min()),
+        )
+        service_kwh = float(relay_params.service_power_kw) * dwell_s / 3600.0
         total = (
             round(float(group["outbound_energy_kWh"].max()) * energy_scale)
             + round(float(group["return_energy_kWh"].max()) * energy_scale)
-            + sum(round(float(value) * energy_scale)
-                  for value in group["service_energy_kWh"])
+            + round(service_kwh * energy_scale)
         ) / energy_scale
         result[str(session_id)] = total
     return result
@@ -73,12 +82,13 @@ def build_relay_session_table(relay, relay_params, session_capacity_kwh=None,
     """Collapse gap certificates into physical sessions and compute session energy.
 
     A session incurs outbound and return energy once (the maximum certified
-    leg energy within the session) and service energy for each covered gap.
+    leg energy within the session) and continuous hover/communication dwell
+    from the first arrival to the last covered service end.
     """
     if relay is None or relay.empty:
         return pd.DataFrame(columns=SESSION_COLUMNS)
     frame = _with_energy_components(relay, relay_options)
-    energy_by_session = session_energy_by_id(frame)
+    energy_by_session = session_energy_by_id(frame, relay_params)
     if "relay_session_id" not in frame:
         frame["relay_session_id"] = frame["gap_id"].astype(str)
     capacity = float(session_capacity_kwh or relay_params.energy_capacity_kwh)
@@ -90,7 +100,10 @@ def build_relay_session_table(relay, relay_params, session_capacity_kwh=None,
             raise ValueError(f"Session {session_id} spans relay UAVs or sites")
         outbound = float(group["outbound_energy_kWh"].max())
         returning = float(group["return_energy_kWh"].max())
-        service = float(group["service_energy_kWh"].sum())
+        arrival = float(group["arrival_time_s"].min())
+        service_end = float(group["service_end_s"].max())
+        dwell_s = max(0.0, service_end - arrival)
+        service = float(relay_params.service_power_kw) * dwell_s / 3600.0
         total = energy_by_session[str(session_id)]
         end_soc = soc_after_task(total, capacity)
         charge_s = float(charge_time_to_full(end_soc, relay_params.full_charge_time_s))
@@ -101,6 +114,9 @@ def build_relay_session_table(relay, relay_params, session_capacity_kwh=None,
             "relay_uav_id": str(relay_ids[0]),
             "candidate_id": str(candidates[0]),
             "dispatch_time_s": dispatch,
+            "arrival_time_s": arrival,
+            "service_end_time_s": service_end,
+            "service_duration_s": dwell_s,
             "return_time_s": return_time,
             "uav_release_time_s": float(group["uav_release_time_s"].max()),
             "outbound_energy_kWh": outbound,

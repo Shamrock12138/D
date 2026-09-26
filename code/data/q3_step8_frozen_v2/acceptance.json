@@ -45,16 +45,16 @@
   "objectives": {
     "F1_timeliness": 679141.4,
     "F2_joint_cmax_s": 12627.0,
-    "F3_total_energy_kWh": 69.143563,
+    "F3_total_energy_kWh": 68.384539,
     "F4_total_sorties": 26
   },
   "outputs_sha256": {
     "q3_joint_transport_schedule.csv": "95c17dfe94cf392fe3399d9687b3ee196661c15826d0a64cc8b7679e1cf40751",
-    "q3_joint_relay_schedule.csv": "82516e58386633c8456281e979badb1249649325e0c0b321badc786d0965fc50",
+    "q3_joint_relay_schedule.csv": "1664c54c26cb913c6494c590893afa9f158adebb31675a76fa08e1a89426b9f4",
     "q3_joint_delivery_schedule.csv": "b6441d2f4ee990797c633e18b83497913c7b015409dc8332419443a4ed28921b",
-    "q3_joint_resource_summary.csv": "dc148e272d70c202dc6b6cf88a98fd6fc3ac7788ac91bed7877fbf79e2d57bff",
+    "q3_joint_resource_summary.csv": "b9be09853d1aace9baef72a97ba29c054a0de700a4c60efa48e601f0f1cef2bf",
     "q3_step8_manifest.json": "bae8c31440c66c7a0781adf79e51fa98e823a709d3d44122ee33d2b239811cf2",
-    "q3_joint_relay_session_schedule.csv": "f8c769c23395c9018dc818a21d9df845eea6de0bf03710caf564e9a7f0ced567"
+    "q3_joint_relay_session_schedule.csv": "4464f3f775c8e6e6b084c5415f4dcb330501ff574ca0f16d5a43a94c7f5a002a"
   },
   "solver_input_sha256": {
     "q3_compact_patterns.csv": "b170f5531b838e77a95628ad084f8f9d3b390ceceea521c77e0a89d73297c96e",
@@ -67,10 +67,10 @@
   "objective_schema": "relay_session_v2",
   "input_sha256": {
     "q3_joint_transport_schedule.csv": "95c17dfe94cf392fe3399d9687b3ee196661c15826d0a64cc8b7679e1cf40751",
-    "q3_joint_relay_schedule.csv": "82516e58386633c8456281e979badb1249649325e0c0b321badc786d0965fc50",
+    "q3_joint_relay_schedule.csv": "1664c54c26cb913c6494c590893afa9f158adebb31675a76fa08e1a89426b9f4",
     "q3_joint_delivery_schedule.csv": "b6441d2f4ee990797c633e18b83497913c7b015409dc8332419443a4ed28921b",
-    "q3_joint_resource_summary.csv": "dc148e272d70c202dc6b6cf88a98fd6fc3ac7788ac91bed7877fbf79e2d57bff",
+    "q3_joint_resource_summary.csv": "b9be09853d1aace9baef72a97ba29c054a0de700a4c60efa48e601f0f1cef2bf",
     "q3_step8_manifest.json": "bae8c31440c66c7a0781adf79e51fa98e823a709d3d44122ee33d2b239811cf2",
-    "q3_joint_relay_session_schedule.csv": "f8c769c23395c9018dc818a21d9df845eea6de0bf03710caf564e9a7f0ced567"
+    "q3_joint_relay_session_schedule.csv": "4464f3f775c8e6e6b084c5415f4dcb330501ff574ca0f16d5a43a94c7f5a002a"
   }
 }

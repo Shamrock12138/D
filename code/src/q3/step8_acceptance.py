@@ -138,8 +138,9 @@ def accept_step8(freeze=True, data_dir=None, freeze_dir=None):
             and (actual["relay_session_id"].astype(str).tolist()
                  == expected["relay_session_id"].astype(str).tolist())
             and all(abs(float(a)-float(b)) <= 1e-6
-                    for column in ("relay_session_energy_kWh", "end_soc",
-                                   "energy_release_time_s")
+                    for column in expected.columns
+                    if column not in {"relay_session_id", "relay_uav_id",
+                                      "candidate_id", "energy_component_id"}
                     for a, b in zip(actual[column], expected[column]))
             and actual["energy_component_id"].astype(str).tolist()
                 == expected["energy_component_id"].astype(str).tolist()

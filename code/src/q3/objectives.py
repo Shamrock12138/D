@@ -48,8 +48,12 @@ def relay_session_energy_kwh(relay, relay_options=None):
     """
     if relay is None or relay.empty:
         return 0.0
+    from src.q3.relay.operation_profile import load_relay_flight_parameters
     from src.q3.session_resources import session_energy_by_id
-    return float(sum(session_energy_by_id(relay, relay_options).values()))
+
+    return float(sum(session_energy_by_id(
+        relay, load_relay_flight_parameters(), relay_options
+    ).values()))
 
 
 def evaluate_objectives(problem, transport, relay, delivery):

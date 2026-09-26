@@ -14,13 +14,14 @@ from src.q3.session_resources import (
 
 
 PARAMS = SimpleNamespace(energy_capacity_kwh=3.2, safety_margin=0.2,
-                         full_charge_time_s=3600)
+                         full_charge_time_s=3600, service_power_kw=1.1)
 
 
 def relay_rows(count=3, energy=.01):
     return pd.DataFrame([{
         "relay_session_id": "R01-RS001", "relay_uav_id": "R01",
         "candidate_id": "C1", "dispatch_time_s": 0,
+        "arrival_time_s": 20, "service_end_s": 100,
         "return_time_s": 100, "uav_release_time_s": 100,
         "outbound_energy_kWh": .1, "return_energy_kWh": .1,
         "service_energy_kWh": energy, "gap_id": f"G{i}",
@@ -31,7 +32,9 @@ class SessionResourcesTests(unittest.TestCase):
     def test_three_gap_rows_are_one_session_with_flight_counted_once(self):
         sessions = build_relay_session_table(relay_rows(), PARAMS)
         self.assertEqual(len(sessions), 1)
-        self.assertAlmostEqual(sessions.iloc[0].relay_session_energy_kWh, .23)
+        self.assertAlmostEqual(sessions.iloc[0].relay_session_energy_kWh, .224444)
+        self.assertAlmostEqual(sessions.iloc[0].service_duration_s, 80)
+        self.assertAlmostEqual(sessions.iloc[0].service_energy_kWh, 1.1 * 80 / 3600)
         self.assertAlmostEqual(sessions.iloc[0].outbound_energy_kWh, .1)
         self.assertAlmostEqual(sessions.iloc[0].return_energy_kWh, .1)
 
@@ -55,7 +58,10 @@ class SessionResourcesTests(unittest.TestCase):
         self.assertEqual(len(sessions), 1)
 
     def test_session_energy_above_2_56_kwh_violates_safety_soc(self):
-        sessions = build_relay_session_table(relay_rows(1, energy=2.4), PARAMS)
+        relay = relay_rows(1, energy=2.4)
+        relay["arrival_time_s"] = 0
+        relay["service_end_s"] = 9000
+        sessions = build_relay_session_table(relay, PARAMS)
         self.assertGreater(sessions.iloc[0].relay_session_energy_kWh, 2.56)
         self.assertLess(sessions.iloc[0].end_soc, PARAMS.safety_margin)
 
