@@ -1,41 +1,3 @@
-对，建议不要再继续修改已经能出图的 `plot_terrain_heatmap.py` 和 `plot_q2_transport_routes.py`。现在更合理的结构是：
-
-```text
-code/plot/
-├── plot_terrain_heatmap.py              # 保留，不动
-├── plot_q2_transport_routes.py          # 保留，不动
-│
-├── transport_map_base.py                # 新增：二维 DEM + 路线图基类
-├── plot_q2_p005_transport_routes.py     # 新增：P005，只提供数据和少量配置
-├── plot_q2_p006_transport_routes.py     # 以后
-└── plot_q3_transport_routes.py          # 以后也可复用
-```
-
-我建议直接抽象成 **`TransportMapBase`**，不仅封装 DEM，还把你以后反复需要的：
-
-- DEM 裁剪；
-- 蓝—白—红地形；
-- 400 m 白色中心；
-- hillshade；
-- O01 / S001–S015；
-- A/B/C 配色；
-- 单站路线；
-- 双站路线；
-- 箭头；
-- 重复次数；
-- PDF/SVG/PNG 输出；
-
-全部放进去。
-
-这样 P005 最终只剩几十行。
-
----
-
-# 一、新建 `code/plot/transport_map_base.py`
-
-直接新建：
-
-```python
 from __future__ import annotations
 
 from pathlib import Path
@@ -46,7 +8,6 @@ from matplotlib.colors import (
     LightSource,
     LinearSegmentedColormap,
     Normalize,
-    TwoSlopeNorm,
 )
 from matplotlib.lines import Line2D
 from matplotlib.patches import FancyArrowPatch
@@ -107,11 +68,7 @@ class TransportMapBase:
     LON_MAX = 109.35
 
     LAT_MIN = 22.95
-    LAT_MAX = 23.20
-
-    # ========================================================
-    # DEM 配色
-    # ========================================================
+    LAT_MAX = 23.17
 
     TERRAIN_CMAP = LinearSegmentedColormap.from_list(
         "terrain_blue_white_red",
@@ -127,24 +84,10 @@ class TransportMapBase:
         N=256,
     )
 
-    TERRAIN_CENTER = 400.0
-
-    # ========================================================
-    # A/B/C 型统一配色
-    # 蓝 / 橙 / 绿
-    # ========================================================
-
     TYPE_COLORS = {
-        "A": "#4E79A7",
-        "B": "#F28E2B",
-        "C": "#59A14F",
-    }
-
-    # 同一服务区存在不同机型时，略微错开曲线
-    TYPE_CURVATURE = {
-        "A": -0.025,
-        "B": 0.000,
-        "C": 0.025,
+        "A": "#F0C050",
+        "B": "#E89030",
+        "C": "#C0501A",
     }
 
     BASE_COLOR = "#C44E52"
@@ -197,8 +140,6 @@ class TransportMapBase:
                 "legend.fontsize": 8,
 
                 "axes.linewidth": 0.8,
-                "xtick.major.width": 0.7,
-                "ytick.major.width": 0.7,
             }
         )
 
@@ -449,7 +390,7 @@ class TransportMapBase:
     def build_terrain_norm(
         self,
         dem: np.ndarray,
-    ):
+    ) -> Normalize:
         valid = dem[
             np.isfinite(dem)
         ]
@@ -462,19 +403,6 @@ class TransportMapBase:
             np.max(valid)
         )
 
-        # 当前统一以 400 m 为白色中心
-        if (
-            vmin
-            < self.TERRAIN_CENTER
-            < vmax
-        ):
-            return TwoSlopeNorm(
-                vmin=vmin,
-                vcenter=self.TERRAIN_CENTER,
-                vmax=vmax,
-            )
-
-        # 极端情况下保证仍可绘图
         return Normalize(
             vmin=vmin,
             vmax=vmax,
@@ -593,7 +521,7 @@ class TransportMapBase:
             ],
             origin="upper",
             cmap="gray",
-            alpha=0.035,
+            alpha=0.04,
             interpolation="bilinear",
             zorder=2,
         )
@@ -645,7 +573,7 @@ class TransportMapBase:
             y_grid,
             dem_contour,
             levels=levels,
-            colors="#3F4650",
+            colors="#4E4E4E",
             linewidths=0.32,
             alpha=0.22,
             zorder=3,
@@ -721,21 +649,21 @@ class TransportMapBase:
 
             if node_id == "O01":
                 offset = (7, -2)
-                fontsize = 9
+                fsize = 9
                 weight = "bold"
 
             else:
-                index = int(
+                idx = int(
                     node_id[1:]
                 )
 
                 offset = (
                     (4, 5)
-                    if index % 2 == 0
+                    if idx % 2 == 0
                     else (4, -8)
                 )
 
-                fontsize = 7.5
+                fsize = 7.5
                 weight = "normal"
 
             text = ax.annotate(
@@ -746,12 +674,11 @@ class TransportMapBase:
                 ),
                 xytext=offset,
                 textcoords="offset points",
-                fontsize=fontsize,
+                fontsize=fsize,
                 fontweight=weight,
                 color="#202124",
                 zorder=30,
             )
-
             text.set_path_effects(
                 [
                     pe.withStroke(
@@ -797,6 +724,24 @@ class TransportMapBase:
         return seq
 
     @staticmethod
+    def add_line_with_halo(
+        line,
+    ) -> None:
+
+        line.set_path_effects(
+            [
+                pe.Stroke(
+                    linewidth=(
+                        line.get_linewidth()
+                        + 1.5
+                    ),
+                    foreground="white",
+                ),
+                pe.Normal(),
+            ]
+        )
+
+    @staticmethod
     def add_patch_with_halo(
         patch,
         linewidth: float,
@@ -807,7 +752,7 @@ class TransportMapBase:
                 pe.Stroke(
                     linewidth=(
                         linewidth
-                        + 1.3
+                        + 1.5
                     ),
                     foreground="white",
                 ),
@@ -824,12 +769,10 @@ class TransportMapBase:
         ax,
         p1,
         p2,
-        count: int,
-        dy: float = 0.0015,
+        text,
+        color,
+        dy=0.0,
     ) -> None:
-
-        if count <= 1:
-            return
 
         mx = (
             p1[0] + p2[0]
@@ -839,21 +782,26 @@ class TransportMapBase:
             p1[1] + p2[1]
         ) / 2 + dy
 
-        text = ax.text(
+        t = ax.text(
             mx,
             my,
-            f"×{count}",
-            fontsize=7.3,
-            color="#303030",
+            text,
+            fontsize=7.5,
+            color=color,
             ha="center",
             va="center",
             zorder=50,
+            bbox=dict(
+                boxstyle="round,pad=0.18",
+                facecolor="none",
+                edgecolor="none",
+            ),
         )
 
-        text.set_path_effects(
+        t.set_path_effects(
             [
                 pe.withStroke(
-                    linewidth=2.0,
+                    linewidth=1.5,
                     foreground="white",
                 )
             ]
@@ -888,46 +836,33 @@ class TransportMapBase:
             ]
         )
 
-        linewidth = (
-            0.55
-            + 0.16
+        lw = (
+            0.4
+            + 0.12
             * max(
                 count - 1,
                 0,
             )
         )
 
-        patch = FancyArrowPatch(
-            p0,
-            p1,
-            arrowstyle="-",
-            linewidth=linewidth,
+        ax.plot(
+            [p0[0], p1[0]],
+            [p0[1], p1[1]],
             color=color,
-            alpha=0.48,
-            connectionstyle=(
-                "arc3,rad="
-                f"{self.TYPE_CURVATURE[uav_type]}"
-            ),
-            shrinkA=6,
-            shrinkB=6,
+            linewidth=lw,
+            alpha=0.6,
             zorder=8,
         )
 
-        ax.add_patch(
-            patch
-        )
-
-        self.add_patch_with_halo(
-            patch,
-            linewidth,
-        )
-
-        self.annotate_count(
-            ax,
-            p0,
-            p1,
-            count,
-        )
+        if count > 1:
+            self.annotate_count(
+                ax,
+                p0,
+                p1,
+                f"×{count}",
+                color="#404040",
+                dy=0.0015,
+            )
 
     # ========================================================
     # 有方向箭头的航段
@@ -941,7 +876,8 @@ class TransportMapBase:
         color,
         linewidth,
         alpha,
-        radius=0.0,
+        linestyle="-",
+        rad=0.0,
         zorder=12,
     ) -> None:
 
@@ -954,10 +890,11 @@ class TransportMapBase:
                 + 1.8 * linewidth
             ),
             linewidth=linewidth,
+            linestyle=linestyle,
             color=color,
             alpha=alpha,
             connectionstyle=(
-                f"arc3,rad={radius}"
+                f"arc3,rad={rad}"
             ),
             shrinkA=6,
             shrinkB=6,
@@ -966,11 +903,6 @@ class TransportMapBase:
 
         ax.add_patch(
             patch
-        )
-
-        self.add_patch_with_halo(
-            patch,
-            linewidth,
         )
 
     # ========================================================
@@ -1008,9 +940,9 @@ class TransportMapBase:
             ]
         )
 
-        outer_lw = (
-            0.65
-            + 0.12
+        lw_outer = (
+            0.5
+            + 0.1
             * max(
                 count - 1,
                 0,
@@ -1018,9 +950,9 @@ class TransportMapBase:
         )
 
         # 服务区之间的边重点显示
-        inner_lw = (
-            1.35
-            + 0.20
+        lw_inner = (
+            0.8
+            + 0.15
             * max(
                 count - 1,
                 0,
@@ -1033,9 +965,10 @@ class TransportMapBase:
             p0,
             pi,
             color,
-            outer_lw,
-            alpha=0.64,
-            radius=0.035,
+            lw_outer,
+            alpha=0.65,
+            linestyle="-",
+            rad=0.05,
             zorder=12,
         )
 
@@ -1045,9 +978,10 @@ class TransportMapBase:
             pi,
             pj,
             color,
-            inner_lw,
-            alpha=0.96,
-            radius=0.0,
+            lw_inner,
+            alpha=0.95,
+            linestyle="-",
+            rad=0.0,
             zorder=15,
         )
 
@@ -1057,18 +991,22 @@ class TransportMapBase:
             pj,
             p0,
             color,
-            outer_lw,
-            alpha=0.64,
-            radius=-0.035,
+            lw_outer,
+            alpha=0.65,
+            linestyle="-",
+            rad=-0.05,
             zorder=12,
         )
 
-        self.annotate_count(
-            ax,
-            pi,
-            pj,
-            count,
-        )
+        if count > 1:
+            self.annotate_count(
+                ax,
+                pi,
+                pj,
+                f"×{count}",
+                color="#303030",
+                dy=0.0015,
+            )
 
     # ========================================================
     # 全部路线
@@ -1134,7 +1072,7 @@ class TransportMapBase:
                 [0], [0],
                 marker="*",
                 linestyle="none",
-                markersize=10,
+                markersize=11,
                 markerfacecolor=self.BASE_COLOR,
                 markeredgecolor="white",
                 label="调度中心 O01",
@@ -1152,16 +1090,16 @@ class TransportMapBase:
 
             Line2D(
                 [0], [0],
-                color="#777777",
-                linewidth=0.7,
-                alpha=0.50,
-                label="单站架次",
+                color="#7A7A7A",
+                linewidth=0.5,
+                alpha=0.6,
+                label="单站路线（浅连线）",
             ),
 
             Line2D(
                 [0], [0],
-                color="#444444",
-                linewidth=1.4,
+                color="#4A4A4A",
+                linewidth=0.9,
                 alpha=0.95,
                 label="双站服务区间访问边",
             ),
@@ -1169,21 +1107,21 @@ class TransportMapBase:
             Line2D(
                 [0], [0],
                 color=self.TYPE_COLORS["A"],
-                linewidth=1.8,
+                linewidth=1.0,
                 label="A 型",
             ),
 
             Line2D(
                 [0], [0],
                 color=self.TYPE_COLORS["B"],
-                linewidth=1.8,
+                linewidth=1.0,
                 label="B 型",
             ),
 
             Line2D(
                 [0], [0],
                 color=self.TYPE_COLORS["C"],
-                linewidth=1.8,
+                linewidth=1.0,
                 label="C 型",
             ),
         ]
@@ -1192,9 +1130,10 @@ class TransportMapBase:
             handles=handles,
             loc="upper left",
             frameon=True,
-            framealpha=0.90,
+            framealpha=0.92,
             edgecolor="#D0D0D0",
             fancybox=False,
+            ncol=1,
         )
 
     # ========================================================
@@ -1416,243 +1355,3 @@ class TransportMapBase:
 
         finally:
             src.close()
-```
-
----
-
-# 二、然后 P005 只新增一个很小的文件
-
-新建：
-
-```text
-code/plot/plot_q2_p005_transport_routes.py
-```
-
-内容只需要：
-
-```python
-from pathlib import Path
-
-from transport_map_base import (
-    CODE_ROOT,
-    TransportMapBase,
-)
-
-
-class P005TransportMap(
-    TransportMapBase
-):
-    """
-    P005 运输路线与多点访问结构。
-
-    P005:
-        25 个架次
-        20 个单站
-        5 个双站
-    """
-
-    def __init__(self):
-
-        schedule_file = (
-            CODE_ROOT
-            / "data"
-            / "q2_compact_moead"
-            / "P005"
-            / "schedule.csv"
-        )
-
-        super().__init__(
-            schedule_file=schedule_file,
-            output_stem=(
-                "q2_p005_transport_routes"
-            ),
-            expected_single=20,
-            expected_double=5,
-            figsize=(7.5, 6.6),
-        )
-
-
-def main():
-    figure = (
-        P005TransportMap()
-    )
-
-    figure.draw()
-
-
-if __name__ == "__main__":
-    main()
-```
-
-就这些。
-
----
-
-# 三、这样你的原来的文件完全不需要删除
-
-原来：
-
-```text
-plot_terrain_heatmap.py
-plot_q2_transport_routes.py
-```
-
-全部保留。
-
-甚至暂时**一个字符都不用改**。
-
-你现在只是额外增加：
-
-```text
-transport_map_base.py
-plot_q2_p005_transport_routes.py
-```
-
-所以风险非常低。
-
----
-
-# 四、运行 P005
-
-```bash
-cd /opt/D-1/code/plot
-python plot_q2_p005_transport_routes.py
-```
-
-或者从仓库根目录：
-
-```bash
-cd /opt/D-1
-python code/plot/plot_q2_p005_transport_routes.py
-```
-
-应该先打印：
-
-```text
-q2_p005_transport_routes: 25 个架次，20 个单站，5 个双站，...
-```
-
-然后输出：
-
-```text
-code/figures/q2/
-├── q2_p005_transport_routes.pdf
-├── q2_p005_transport_routes.svg
-└── q2_p005_transport_routes.png
-```
-
----
-
-# 五、以后 P006 基本不用再写绘图代码
-
-比如以后要 P006：
-
-```python
-from transport_map_base import (
-    CODE_ROOT,
-    TransportMapBase,
-)
-
-
-class P006TransportMap(
-    TransportMapBase
-):
-    def __init__(self):
-
-        super().__init__(
-            schedule_file=(
-                CODE_ROOT
-                / "data"
-                / "q2_compact_moead"
-                / "P006"
-                / "schedule.csv"
-            ),
-            output_stem=(
-                "q2_p006_transport_routes"
-            ),
-        )
-
-
-if __name__ == "__main__":
-    P006TransportMap().draw()
-```
-
-就能直接出：
-
-```text
-q2_p006_transport_routes.pdf
-```
-
----
-
-# 六、如果某一张图需要特殊画法，也不用改基类
-
-这是用类最大的好处。
-
-例如某一张图只想高亮双站路线，可以在子类中覆盖：
-
-```python
-class P006TransportMap(
-    TransportMapBase
-):
-
-    def draw_single_route(
-        self,
-        ax,
-        nodes,
-        stop,
-        uav_type,
-        count,
-    ):
-        # P006 不显示单站
-        pass
-```
-
-或者 P005 想让双站边更粗：
-
-```python
-class P005TransportMap(
-    TransportMapBase
-):
-
-    def draw_double_route(
-        self,
-        ax,
-        nodes,
-        stop_i,
-        stop_j,
-        uav_type,
-        count,
-    ):
-        # 自定义 P005
-        ...
-```
-
-公共代码不会受到影响。
-
----
-
-## 我建议现在就按这个结构
-
-核心关系是：
-
-```text
-                  TransportMapBase
-                         │
-        ┌────────────────┼─────────────────┐
-        │                │                 │
-     P005 图          P006 图           Q3 运输图
-        │                │                 │
-    schedule.csv     schedule.csv      transport.csv
-```
-
-而旧版：
-
-```text
-plot_terrain_heatmap.py
-plot_q2_transport_routes.py
-```
-
-继续原样保留，作为你目前已经验证过的绘图版本。
-
-这比现在继续往 `plot_q2_transport_routes.py` 里塞 `if P005 / if P006 / if ...` 要干净得多，也特别适合你接下来还要连续出 Q2/Q3 多张路线图的情况。

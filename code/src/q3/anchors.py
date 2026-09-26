@@ -16,6 +16,7 @@ from src.q3.objectives import (
     ENERGY_SCALE, F1_TIME_SCALE, OBJECTIVE_NAMES, Q3_MULTI_OBJECTIVE_TIER,
     energy_units, evaluate_objectives, soft_box_targets, time_units,
 )
+from src.q3.final_communication_validator import validate_fine_communication
 from src.q3.step8_acceptance import accept_step8, resolve_frozen_dir
 
 
@@ -130,8 +131,22 @@ def solve_anchor(problem, objective, time_limit_s=600, workers=8, random_seed=20
         problem, solver, select, starts, relay_select, relay_starts, metadata
     )
     validation = validate_q3_solution(problem, transport, relay, int(solver.Value(joint_cmax)))
+    fine_comm = validate_fine_communication(
+        problem=problem,
+        transport=transport,
+        relay=relay,
+        dt=1.0,
+        data_dir=DATA,
+    )
+    validation["fine_communication_1s"] = fine_comm
+    validation["checks"]["fine_communication_1s"] = bool(fine_comm["all_pass"])
+    validation["all_pass"] = all(validation["checks"].values())
     if not validation["all_pass"]:
-        raise AssertionError(f"Anchor {objective} failed Q3 validation: {validation['checks']}")
+        failed = [name for name, passed in validation["checks"].items() if not passed]
+        raise AssertionError(
+            f"Anchor {objective} failed final validation: {failed}; "
+            f"fine_communication_1s={fine_comm}"
+        )
     record.update(evaluate_objectives(problem, transport, relay, delivery))
     solver_objective_integer = int(solver.Value(expression))
     record["solver_objective_integer"] = solver_objective_integer

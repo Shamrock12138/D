@@ -1,0 +1,50 @@
+{
+  "status": "OPTIMAL",
+  "tier": "all",
+  "wall_time_s": 24.2686902,
+  "transport_cmax_s": 11660,
+  "relay_cmax_s": 11629,
+  "joint_cmax_s": 11660,
+  "validation": {
+    "all_pass": true,
+    "checks": {
+      "class_conservation": true,
+      "transport_hard_deadlines": true,
+      "transport_uav_nonoverlap": true,
+      "transport_battery_nonoverlap": true,
+      "one_relay_per_selected_gap": true,
+      "relay_uav_location_compatible": true,
+      "relay_session_component_capacity": true,
+      "relay_session_energy_limit": true,
+      "relay_session_end_soc_limit": true,
+      "joint_cmax_consistent": true,
+      "relay_dispatch_nonnegative": true,
+      "relay_arrives_by_coverage": true,
+      "relay_service_covers_gap": true,
+      "relay_uav_release_valid": true,
+      "relay_energy_release_valid": true
+    },
+    "actual_cmax_s": 11660.0
+  },
+  "occurrence_count": 17,
+  "relay_option_count": 155,
+  "allow_relay_sharing": true,
+  "objective_weights": [
+    1.0,
+    0.0,
+    0.0,
+    0.0
+  ],
+  "solve_mode": "fixed_baseline_schedule_polish",
+  "input_sha256": {
+    "q3_compact_patterns.csv": "b170f5531b838e77a95628ad084f8f9d3b390ceceea521c77e0a89d73297c96e",
+    "q3_compact_pattern_counts.csv": "725b642bbf241d7acd72d9ddbc29a63366ee41089650538001144bc9f575597e",
+    "q3_pattern_comm_gaps.csv": "9435f6b02daa12f8fb8a098f467a1fafcbd9afc24f63bb55e0d09c60434da8b5",
+    "q3_relay_job_options.csv": "51d77413c02d0c91aecaf84eb73444b488183ac18637849e20b4b90d4bfe0ff7",
+    "q3_pattern_gap_manifest.json": "f5b08e07f7b9ba9b14ec6b74305d8dacd9e64f541c99ea9583700af4e84ee4e5",
+    "q3_step7_manifest.json": "f8234d5c0b6afacf1b5e4886e3cd8c297463f7ed5f6772da590efde63949567b"
+  },
+  "optimization_status": "OPTIMAL",
+  "objective_schema": "relay_session_v2",
+  "session_resources_feasible": true
+}

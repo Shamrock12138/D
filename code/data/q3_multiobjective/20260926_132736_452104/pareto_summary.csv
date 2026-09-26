@@ -1,0 +1,2 @@
+﻿solution_id,weight_F1,weight_Cmax,weight_E,weight_N,F1_timeliness,F2_joint_cmax_s,F3_total_energy_kWh,F4_total_sorties,transport_sorties,relay_sessions,transport_energy_kWh,relay_energy_kWh,validation_all_pass,search_source,solution_directory
+Q3-P001,,,,,679141.4,12627.0,68.384539,26,17,9,64.08636972236133,4.298169277638678,True,frozen_baseline,D:\数学建模\第二十三届中国研究生数学建模竞赛 - 中文题目\中文题目\Project\code\data\q3_step8_frozen_v2

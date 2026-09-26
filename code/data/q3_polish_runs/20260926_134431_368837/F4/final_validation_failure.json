@@ -1,0 +1,1 @@
+"AssertionError: Step8.5 failed: ['fine_communication_1s']; fine_communication_1s={'unserved_time_samples': 1, 'uncovered_link_samples': 0, 'unserved_examples': [{'sortie_id': 'P051203-1', 'pattern_id': 'P051203', 'time_s': 4184.832036992569, 'phase': 'cruise', 'x': 109.21697289116652, 'y': 23.053011242495035, 'z': 412.91650390625}], 'uncovered_examples': []}"

@@ -1,0 +1,99 @@
+{
+  "status": "COMPLETE",
+  "method": "fixed_transport_set_joint_schedule_polish",
+  "run_directory": "D:\\数学建模\\第二十三届中国研究生数学建模竞赛 - 中文题目\\中文题目\\Project\\code\\data\\q3_polish_runs\\20260926_134431_368837",
+  "baseline_directory": "D:\\数学建模\\第二十三届中国研究生数学建模竞赛 - 中文题目\\中文题目\\Project\\code\\data\\q3_step8_frozen_v2",
+  "baseline_objectives": {
+    "F1_timeliness": 679141.4,
+    "F2_joint_cmax_s": 12627.0,
+    "F3_total_energy_kWh": 68.384539,
+    "F4_total_sorties": 26
+  },
+  "fixed_sortie_ids": [
+    "P001179-1",
+    "P002874-1",
+    "P008233-1",
+    "P002704-1",
+    "P002753-1",
+    "P002863-1",
+    "P003519-1",
+    "P008204-1",
+    "P008617-1",
+    "P050623-1",
+    "P051203-1",
+    "P008330-1",
+    "P008402-1",
+    "P016895-1",
+    "P008547-1",
+    "P008500-1",
+    "P008594-1"
+  ],
+  "fixed_transport_sorties": 17,
+  "time_limit_s_per_objective": 60.0,
+  "workers": 8,
+  "random_seed": 2027,
+  "objective_weights": {
+    "F1": [
+      1.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "Cmax": [
+      0.0,
+      1.0,
+      0.0,
+      0.0
+    ],
+    "F4": [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ],
+    "E_proxy": [
+      0.0,
+      0.0,
+      1.0,
+      0.0
+    ]
+  },
+  "results": [
+    {
+      "objective": "F1",
+      "status": "REJECTED_FINAL_VALIDATION",
+      "wall_time_s": 24.2686902,
+      "solution_directory": "D:\\数学建模\\第二十三届中国研究生数学建模竞赛 - 中文题目\\中文题目\\Project\\code\\data\\q3_polish_runs\\20260926_134431_368837\\F1",
+      "validation_all_pass": false,
+      "objectives": null,
+      "final_validation_error": "AssertionError: Step8.5 failed: ['fine_communication_1s']; fine_communication_1s={'unserved_time_samples': 1, 'uncovered_link_samples': 0, 'unserved_examples': [{'sortie_id': 'P051203-1', 'pattern_id': 'P051203', 'time_s': 4184.832036992569, 'phase': 'cruise', 'x': 109.21697289116652, 'y': 23.053011242495035, 'z': 412.91650390625}], 'uncovered_examples': []}"
+    },
+    {
+      "objective": "Cmax",
+      "status": "REJECTED_FINAL_VALIDATION",
+      "wall_time_s": 12.2566179,
+      "solution_directory": "D:\\数学建模\\第二十三届中国研究生数学建模竞赛 - 中文题目\\中文题目\\Project\\code\\data\\q3_polish_runs\\20260926_134431_368837\\Cmax",
+      "validation_all_pass": false,
+      "objectives": null,
+      "final_validation_error": "AssertionError: Step8.5 failed: ['fine_communication_1s']; fine_communication_1s={'unserved_time_samples': 1, 'uncovered_link_samples': 0, 'unserved_examples': [{'sortie_id': 'P051203-1', 'pattern_id': 'P051203', 'time_s': 4184.832036992569, 'phase': 'cruise', 'x': 109.21697289116652, 'y': 23.053011242495035, 'z': 412.91650390625}], 'uncovered_examples': []}"
+    },
+    {
+      "objective": "F4",
+      "status": "REJECTED_FINAL_VALIDATION",
+      "wall_time_s": 18.0065147,
+      "solution_directory": "D:\\数学建模\\第二十三届中国研究生数学建模竞赛 - 中文题目\\中文题目\\Project\\code\\data\\q3_polish_runs\\20260926_134431_368837\\F4",
+      "validation_all_pass": false,
+      "objectives": null,
+      "final_validation_error": "AssertionError: Step8.5 failed: ['fine_communication_1s']; fine_communication_1s={'unserved_time_samples': 1, 'uncovered_link_samples': 0, 'unserved_examples': [{'sortie_id': 'P051203-1', 'pattern_id': 'P051203', 'time_s': 4184.832036992569, 'phase': 'cruise', 'x': 109.21697289116652, 'y': 23.053011242495035, 'z': 412.91650390625}], 'uncovered_examples': []}"
+    },
+    {
+      "objective": "E_proxy",
+      "status": "REJECTED_FINAL_VALIDATION",
+      "wall_time_s": 37.4531791,
+      "solution_directory": "D:\\数学建模\\第二十三届中国研究生数学建模竞赛 - 中文题目\\中文题目\\Project\\code\\data\\q3_polish_runs\\20260926_134431_368837\\E_proxy",
+      "validation_all_pass": false,
+      "objectives": null,
+      "final_validation_error": "AssertionError: Step8.5 failed: ['fine_communication_1s']; fine_communication_1s={'unserved_time_samples': 1, 'uncovered_link_samples': 0, 'unserved_examples': [{'sortie_id': 'P051203-1', 'pattern_id': 'P051203', 'time_s': 5900.832036992569, 'phase': 'cruise', 'x': 109.21697289116652, 'y': 23.053011242495035, 'z': 412.91650390625}], 'uncovered_examples': []}"
+    }
+  ]
+}

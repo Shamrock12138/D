@@ -1,0 +1,59 @@
+{
+  "status": "COMPLETE",
+  "algorithm": "weighted_ALNS_exact_joint_CP_SAT_Pareto",
+  "objective_names": [
+    "F1_timeliness",
+    "F2_joint_cmax_s",
+    "F3_total_energy_kWh",
+    "F4_total_sorties"
+  ],
+  "weight_vectors": [
+    [
+      0.0,
+      0.0,
+      1.0,
+      0.0
+    ]
+  ],
+  "config": {
+    "iterations_per_weight": 500,
+    "wall_time_per_weight_s": 600.0,
+    "repair_time_s": 1.0,
+    "joint_time_s": 60.0,
+    "workers": 8,
+    "polish_time_s": 60.0,
+    "seed": 2026,
+    "max_solutions_per_weight": 5,
+    "batch_size": 1
+  },
+  "completed_weight_runs": 1,
+  "candidate_count": 99,
+  "generated_candidates": 500,
+  "accepted_solution_count": 0,
+  "joint_attempted_candidates": 99,
+  "joint_feasible_candidates": 0,
+  "pareto_size": 1,
+  "pareto_solution_ids": [
+    "Q3-P001"
+  ],
+  "elapsed_wall_time_s": 499.125,
+  "run_directory": "D:\\数学建模\\第二十三届中国研究生数学建模竞赛 - 中文题目\\中文题目\\Project\\code\\data\\q3_multiobjective\\20260926_132736_452104",
+  "weight_runs": [
+    {
+      "weight_index": 1,
+      "weights": [
+        0.0,
+        0.0,
+        1.0,
+        0.0
+      ],
+      "status": "UNKNOWN",
+      "run_directory": "D:\\数学建模\\第二十三届中国研究生数学建模竞赛 - 中文题目\\中文题目\\Project\\code\\data\\q3_alns_runs\\20260926_132817_311795",
+      "iterations": 500,
+      "unique_candidates": 99,
+      "joint_attempts": 99,
+      "accepted_solutions": 0
+    }
+  ],
+  "candidates": []
+}
