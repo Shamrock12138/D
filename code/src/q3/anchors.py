@@ -16,7 +16,7 @@ from src.q3.objectives import (
     ENERGY_SCALE, F1_TIME_SCALE, OBJECTIVE_NAMES, Q3_MULTI_OBJECTIVE_TIER,
     energy_units, evaluate_objectives, soft_box_targets, time_units,
 )
-from src.q3.step8_acceptance import accept_step8
+from src.q3.step8_acceptance import accept_step8, resolve_frozen_dir
 
 
 def _build_objective_expression(objective, model, problem, select, starts,
@@ -148,8 +148,14 @@ def solve_anchor(problem, objective, time_limit_s=600, workers=8, random_seed=20
 
 
 def run_anchors(time_limit_s=600, workers=8, random_seed=2026):
-    acceptance = accept_step8(freeze=True)
-    frozen = DATA / "q3_step8_frozen"
+    frozen = resolve_frozen_dir()
+    if frozen is None:
+        accept_step8(freeze=True)
+        frozen = resolve_frozen_dir()
+    else:
+        accept_step8(freeze=False, data_dir=frozen)
+    if frozen is None:
+        raise FileNotFoundError("No accepted Q3 Step8 frozen baseline is available")
     baseline = {
         "transport": pd.read_csv(frozen / "q3_joint_transport_schedule.csv", encoding="utf-8-sig"),
         "relay": pd.read_csv(frozen / "q3_joint_relay_schedule.csv", encoding="utf-8-sig"),

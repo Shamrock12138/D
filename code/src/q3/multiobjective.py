@@ -10,7 +10,7 @@ from src.q3.alns_search import run_alns
 from src.q3.cp_sat_scheduler import DATA
 from src.q3.objectives import OBJECTIVE_NAMES
 from src.q3.pareto import update_archive
-from src.q3.step8_acceptance import accept_step8
+from src.q3.step8_acceptance import accept_step8, resolve_frozen_dir
 
 
 WEIGHT_LABELS = (
@@ -76,10 +76,8 @@ def run_multiobjective(iterations=200, wall_time_per_weight_s=180,
     excluded = []
     generated_total = unique_total = attempted_total = feasible_total = 0
 
-    frozen_v2 = DATA / 'q3_step8_frozen_v2'
-    frozen_dir = (frozen_v2 if (frozen_v2 / 'q3_joint_transport_schedule.csv').is_file()
-                  else DATA / 'q3_step8_frozen')
-    if (frozen_dir / 'q3_joint_transport_schedule.csv').is_file():
+    frozen_dir = resolve_frozen_dir()
+    if frozen_dir is not None:
         baseline_acceptance = accept_step8(freeze=False, data_dir=frozen_dir)
         baseline_transport = pd.read_csv(
             frozen_dir / 'q3_joint_transport_schedule.csv', encoding='utf-8-sig')

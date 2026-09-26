@@ -12,6 +12,7 @@ from src.q2 import data_model
 from src.q2.compact_classes import decode_box_deliveries
 from src.q2.cp_sat_scheduler import _deadlines
 from src.q3.objectives import evaluate_objectives
+from src.q3.final_communication_validator import validate_fine_communication
 from src.q3.relay.operation_profile import load_relay_flight_parameters
 from src.q3.session_resources import attach_session_resources
 
@@ -28,6 +29,15 @@ SESSION_OUTPUT = "q3_joint_relay_session_schedule.csv"
 
 def _hash(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def resolve_frozen_dir():
+    """Return the preferred immutable Step8 baseline, v2 before legacy v1."""
+    for name in ("q3_step8_frozen_v2", "q3_step8_frozen"):
+        candidate = DATA / name
+        if (candidate / OUTPUTS[0]).is_file() and (candidate / OUTPUTS[1]).is_file():
+            return candidate
+    return None
 
 
 def _verify_solver_inputs(input_sha256, input_dir=DATA):
@@ -140,6 +150,10 @@ def accept_step8(freeze=True, data_dir=None, freeze_dir=None):
     actual_keys = set(map(tuple, relay[["gap_id", "pattern_id", "candidate_id"]].astype(str).itertuples(index=False, name=None)))
     validation["checks"]["relay_option_in_step7"] = actual_keys <= allowed_keys
     validation["checks"]["joint_cmax_exact"] = abs(validation["actual_cmax_s"] - cmax) <= 1.0 + 1e-9
+    fine_comm = validate_fine_communication(
+        problem=problem, transport=transport, relay=relay, dt=1.0, data_dir=DATA)
+    validation["fine_communication_1s"] = fine_comm
+    validation["checks"]["fine_communication_1s"] = bool(fine_comm["all_pass"])
     validation["all_pass"] = all(validation["checks"].values())
     if not validation["all_pass"]:
         failed = [key for key, passed in validation["checks"].items() if not passed]

@@ -292,7 +292,7 @@ def draw_connections(
             ordered["y"],
             linestyle=(0, (4, 3)),
             linewidth=1.2,
-            color="#FFED4A",
+            color="#E87E1A",
             alpha=0.68,
             zorder=4,
         )
@@ -667,7 +667,7 @@ def plot_terrain_3d(
         ax.plot(
             lons, lats, samples + 10,
             linestyle=(0, (4, 3)), linewidth=0.85,
-            color="#FFED4A", alpha=0.72, zorder=6,
+            color="#E87E1A", alpha=0.72, zorder=6,
         )
 
     # ========================================================
@@ -771,7 +771,7 @@ def plot_terrain_3d(
             ax_s.plot(
                 lons, lats, samples + 10,
                 linestyle=(0, (4, 3)), linewidth=0.85,
-                color="#FFED4A", alpha=0.72, zorder=6,
+                color="#E87E1A", alpha=0.72, zorder=6,
             )
 
         # 标签
@@ -1004,7 +1004,7 @@ def main() -> None:
                 [0],
                 linestyle=(0, (4, 3)),
                 linewidth=0.9,
-                color="#FFED4A",
+                color="#E87E1A",
                 label="节点连接",
             ),
         ]

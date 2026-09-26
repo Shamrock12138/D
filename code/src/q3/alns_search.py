@@ -18,6 +18,7 @@ from src.q3.bootstrap import subset_problem
 from src.q3.cp_sat_scheduler import DATA, prepare_q3_problem, solve_q3_joint, write_step8_outputs
 from src.q3.decomposition import _input_hashes
 from src.q3.relay_master import latest_start, relay_intervals
+from src.q3.step8_acceptance import resolve_frozen_dir
 
 
 REPAIR_COST_SCALE = 1_000_000
@@ -271,8 +272,10 @@ def run_alns(iterations=200, wall_time_s=300, repair_time_s=1, joint_time_s=20,
     search = TransportSearch(problem, seed, objective_weights=objective_weights)
     seeds = search.initial_seeds()
     baseline_ids = []
-    frozen_transport = DATA/'q3_step8_frozen'/'q3_joint_transport_schedule.csv'
-    if frozen_transport.is_file():
+    frozen_dir = resolve_frozen_dir()
+    frozen_transport = (frozen_dir / 'q3_joint_transport_schedule.csv'
+                        if frozen_dir is not None else None)
+    if frozen_transport is not None and frozen_transport.is_file():
         baseline_ids = pd.read_csv(frozen_transport, encoding='utf-8-sig')['sortie_id'].astype(str).tolist()
     elif (DATA/'q3_joint_transport_schedule.csv').is_file():
         baseline_ids = pd.read_csv(DATA/'q3_joint_transport_schedule.csv', encoding='utf-8-sig')['sortie_id'].astype(str).tolist()
@@ -355,10 +358,10 @@ def run_alns(iterations=200, wall_time_s=300, repair_time_s=1, joint_time_s=20,
             similarity = 0.0
             if baseline_ids and len(set(ids) | set(baseline_ids)):
                 similarity = len(set(ids) & set(baseline_ids)) / len(set(ids) | set(baseline_ids))
-                if similarity >= 0.5:
+                if similarity >= 0.5 and frozen_dir is not None:
                     hint = {
-                        'transport': pd.read_csv(DATA/'q3_step8_frozen'/'q3_joint_transport_schedule.csv', encoding='utf-8-sig'),
-                        'relay': pd.read_csv(DATA/'q3_step8_frozen'/'q3_joint_relay_schedule.csv', encoding='utf-8-sig'),
+                        'transport': pd.read_csv(frozen_dir/'q3_joint_transport_schedule.csv', encoding='utf-8-sig'),
+                        'relay': pd.read_csv(frozen_dir/'q3_joint_relay_schedule.csv', encoding='utf-8-sig'),
                     }
             solve_args = dict(tier='all', workers=workers, random_seed=seed,
                         problem=subset_problem(problem, ids), feasibility_only=True,
