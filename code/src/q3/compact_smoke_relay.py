@@ -23,7 +23,7 @@ from src.q3.relay.coverage_library import (
 )
 from src.q3.relay.operation_profile import build_gap_job_options, load_relay_flight_parameters
 from src.q3.transport.comm_gap import (
-    _assemble_pattern_profile_with_sources, _build_outage_state_library,
+    _build_outage_state_library,
     _extract_gaps_with_states, _prune_outage_states,
 )
 from src.q3.transport.communication_summary import assemble_pattern_profile, summarize_pattern_profile
@@ -122,55 +122,6 @@ def _relay_options(gaps, gap_states, outage):
     relay = build_gap_job_options(gap_options, gaps, sites, profiles,
                                   load_relay_flight_parameters())
     return gaps, relay, 0
-
-
-def _fine_communication(templates, transport, relay):
-    """Recheck every 1 s outage sample against active chosen Relay service."""
-    cache = DirectProfileCache(dt=1.0)
-    try:
-        cache.build_nodes()
-        cache.build_segments(required_segment_keys(templates), verbose=False)
-        starts = dict(zip(transport["task_id"].astype(str),
-                          transport["start_time_s"].astype(float)))
-        outage_rows = []
-        uncovered_time = 0
-        for template in templates:
-            samples = _assemble_pattern_profile_with_sources(template, cache)
-            jobs = relay.loc[relay["pattern_id"].astype(str) == template.pattern_id]
-            for sample in samples:
-                if sample.direct:
-                    continue
-                absolute = starts[template.pattern_id] + sample.tau
-                active = jobs.loc[(jobs["service_start_s"] <= absolute + 1e-6)
-                                  & (jobs["service_end_s"] >= absolute - 1e-6)]
-                if active.empty:
-                    uncovered_time += 1
-                    continue
-                outage_rows.append({"x": sample.x, "y": sample.y, "z": sample.z,
-                                    "candidate_id": str(active.iloc[0].candidate_id),
-                                    "phase": sample.phase})
-    finally:
-        cache.close()
-    if not outage_rows:
-        return {"outage_samples": 0, "unserved_time_samples": uncovered_time,
-                "uncovered_link_samples": 0, "all_pass": uncovered_time == 0}
-    states = pd.DataFrame(outage_rows)
-    sites = pd.read_csv(DATA / "q3_relay_sites.csv", encoding="utf-8-sig")
-    sites = sites.loc[sites["candidate_id"].isin(states["candidate_id"])].reset_index(drop=True)
-    site_index = {str(cid): i for i, cid in enumerate(sites["candidate_id"])}
-    terrain = DemTerrain()
-    try:
-        packed, _ = _actual_coverage(states, sites, load_relay_link_parameters(),
-                                     terrain)
-    finally:
-        terrain.close()
-    uncovered_link = sum(
-        not bool((packed[site_index[row.candidate_id], i // 8] >> (i % 8)) & 1)
-        for i, row in enumerate(states.itertuples(index=False)))
-    return {"outage_samples": len(states) + uncovered_time,
-            "unserved_time_samples": uncovered_time,
-            "uncovered_link_samples": uncovered_link,
-            "all_pass": uncovered_time == 0 and uncovered_link == 0}
 
 
 def _nonoverlap(

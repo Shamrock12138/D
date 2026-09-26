@@ -34,6 +34,25 @@ def _with_energy_components(relay, relay_options=None):
     return merged
 
 
+def session_energy_by_id(relay, relay_options=None):
+    """Compute the canonical rounded energy for each physical session."""
+    if relay is None or relay.empty:
+        return {}
+    frame = _with_energy_components(relay, relay_options)
+    session_col = "relay_session_id" if "relay_session_id" in frame else "gap_id"
+    energy_scale = 1_000_000
+    result = {}
+    for session_id, group in frame.groupby(session_col, sort=False):
+        total = (
+            round(float(group["outbound_energy_kWh"].max()) * energy_scale)
+            + round(float(group["return_energy_kWh"].max()) * energy_scale)
+            + sum(round(float(value) * energy_scale)
+                  for value in group["service_energy_kWh"])
+        ) / energy_scale
+        result[str(session_id)] = total
+    return result
+
+
 def build_relay_session_table(relay, relay_params, session_capacity_kwh=None,
                               relay_options=None):
     """Collapse gap certificates into physical sessions and compute session energy.
@@ -44,6 +63,7 @@ def build_relay_session_table(relay, relay_params, session_capacity_kwh=None,
     if relay is None or relay.empty:
         return pd.DataFrame(columns=SESSION_COLUMNS)
     frame = _with_energy_components(relay, relay_options)
+    energy_by_session = session_energy_by_id(frame)
     if "relay_session_id" not in frame:
         frame["relay_session_id"] = frame["gap_id"].astype(str)
     capacity = float(session_capacity_kwh or relay_params.energy_capacity_kwh)
@@ -56,13 +76,7 @@ def build_relay_session_table(relay, relay_params, session_capacity_kwh=None,
         outbound = float(group["outbound_energy_kWh"].max())
         returning = float(group["return_energy_kWh"].max())
         service = float(group["service_energy_kWh"].sum())
-        energy_scale = 1_000_000
-        total = (
-            round(outbound * energy_scale)
-            + round(returning * energy_scale)
-            + sum(round(float(value) * energy_scale)
-                  for value in group["service_energy_kWh"])
-        ) / energy_scale
+        total = energy_by_session[str(session_id)]
         end_soc = soc_after_task(total, capacity)
         charge_s = float(charge_time_to_full(end_soc, relay_params.full_charge_time_s))
         dispatch = float(group["dispatch_time_s"].min())
@@ -121,7 +135,13 @@ def attach_session_resources(relay, relay_params, component_count=6, relay_optio
         return relay.copy() if relay is not None else pd.DataFrame(), sessions, feasible
     lookup = sessions.set_index("relay_session_id")
     result = relay.copy()
-    for column in ("relay_session_energy_kWh", "end_soc", "energy_release_time_s",
-                  "energy_component_id"):
-        result[column] = result["relay_session_id"].astype(str).map(lookup[column])
+    for session_column, gap_column in (
+        ("relay_session_energy_kWh", "relay_session_energy_kWh"),
+        ("end_soc", "relay_session_end_soc"),
+        ("energy_release_time_s", "relay_session_energy_release_time_s"),
+        ("energy_component_id", "energy_component_id"),
+    ):
+        result[gap_column] = result["relay_session_id"].astype(str).map(
+            lookup[session_column]
+        )
     return result, sessions, feasible

@@ -763,15 +763,6 @@ def _decode_q3_resources(problem, solver, select_vars, start_vars, relay_select_
                 by_session.append((index, session_id))
         for index, session_id in by_session:
             relay_rows[index]["relay_session_id"] = session_id
-        session_energy = defaultdict(list)
-        for row in relay_rows:
-            session_energy[row["relay_session_id"]].append(row)
-        for rows in session_energy.values():
-            energy = (max(float(row["outbound_energy_kWh"]) for row in rows)
-                      + max(float(row["return_energy_kWh"]) for row in rows)
-                      + sum(float(row["service_energy_kWh"]) for row in rows))
-            for row in rows:
-                row["relay_session_energy_kWh"] = energy
 
     relay_columns = [
         "sortie_id", "pattern_id", "gap_id", "candidate_id",
@@ -897,11 +888,9 @@ def validate_q3_solution(problem, transport, relay, joint_cmax_s):
     _, sessions, session_components_fit = attach_session_resources(
         relay, relay_params, RELAY_ENERGY_CAPACITY, problem.get("relay")
     )
-    checks["relay_energy_nonoverlap"] = bool(session_components_fit)
+    checks["relay_session_component_capacity"] = bool(session_components_fit)
 
     # 6. relay energy / soc limits
-    checks["relay_energy_limit"] = bool((relay["relay_energy_kWh"] <= relay_params.max_energy_kwh + 1e-6).all()) if not relay.empty else True
-    checks["relay_end_soc_limit"] = bool((relay["end_soc"] >= relay_params.safety_margin - 1e-6).all()) if not relay.empty else True
     checks["relay_session_energy_limit"] = bool(
         (sessions["relay_session_energy_kWh"] <= relay_params.max_energy_kwh + 1e-6).all()
     ) if not sessions.empty else True
@@ -1208,7 +1197,7 @@ def write_step8_outputs(result, output_dir=None):
                 if key not in {"transport", "relay", "relay_sessions", "delivery"}}
     manifest["objective_schema"] = "relay_session_v2"
     manifest["session_resources_feasible"] = bool(result.get("validation", {}).get(
-        "checks", {}).get("relay_energy_nonoverlap", True))
+        "checks", {}).get("relay_session_component_capacity", True))
     with (output_dir / "q3_step8_manifest.json").open("w", encoding="utf-8") as stream:
         json.dump(manifest, stream, ensure_ascii=False, indent=2)
         stream.write("\n")

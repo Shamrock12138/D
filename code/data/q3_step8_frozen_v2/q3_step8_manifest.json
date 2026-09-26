@@ -1,10 +1,24 @@
 {
-  "status": "OPTIMAL",
+  "status": "FEASIBLE",
   "tier": "all",
-  "wall_time_s": 4.0893326000000005,
-  "transport_cmax_s": 12389,
-  "relay_cmax_s": 12627,
-  "joint_cmax_s": 12627,
+  "objective_schema": "relay_session_v2",
+  "input_sha256": {
+    "q3_compact_patterns.csv": "b170f5531b838e77a95628ad084f8f9d3b390ceceea521c77e0a89d73297c96e",
+    "q3_compact_pattern_counts.csv": "725b642bbf241d7acd72d9ddbc29a63366ee41089650538001144bc9f575597e",
+    "q3_pattern_comm_gaps.csv": "9435f6b02daa12f8fb8a098f467a1fafcbd9afc24f63bb55e0d09c60434da8b5",
+    "q3_relay_job_options.csv": "51d77413c02d0c91aecaf84eb73444b488183ac18637849e20b4b90d4bfe0ff7",
+    "q3_pattern_gap_manifest.json": "f5b08e07f7b9ba9b14ec6b74305d8dacd9e64f541c99ea9583700af4e84ee4e5",
+    "q3_step7_manifest.json": "f8234d5c0b6afacf1b5e4886e3cd8c297463f7ed5f6772da590efde63949567b"
+  },
+  "fine_gap_repairs": [
+    {
+      "sortie_id": "P051203-1",
+      "pattern_id": "P051203",
+      "gap_id": "PG006643",
+      "unserved_tau_s": 1362.8320369925686,
+      "new_coverage_start_s": 1361.8320369925686
+    }
+  ],
   "validation": {
     "all_pass": true,
     "checks": {
@@ -14,36 +28,44 @@
       "transport_battery_nonoverlap": true,
       "one_relay_per_selected_gap": true,
       "relay_uav_location_compatible": true,
-      "relay_energy_nonoverlap": true,
-      "relay_energy_limit": true,
-      "relay_end_soc_limit": true,
+      "relay_session_component_capacity": true,
+      "relay_session_energy_limit": true,
+      "relay_session_end_soc_limit": true,
       "joint_cmax_consistent": true,
       "relay_dispatch_nonnegative": true,
       "relay_arrives_by_coverage": true,
       "relay_service_covers_gap": true,
       "relay_uav_release_valid": true,
-      "relay_energy_release_valid": true
+      "relay_energy_release_valid": true,
+      "delivery_schedule_matches_selected_tasks": true,
+      "delivery_times_match_offsets": true,
+      "transport_resource_ids_valid": true,
+      "relay_resource_ids_valid": true,
+      "relay_session_resource_table": true,
+      "relay_session_component_consistency": true,
+      "relay_option_in_step7": true,
+      "joint_cmax_exact": true,
+      "fine_communication_1s": true
     },
-    "actual_cmax_s": 12627.0
+    "actual_cmax_s": 12627.0,
+    "fine_communication_1s": {
+      "dt_s": 1.0,
+      "total_samples": 34595,
+      "direct_samples": 23445,
+      "relay_required_samples": 11150,
+      "relay_served_samples": 11150,
+      "unserved_time_samples": 0,
+      "uncovered_link_samples": 0,
+      "all_pass": true,
+      "unserved_examples": [],
+      "uncovered_examples": []
+    }
   },
-  "occurrence_count": 17,
-  "relay_option_count": 155,
-  "allow_relay_sharing": true,
-  "solve_mode": "ALNS_CP_SAT",
-  "input_sha256": {
-    "q3_compact_patterns.csv": "b170f5531b838e77a95628ad084f8f9d3b390ceceea521c77e0a89d73297c96e",
-    "q3_compact_pattern_counts.csv": "725b642bbf241d7acd72d9ddbc29a63366ee41089650538001144bc9f575597e",
-    "q3_pattern_comm_gaps.csv": "9435f6b02daa12f8fb8a098f467a1fafcbd9afc24f63bb55e0d09c60434da8b5",
-    "q3_relay_job_options.csv": "51d77413c02d0c91aecaf84eb73444b488183ac18637849e20b4b90d4bfe0ff7",
-    "q3_pattern_gap_manifest.json": "f5b08e07f7b9ba9b14ec6b74305d8dacd9e64f541c99ea9583700af4e84ee4e5",
-    "q3_step7_manifest.json": "f8234d5c0b6afacf1b5e4886e3cd8c297463f7ed5f6772da590efde63949567b"
-  },
-  "optimization_status": "NOT_RUN",
-  "alns_iteration": 12,
-  "objective_schema": "relay_session_v2",
   "session_resources_feasible": true,
   "migration": {
     "from": "D:\\数学建模\\第二十三届中国研究生数学建模竞赛 - 中文题目\\中文题目\\Project\\code\\data\\q3_step8_frozen",
     "schema": "relay_session_v2"
-  }
+  },
+  "validation_source": "src.q3.step8_acceptance.accept_step8",
+  "schedule_postprocessing_note": "This preserved legacy candidate includes a recorded fine-gap timing repair. The migration script did not alter or re-solve that schedule; the current acceptance validation was recomputed independently."
 }

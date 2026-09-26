@@ -32,12 +32,15 @@ def _hash(path):
 
 
 def resolve_frozen_dir():
-    """Return the preferred immutable Step8 baseline, v2 before legacy v1."""
-    for name in ("q3_step8_frozen_v2", "q3_step8_frozen"):
-        candidate = DATA / name
-        if (candidate / OUTPUTS[0]).is_file() and (candidate / OUTPUTS[1]).is_file():
-            return candidate
-    return None
+    """Return the final relay-session-v2 Step8 baseline; never fall back to v1."""
+    candidate = DATA / "q3_step8_frozen_v2"
+    if ((candidate / OUTPUTS[0]).is_file()
+            and (candidate / OUTPUTS[1]).is_file()
+            and (candidate / SESSION_OUTPUT).is_file()):
+        return candidate
+    raise FileNotFoundError(
+        f"Final Q3 baseline must use relay_session_v2: {candidate}"
+    )
 
 
 def _verify_solver_inputs(input_sha256, input_dir=DATA):
@@ -125,7 +128,7 @@ def accept_step8(freeze=True, data_dir=None, freeze_dir=None):
     )
     if objective_schema == "relay_session_v2":
         session_rows = pd.read_csv(data_dir / SESSION_OUTPUT, encoding="utf-8-sig")
-        annotated, recomputed_sessions, components_fit = attach_session_resources(
+        _, recomputed_sessions, _ = attach_session_resources(
             relay, load_relay_flight_parameters(), relay_options=problem.get("relay"))
         expected = recomputed_sessions.sort_values("relay_session_id").reset_index(drop=True)
         actual = session_rows.sort_values("relay_session_id").reset_index(drop=True)
@@ -141,7 +144,6 @@ def accept_step8(freeze=True, data_dir=None, freeze_dir=None):
             and actual["energy_component_id"].astype(str).tolist()
                 == expected["energy_component_id"].astype(str).tolist()
         )
-        validation["checks"]["relay_session_component_capacity"] = components_fit
         validation["checks"]["relay_session_component_consistency"] = all(
             relay.groupby("relay_session_id")["energy_component_id"].nunique() <= 1
         ) if len(relay) else True
@@ -157,7 +159,13 @@ def accept_step8(freeze=True, data_dir=None, freeze_dir=None):
     validation["all_pass"] = all(validation["checks"].values())
     if not validation["all_pass"]:
         failed = [key for key, passed in validation["checks"].items() if not passed]
-        raise AssertionError(f"Step8.5 failed: {failed}")
+        fine_summary = {
+            "unserved_time_samples": fine_comm["unserved_time_samples"],
+            "uncovered_link_samples": fine_comm["uncovered_link_samples"],
+            "unserved_examples": fine_comm["unserved_examples"][:3],
+            "uncovered_examples": fine_comm["uncovered_examples"][:3],
+        }
+        raise AssertionError(f"Step8.5 failed: {failed}; fine_communication_1s={fine_summary}")
     outputs_sha256 = _output_hashes(data_dir, outputs)
     result = {
         "status": status,

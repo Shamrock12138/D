@@ -7,6 +7,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from src.q3.session_resources import (
+    attach_session_resources,
     assign_session_energy_components,
     build_relay_session_table,
 )
@@ -39,6 +40,19 @@ class SessionResourcesTests(unittest.TestCase):
         assigned, fits = assign_session_energy_components(sessions, 6)
         self.assertTrue(fits)
         self.assertEqual(assigned.iloc[0].energy_component_id, "E01")
+
+    def test_attach_keeps_gap_fields_and_adds_explicit_session_fields(self):
+        relay = relay_rows(2)
+        relay["end_soc"] = 0.91
+        relay["energy_release_time_s"] = 137.0
+        annotated, sessions, fits = attach_session_resources(relay, PARAMS, 6)
+        self.assertTrue(fits)
+        self.assertEqual(annotated["end_soc"].tolist(), [0.91, 0.91])
+        self.assertEqual(annotated["energy_release_time_s"].tolist(), [137.0, 137.0])
+        self.assertIn("relay_session_end_soc", annotated)
+        self.assertIn("relay_session_energy_release_time_s", annotated)
+        self.assertEqual(annotated["relay_session_end_soc"].nunique(), 1)
+        self.assertEqual(len(sessions), 1)
 
     def test_session_energy_above_2_56_kwh_violates_safety_soc(self):
         sessions = build_relay_session_table(relay_rows(1, energy=2.4), PARAMS)

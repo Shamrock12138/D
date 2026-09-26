@@ -51,25 +51,13 @@ def relay_session_energy_kwh(relay, relay_options=None):
     if 'relay_session_energy_kWh' in relay:
         return float(relay.drop_duplicates('relay_session_id')
                      ['relay_session_energy_kWh'].sum())
-    frame = relay.copy()
-    components = {'outbound_energy_kWh', 'return_energy_kWh', 'service_energy_kWh'}
-    if not components <= set(frame.columns):
+    from src.q3.session_resources import session_energy_by_id
+
+    components = {"outbound_energy_kWh", "return_energy_kWh", "service_energy_kWh"}
+    if not components <= set(relay.columns):
         if relay_options is None or not components <= set(relay_options.columns):
-            return float(frame['relay_energy_kWh'].sum())
-        keys = ['gap_id', 'pattern_id', 'candidate_id']
-        frame = frame.merge(
-            relay_options[keys + sorted(components)].drop_duplicates(keys),
-            on=keys, how='left', validate='many_to_one')
-        if frame[list(components)].isna().any().any():
-            raise ValueError('Could not recover relay energy components from Step7 options')
-    session_col = ('relay_session_id' if 'relay_session_id' in frame
-                   else 'gap_id')
-    total_units = 0
-    for _, group in frame.groupby(session_col, sort=False):
-        total_units += energy_units(group['outbound_energy_kWh'].max())
-        total_units += energy_units(group['return_energy_kWh'].max())
-        total_units += sum(energy_units(value) for value in group['service_energy_kWh'])
-    return total_units / ENERGY_SCALE
+            return float(relay["relay_energy_kWh"].sum())
+    return float(sum(session_energy_by_id(relay, relay_options).values()))
 
 
 def evaluate_objectives(problem, transport, relay, delivery):

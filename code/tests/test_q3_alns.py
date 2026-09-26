@@ -10,6 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from src.q3.alns_search import (TransportSearch, accept_candidate,
                                 alns_temperature, integer_repair_cost)
 from src.q3.pareto import dominates, update_archive
+import src.q3.step8_acceptance as step8_acceptance
 from src.q3.step8_acceptance import OUTPUTS, _output_hashes, _verify_solver_inputs
 
 
@@ -107,6 +108,27 @@ class AlnsTests(unittest.TestCase):
                 hashes[OUTPUTS[0]],
                 hashlib.sha256(('candidate:' + OUTPUTS[0]).encode()).hexdigest(),
             )
+
+    def test_frozen_resolver_requires_complete_v2(self):
+        with tempfile.TemporaryDirectory() as root:
+            root = Path(root)
+            old_data = step8_acceptance.DATA
+            try:
+                step8_acceptance.DATA = root
+                v1 = root / 'q3_step8_frozen'
+                v2 = root / 'q3_step8_frozen_v2'
+                v1.mkdir()
+                (v1 / OUTPUTS[0]).touch()
+                (v1 / OUTPUTS[1]).touch()
+                with self.assertRaises(FileNotFoundError):
+                    step8_acceptance.resolve_frozen_dir()
+                v2.mkdir()
+                (v2 / OUTPUTS[0]).touch()
+                (v2 / OUTPUTS[1]).touch()
+                (v2 / step8_acceptance.SESSION_OUTPUT).touch()
+                self.assertEqual(step8_acceptance.resolve_frozen_dir(), v2)
+            finally:
+                step8_acceptance.DATA = old_data
 
 
 if __name__ == '__main__':
