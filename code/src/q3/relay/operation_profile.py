@@ -15,6 +15,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 from src.dem_route import DEMRouteAnalyzer
 from src.q2.battery import charge_time_to_full
+from src.q3.relay.fine_gap_refinement import (
+    AUDIT_COLUMNS as FINE_AUDIT_COLUMNS,
+    refine_gap_inputs,
+)
 
 PROJECT = Path(__file__).resolve().parents[3]
 DATA = PROJECT / "data"
@@ -38,6 +42,8 @@ GAPS_PATH = DATA / "q3_pattern_comm_gaps.csv"
 
 OUT_PROFILES_PATH = DATA / "q3_relay_operation_profiles.csv"
 OUT_JOB_OPTIONS_PATH = DATA / "q3_relay_job_options.csv"
+FINE_SCOPE_PATH = DATA / "q3_fine_gap_refinement_scope.csv"
+FINE_AUDIT_PATH = DATA / "q3_fine_gap_refinement.csv"
 
 G = 9.80665
 
@@ -413,6 +419,26 @@ def run_step7():
     sites = pd.read_csv(SITES_PATH)
     gap_options = pd.read_csv(GAP_OPTIONS_PATH)
     gaps = pd.read_csv(GAPS_PATH)
+    fine_patterns = set()
+    fine_audit = pd.DataFrame(columns=FINE_AUDIT_COLUMNS)
+    if FINE_SCOPE_PATH.is_file():
+        scope = pd.read_csv(FINE_SCOPE_PATH, encoding="utf-8-sig")
+        if "pattern_id" not in scope.columns:
+            raise ValueError("Fine-gap refinement scope must contain pattern_id")
+        fine_patterns = set(scope["pattern_id"].dropna().astype(str))
+        if fine_patterns:
+            print(f"  1s fine-gap refinement patterns: {sorted(fine_patterns)}")
+            gaps, gap_options, fine_audit = refine_gap_inputs(
+                gaps=gaps,
+                gap_options=gap_options,
+                sites=sites,
+                pattern_ids=fine_patterns,
+                dt=1.0,
+            )
+        else:
+            print("  Fine-gap refinement scope is empty")
+    fine_audit.to_csv(FINE_AUDIT_PATH, index=False, encoding="utf-8-sig")
+    print(f"  Fine-gap refinement audit: {FINE_AUDIT_PATH} ({len(fine_audit)} rows)")
     print(f"  Relay sites:       {len(sites)}")
     print(f"  Gap alternatives:  {len(gap_options)}")
     print(f"  Gaps:              {len(gaps)}")
@@ -475,6 +501,9 @@ def run_step7():
             "q3_relay_sites.csv": _sha256(SITES_PATH),
             "q3_gap_relay_options.csv": _sha256(GAP_OPTIONS_PATH),
             "q3_pattern_comm_gaps.csv": _sha256(GAPS_PATH),
+            "q3_fine_gap_refinement_scope.csv": (
+                _sha256(FINE_SCOPE_PATH) if FINE_SCOPE_PATH.is_file() else None
+            ),
             "中继无人机数据.xlsx": _sha256(RELAY_UAV_XLSX),
             "中继无人机_共享电池.csv": _sha256(RELAY_BATTERY_CSV),
             "服务区数据.csv": _sha256(SERVICE_AREA_CSV),
@@ -483,6 +512,13 @@ def run_step7():
         "outputs": {
             "q3_relay_operation_profiles.csv": _sha256(OUT_PROFILES_PATH),
             "q3_relay_job_options.csv": _sha256(OUT_JOB_OPTIONS_PATH),
+            "q3_fine_gap_refinement.csv": _sha256(FINE_AUDIT_PATH),
+        },
+        "fine_gap_refinement": {
+            "enabled": bool(fine_patterns),
+            "dt_s": 1.0,
+            "scope_patterns": sorted(fine_patterns),
+            "refined_gaps": len(fine_audit),
         },
         "stats": {
             "relay_sites": len(sites),

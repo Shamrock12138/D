@@ -28,7 +28,20 @@ OBJECTIVES = {
 
 def run_polish(time_limit_s=60, workers=8, random_seed=2026, output_dir=None):
     frozen = resolve_frozen_dir()
-    baseline_acceptance = accept_step8(freeze=False, data_dir=frozen)
+    # The existing frozen schedule predates formal Step7 fine-gap refinement.
+    # Keep it as a historical incumbent/hint, but do not re-accept it against
+    # the newly refined solver inputs. Every newly solved candidate still goes
+    # through the current strict acceptance path below.
+    baseline_acceptance_path = frozen / "acceptance.json"
+    if not baseline_acceptance_path.is_file():
+        raise FileNotFoundError(
+            f"Historical frozen baseline acceptance is missing: {baseline_acceptance_path}"
+        )
+    baseline_acceptance = json.loads(
+        baseline_acceptance_path.read_text(encoding="utf-8")
+    )
+    if not baseline_acceptance.get("validation", {}).get("all_pass", False):
+        raise AssertionError("Historical frozen baseline was not accepted")
     transport = pd.read_csv(
         frozen / "q3_joint_transport_schedule.csv", encoding="utf-8-sig"
     )
@@ -50,6 +63,7 @@ def run_polish(time_limit_s=60, workers=8, random_seed=2026, output_dir=None):
         "run_directory": str(run_dir),
         "baseline_directory": str(frozen),
         "baseline_objectives": baseline_acceptance["objectives"],
+        "baseline_used_as": "historical_hint_only_pre_fine_refinement",
         "fixed_sortie_ids": sortie_ids,
         "fixed_transport_sorties": len(sortie_ids),
         "time_limit_s_per_objective": float(time_limit_s),

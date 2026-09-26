@@ -5,6 +5,7 @@
     "q3_relay_sites.csv": "2437adaa3917014ce3832f90d30cc8f0bdf02676e5052e2e7ea0b606a5f460a2",
     "q3_gap_relay_options.csv": "ce1c84c3c7dc3e1a9f35d0d61fb0a46c2cfd4ad21d11a76cb84c8f53ac4df384",
     "q3_pattern_comm_gaps.csv": "9435f6b02daa12f8fb8a098f467a1fafcbd9afc24f63bb55e0d09c60434da8b5",
+    "q3_fine_gap_refinement_scope.csv": "a4a651257bc61a1eef0135111d37696e0e5aa5cd0b6e7871bd2569156312a50c",
     "中继无人机数据.xlsx": "be52643ff29419233e6a141dca03a04160a8af551cab36d8c49b51bb836bea04",
     "中继无人机_共享电池.csv": "08946e69850472ff2f6d12e5cb223ed50d7f1cfa7f29c2fadd443c1f55a466c4",
     "服务区数据.csv": "29f280f5907cf48ac0386d2bda7e278fe634bd541d4cb26fcd248272c0f55b2b",
@@ -12,7 +13,16 @@
   },
   "outputs": {
     "q3_relay_operation_profiles.csv": "46b86233156b22cc7a4e4f937e6fce9cc87a75c161d433951639554ec7d3bf9c",
-    "q3_relay_job_options.csv": "51d77413c02d0c91aecaf84eb73444b488183ac18637849e20b4b90d4bfe0ff7"
+    "q3_relay_job_options.csv": "137a44949ea4048569c3ae3496e9ad69ae1a999385115a87b6ffcdc9f49df16f",
+    "q3_fine_gap_refinement.csv": "ae3a90459ed5dd8ae2cf642c3863b0d028ab5c15a9bb319700bb857dc399c3c8"
+  },
+  "fine_gap_refinement": {
+    "enabled": true,
+    "dt_s": 1.0,
+    "scope_patterns": [
+      "P051203"
+    ],
+    "refined_gaps": 1
   },
   "stats": {
     "relay_sites": 385,

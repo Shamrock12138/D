@@ -1,0 +1,5 @@
+﻿objective,status,wall_time_s,solution_directory,validation_all_pass,objectives,relay_sessions
+F1,OPTIMAL,17.0705342,D:\数学建模\第二十三届中国研究生数学建模竞赛 - 中文题目\中文题目\Project\code\data\q3_polish_runs\20260926_144011_070799\F1,True,"{'F1_timeliness': 614131.4, 'F2_joint_cmax_s': 11898.0, 'F3_total_energy_kWh': 68.567018, 'F4_total_sorties': 25}",8
+Cmax,OPTIMAL,21.465506700000002,D:\数学建模\第二十三届中国研究生数学建模竞赛 - 中文题目\中文题目\Project\code\data\q3_polish_runs\20260926_144011_070799\Cmax,True,"{'F1_timeliness': 675652.2, 'F2_joint_cmax_s': 11110.0, 'F3_total_energy_kWh': 68.560652, 'F4_total_sorties': 25}",8
+F4,OPTIMAL,14.961535000000001,D:\数学建模\第二十三届中国研究生数学建模竞赛 - 中文题目\中文题目\Project\code\data\q3_polish_runs\20260926_144011_070799\F4,True,"{'F1_timeliness': 2655124.2, 'F2_joint_cmax_s': 36000.0, 'F3_total_energy_kWh': 68.614928, 'F4_total_sorties': 24}",7
+E_proxy,OPTIMAL,23.407291800000003,D:\数学建模\第二十三届中国研究生数学建模竞赛 - 中文题目\中文题目\Project\code\data\q3_polish_runs\20260926_144011_070799\E_proxy,True,"{'F1_timeliness': 784838.2, 'F2_joint_cmax_s': 11969.0, 'F3_total_energy_kWh': 68.55644600000001, 'F4_total_sorties': 24}",7

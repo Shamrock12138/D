@@ -1,0 +1,2 @@
+﻿transport_Cmax_s,relay_Cmax_s,joint_Cmax_s,transport_sorties,relay_jobs,relay_sessions,transport_energy_kWh,relay_energy_kWh,relay_session_energy_kWh,relay_gap_job_energy_kWh,total_energy_kWh,relay_uav_capacity,relay_energy_capacity,status,tier,objective_schema
+11969,10195,11969,17,13,7,64.08636972236133,4.470077,4.470077,6.028752813404006,68.55644672236133,2,6,OPTIMAL,all,relay_session_v2

@@ -1,0 +1,2 @@
+﻿pattern_id,gap_id,fine_dt_s,coarse_tau_start_s,fine_tau_start_s,refined_tau_start_s,coarse_tau_end_s,fine_tau_end_s,refined_tau_end_s,coarse_coverage_start_s,fine_coverage_start_s,refined_coverage_start_s,coarse_coverage_end_s,fine_coverage_end_s,refined_coverage_end_s,candidate_count_before,candidate_count_after
+P051203,PG006643,1.0,1424.832,1362.8320369925684,1362.8320369925684,2273.192,2272.1920488701007,2273.192,1414.832,1361.8320369925684,1361.8320369925684,2273.192,2272.1920488701007,2273.192,15,15

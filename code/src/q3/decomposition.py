@@ -237,6 +237,8 @@ def _input_hashes():
         "q3_pattern_comm_gaps.csv",
         "q3_relay_job_options.csv",
         "q3_pattern_gap_manifest.json",
+        "q3_fine_gap_refinement_scope.csv",
+        "q3_fine_gap_refinement.csv",
         "q3_step7_manifest.json",
     )
     result = {}
