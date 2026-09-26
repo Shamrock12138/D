@@ -38,6 +38,21 @@ def session_energy_by_id(relay, relay_options=None):
     """Compute the canonical rounded energy for each physical session."""
     if relay is None or relay.empty:
         return {}
+    required = {"outbound_energy_kWh", "return_energy_kWh", "service_energy_kWh"}
+    option_has_components = (
+        relay_options is not None and required <= set(relay_options.columns)
+    )
+    if not required <= set(relay.columns) and not option_has_components:
+        if "relay_session_id" in relay:
+            raise ValueError(
+                "Cannot recompute shared-session energy without outbound, return, "
+                "and service components"
+            )
+        if "relay_energy_kWh" not in relay:
+            raise ValueError("Legacy relay schedule has no recoverable energy fields")
+        # Legacy gap-only schedules had no shared physical-session accounting.
+        return {str(index): float(value)
+                for index, value in relay["relay_energy_kWh"].items()}
     frame = _with_energy_components(relay, relay_options)
     session_col = "relay_session_id" if "relay_session_id" in frame else "gap_id"
     energy_scale = 1_000_000

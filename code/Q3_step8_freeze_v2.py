@@ -109,6 +109,12 @@ def migrate(source=None, target=None):
             encoding="utf-8",
         )
 
+    manifest_path = target / OUTPUTS[4]
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    summary = pd.read_csv(target / OUTPUTS[3], encoding="utf-8-sig")
+    summary["status"] = manifest["status"]
+    summary.to_csv(target / OUTPUTS[3], index=False, encoding="utf-8-sig")
+
     # Upgrade old v2 gap rows whose session-level values occupied gap-level
     # columns. New v2 writes keep the meanings separate through attach_session_resources.
     problem = prepare_q3_problem(tier="all")

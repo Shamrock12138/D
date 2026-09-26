@@ -43,7 +43,7 @@
       "relay_resource_ids_valid": true,
       "relay_session_resource_table": true,
       "relay_session_component_consistency": true,
-      "relay_option_in_step7": true,
+      "relay_candidate_in_step7": true,
       "joint_cmax_exact": true,
       "fine_communication_1s": true
     },

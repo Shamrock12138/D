@@ -69,8 +69,8 @@ def accept_step8(freeze=True, data_dir=None, freeze_dir=None):
     if objective_schema == "relay_session_v2" and not (data_dir / SESSION_OUTPUT).is_file():
         raise FileNotFoundError(f"Session-v2 Step8 output is missing: {data_dir / SESSION_OUTPUT}")
     status = manifest.get("status")
-    if status not in ("FEASIBLE", "OPTIMAL") or manifest.get("validation", {}).get("all_pass") is not True:
-        raise AssertionError(f"Step8 status/validation failed: {status}, {manifest.get('validation')}")
+    if status not in ("FEASIBLE", "OPTIMAL"):
+        raise AssertionError(f"Step8 solver status failed: {status}")
     solver_input_sha256 = manifest.get("input_sha256", {})
     _verify_solver_inputs(solver_input_sha256)
     tier = manifest.get("tier")
@@ -150,7 +150,7 @@ def accept_step8(freeze=True, data_dir=None, freeze_dir=None):
     allowed = problem["relay"][["gap_id", "pattern_id", "candidate_id"]].astype(str)
     allowed_keys = set(map(tuple, allowed.itertuples(index=False, name=None)))
     actual_keys = set(map(tuple, relay[["gap_id", "pattern_id", "candidate_id"]].astype(str).itertuples(index=False, name=None)))
-    validation["checks"]["relay_option_in_step7"] = actual_keys <= allowed_keys
+    validation["checks"]["relay_candidate_in_step7"] = actual_keys <= allowed_keys
     validation["checks"]["joint_cmax_exact"] = abs(validation["actual_cmax_s"] - cmax) <= 1.0 + 1e-9
     fine_comm = validate_fine_communication(
         problem=problem, transport=transport, relay=relay, dt=1.0, data_dir=DATA)

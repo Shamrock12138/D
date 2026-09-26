@@ -48,15 +48,7 @@ def relay_session_energy_kwh(relay, relay_options=None):
     """
     if relay is None or relay.empty:
         return 0.0
-    if 'relay_session_energy_kWh' in relay:
-        return float(relay.drop_duplicates('relay_session_id')
-                     ['relay_session_energy_kWh'].sum())
     from src.q3.session_resources import session_energy_by_id
-
-    components = {"outbound_energy_kWh", "return_energy_kWh", "service_energy_kWh"}
-    if not components <= set(relay.columns):
-        if relay_options is None or not components <= set(relay_options.columns):
-            return float(relay["relay_energy_kWh"].sum())
     return float(sum(session_energy_by_id(relay, relay_options).values()))
 
 
