@@ -10,10 +10,10 @@
     "q3_pattern_gap_manifest.json": "f5b08e07f7b9ba9b14ec6b74305d8dacd9e64f541c99ea9583700af4e84ee4e5",
     "q3_step7_manifest.json": "f8234d5c0b6afacf1b5e4886e3cd8c297463f7ed5f6772da590efde63949567b"
   },
-  "iterations": 9,
-  "generated": 9,
+  "iterations": 11,
+  "generated": 10,
   "unique_candidates": 5,
-  "repair_wall_time_s": 96.70100000001548,
+  "repair_wall_time_s": 156.04400000002352,
   "attempts": [
     {
       "iteration": 1,
@@ -177,10 +177,10 @@
   "run_directory": "D:\\\u6570\u5b66\u5efa\u6a21\\\u7b2c\u4e8c\u5341\u4e09\u5c4a\u4e2d\u56fd\u7814\u7a76\u751f\u6570\u5b66\u5efa\u6a21\u7ade\u8d5b - \u4e2d\u6587\u9898\u76ee\\\u4e2d\u6587\u9898\u76ee\\Project\\code\\data\\q3_alns_runs\\20260926_091152_521773",
   "solutions": [],
   "archive_errors": [],
-  "wall_time_s": 109.82799999999406,
+  "wall_time_s": 169.18700000000536,
   "operator_weights": {
-    "random": 1.1600000000000001,
-    "relay_load": 1.0,
+    "random": 1.1280000000000001,
+    "relay_load": 0.8400000000000001,
     "gaps": 1.0,
     "congestion": 1.0,
     "deadline": 1.0,
