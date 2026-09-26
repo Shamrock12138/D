@@ -16,7 +16,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parent
-FROZEN = ROOT / "data" / "q3_final_frozen"
+FROZEN = ROOT / "data" / "q3_final_frozen_v3"
 OUT = ROOT / "data" / "q4"
 SERVICES = tuple(f"S{i:03d}" for i in range(1, 16))
 KINDS = ("TUAV_A", "TUAV_B", "TUAV_C", "TBAT_A", "TBAT_B", "TBAT_C", "RUAV", "REC")

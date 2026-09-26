@@ -1,0 +1,58 @@
+{
+  "status": "OPTIMAL",
+  "validation": {
+    "all_pass": true,
+    "checks": {
+      "class_conservation": true,
+      "transport_hard_deadlines": true,
+      "transport_uav_nonoverlap": true,
+      "transport_battery_nonoverlap": true,
+      "one_relay_per_selected_gap": true,
+      "relay_uav_location_compatible": true,
+      "relay_session_component_capacity": true,
+      "relay_session_energy_limit": true,
+      "relay_session_end_soc_limit": true,
+      "joint_cmax_consistent": true,
+      "relay_dispatch_nonnegative": true,
+      "relay_arrives_by_coverage": true,
+      "relay_service_covers_gap": true,
+      "relay_uav_release_valid": true,
+      "relay_energy_release_valid": true,
+      "delivery_schedule_matches_selected_tasks": true,
+      "delivery_times_match_offsets": true,
+      "transport_resource_ids_valid": true,
+      "relay_resource_ids_valid": true,
+      "relay_session_resource_table": true,
+      "relay_session_component_consistency": true,
+      "relay_candidate_in_step7": true,
+      "joint_cmax_exact": true,
+      "fine_communication_1s": true
+    },
+    "actual_cmax_s": 11358.0,
+    "fine_communication_1s": {
+      "dt_s": 1.0,
+      "total_samples": 34595,
+      "direct_samples": 23445,
+      "relay_required_samples": 11150,
+      "relay_served_samples": 11150,
+      "unserved_time_samples": 0,
+      "uncovered_link_samples": 0,
+      "all_pass": true,
+      "unserved_examples": [],
+      "uncovered_examples": []
+    }
+  },
+  "final_selection_id": "Q3-REF-P003",
+  "source_sha256": {
+    "q3_joint_transport_schedule.csv": "44633083a945a6cecb890216f9c64ab07af51a3749b9b7059e24bdea1d0027a2",
+    "q3_joint_relay_schedule.csv": "de59caf4f70b514be8aca57306ce952296fe9cfcbc7304d0be0e142d979c35db",
+    "q3_joint_delivery_schedule.csv": "f895a4f9d6506f059a0ba26236dd59c85f152e686303e42f2e3f1aba19877205",
+    "q3_joint_resource_summary.csv": "6da13336aefd5ad47ebeb5cfa38c2a96ea5c79e71ddfd14736a640989eb05405"
+  },
+  "outputs_sha256": {
+    "q3_joint_transport_schedule.csv": "af7d323ed3776904c709ea90a352f122572caeec1a28b7368a2f14270b105d25",
+    "q3_joint_relay_schedule.csv": "7750c09dcdce4587df676bab102b6e740f10280977dbeb739d4c5ebe5cffd332",
+    "q3_joint_delivery_schedule.csv": "f51ba0759e17fac759f8c713014f9d23b0ca0720c43eb4fcaf32878d887253b8",
+    "q3_joint_resource_summary.csv": "6da13336aefd5ad47ebeb5cfa38c2a96ea5c79e71ddfd14736a640989eb05405"
+  }
+}

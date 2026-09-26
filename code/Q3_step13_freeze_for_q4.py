@@ -21,12 +21,19 @@ def main():
     parser.add_argument("--source", type=Path, required=True)
     parser.add_argument("--acceptance", type=Path, required=True)
     parser.add_argument("--selection-id", required=True)
+    parser.add_argument(
+        "--target-dir", type=Path,
+        default=Path("code/data/q3_final_frozen"),
+        help="New output directory; existing directories are never overwritten.",
+    )
     args = parser.parse_args()
     accepted = json.loads(args.acceptance.read_text(encoding="utf-8"))
-    result = freeze_q3_for_q4(args.source, accepted, args.selection_id)
+    result = freeze_q3_for_q4(
+        args.source, accepted, args.selection_id, target_dir=args.target_dir
+    )
     print(json.dumps({"status": result["status"],
                       "final_selection_id": result["final_selection_id"],
-                      "output": "code/data/q3_final_frozen/"}, ensure_ascii=False))
+                      "output": str(args.target_dir)}, ensure_ascii=False))
 
 
 if __name__ == "__main__":

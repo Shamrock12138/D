@@ -1,20 +1,20 @@
 {
   "q3_input_sha256": {
-    "q3_joint_transport_schedule.csv": "a1bfcc78b7df0b81e6a9f2ec78b5af17f5fb0d80a3271e4a5342a9c6928a46b7",
-    "q3_joint_relay_schedule.csv": "18e74fb2d17e9016b44b1eadc81de269fce2bbf1b2e10032887f284848bb5c4f",
-    "q3_joint_delivery_schedule.csv": "154abaff931bef92ebb0b7d7ea1698400530899999f59007ebaf99e5238e7f72",
-    "q3_joint_resource_summary.csv": "ae99954b5aae22fe0c2bd550b534a837e4544975c3e64cfb5d61a264a1600790"
+    "q3_joint_transport_schedule.csv": "af7d323ed3776904c709ea90a352f122572caeec1a28b7368a2f14270b105d25",
+    "q3_joint_relay_schedule.csv": "7750c09dcdce4587df676bab102b6e740f10280977dbeb739d4c5ebe5cffd332",
+    "q3_joint_delivery_schedule.csv": "f51ba0759e17fac759f8c713014f9d23b0ca0720c43eb4fcaf32878d887253b8",
+    "q3_joint_resource_summary.csv": "6da13336aefd5ad47ebeb5cfa38c2a96ea5c79e71ddfd14736a640989eb05405"
   },
   "outputs_sha256": {
-    "q4_result.json": "d850e45d0fd00e8f3901a5d7f2724d96b107dc202642df7d7782e5793033ec61",
+    "q4_result.json": "7c52c168f5e2085a9c42d1e93ba611dc2bf661612f66e45a3470090d59e4c82b",
     "q4_validation.json": "def24325057baf36be550fa65e66c9c8923b90dd1513a5300e3e73d1ad17e1ea",
-    "q4_blocks.csv": "ac73b760a71121b3d23ded878b331f1725979ee1395ed5c491abd846f3d77f49",
-    "Q4_partition_groups.csv": "23848fdadd4d342169ea64f6361e60fcc9f529fc9fc766ca914ba30bd32abbe7",
-    "Q4_comparison.csv": "5910766ff411008df7c06ce42f6bcce971ab823aeea20c13d7662a0dec56ad73",
-    "q4_pareto_K2.csv": "abd6ef1bfe9b28a6b4ad3e4ef4b3e1393238222dbeeee921e3fab0c33a750042",
-    "q4_pareto_K3.csv": "0f593ada926a7f4ed86740ab2ac5b8ba84022d2c7334c5a7ef304cdd5c9e7841",
-    "q4_shortage_peak_explanations.csv": "2c83844a06f9148ebba632db893b69abeb97861519939763b0760e07d5c7b2a3"
+    "q4_blocks.csv": "7f28e0a76411b044db19baf0c3c3e9f5337dd8104307781852e0c5dfb57b130f",
+    "Q4_partition_groups.csv": "6d555d06482d18c5c27199e2693572138b1c975bfcf0ddf275db7e61fe4e7bc8",
+    "Q4_comparison.csv": "9367f5827cafb75f02ce4caffa3ccb3503739b96f09bd9d4e28b7a8507441160",
+    "q4_pareto_K2.csv": "d6c1fdc32a9f2597570695ef85d6a6e84ab786c349c4c5bd43f099d49311e2e1",
+    "q4_pareto_K3.csv": "c47317c3f1c01558f1466d07e200cd376b38294ff70b0afa8edc45b3066de406",
+    "q4_shortage_peak_explanations.csv": "a06c11cf6de301f20112eb1eec198001537fbacb6cda8c80be1e411815eeb887"
   },
-  "blocks": 7,
+  "blocks": 6,
   "validation_all_pass": true
 }
