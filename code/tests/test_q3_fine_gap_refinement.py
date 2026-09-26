@@ -1,8 +1,11 @@
 import pandas as pd
 import pytest
+from types import SimpleNamespace
 
 from src.q3.relay.fine_gap_refinement import (
+    _combine_fine_windows,
     _merge_gap_intervals,
+    _pair_fine_windows,
     _retain_refined_options,
 )
 
@@ -47,6 +50,42 @@ def test_refinement_never_shrinks_coarse_interval():
         "coverage_end": 210.0,
         "coverage_duration_s": 120.0,
     }
+
+
+def test_one_coarse_gap_combines_two_fine_outages():
+    windows = [
+        {"gap_index": 1, "tau_start": 10.0, "tau_end": 20.0,
+         "coverage_start": 9.0, "coverage_end": 20.0,
+         "samples": (SimpleNamespace(tau=10.0),), "outage_duration_s": 1.0},
+        {"gap_index": 2, "tau_start": 30.0, "tau_end": 40.0,
+         "coverage_start": 29.0, "coverage_end": 40.0,
+         "samples": (SimpleNamespace(tau=30.0),), "outage_duration_s": 1.0},
+    ]
+    combined = _combine_fine_windows(windows)
+    assert combined["gap_count"] == 2
+    assert combined["gap_indices"] == (1, 2)
+    assert combined["tau_start"] == 10.0
+    assert combined["coverage_start"] == 9.0
+    assert combined["outage_duration_sum_s"] == 2.0
+    assert [sample.tau for sample in combined["samples"]] == [10.0, 30.0]
+
+
+def test_multiple_coarse_gaps_match_fine_windows_by_time():
+    coarse = pd.DataFrame([
+        {"gap_id": "G1", "tau_start": 0.0, "tau_end": 50.0},
+        {"gap_id": "G2", "tau_start": 100.0, "tau_end": 150.0},
+    ])
+    windows = [
+        {"gap_index": 2, "tau_start": 110.0, "tau_end": 120.0,
+         "coverage_start": 109.0, "coverage_end": 120.0,
+         "samples": (), "outage_duration_s": 1.0},
+        {"gap_index": 1, "tau_start": 10.0, "tau_end": 20.0,
+         "coverage_start": 9.0, "coverage_end": 20.0,
+         "samples": (), "outage_duration_s": 1.0},
+    ]
+    paired = _pair_fine_windows(coarse, windows, "TEST")
+    assert paired[0]["gap_indices"] == (1,)
+    assert paired[1]["gap_indices"] == (2,)
 
 
 def test_failing_fine_candidate_is_removed():

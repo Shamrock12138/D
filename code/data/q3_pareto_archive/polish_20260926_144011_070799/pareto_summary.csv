@@ -1,0 +1,4 @@
+﻿solution_id,source_direction,F1_timeliness,F2_joint_cmax_s,F3_total_energy_kWh,F4_total_sorties,transport_sorties,relay_sessions,validation_all_pass,solution_directory
+Q3-REF-P001,F1,614131.4,11898.0,68.567018,25,17,8,True,D:\数学建模\第二十三届中国研究生数学建模竞赛 - 中文题目\中文题目\Project\code\data\q3_polish_runs\20260926_144011_070799\F1
+Q3-REF-P002,Cmax,675652.2,11110.0,68.560652,25,17,8,True,D:\数学建模\第二十三届中国研究生数学建模竞赛 - 中文题目\中文题目\Project\code\data\q3_polish_runs\20260926_144011_070799\Cmax
+Q3-REF-P003,E_proxy,784838.2,11969.0,68.55644600000001,24,17,7,True,D:\数学建模\第二十三届中国研究生数学建模竞赛 - 中文题目\中文题目\Project\code\data\q3_polish_runs\20260926_144011_070799\E_proxy

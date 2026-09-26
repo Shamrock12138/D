@@ -23,6 +23,8 @@ from src.q3.transport.compact_loader import (
 
 AUDIT_COLUMNS = [
     "pattern_id", "gap_id", "fine_dt_s",
+    "fine_gap_count", "fine_gap_indices",
+    "fine_outage_duration_sum_s", "fine_envelope_duration_s",
     "coarse_tau_start_s", "fine_tau_start_s", "refined_tau_start_s",
     "coarse_tau_end_s", "fine_tau_end_s", "refined_tau_end_s",
     "coarse_coverage_start_s", "fine_coverage_start_s",
@@ -32,7 +34,7 @@ AUDIT_COLUMNS = [
 ]
 
 
-def _extract_fine_windows(samples):
+def _extract_fine_windows(samples, dt=1.0):
     """Extract outages using the same boundary convention as Step5."""
     windows = []
     in_gap = False
@@ -44,6 +46,7 @@ def _extract_fine_windows(samples):
         first = outage_samples[0]
         end = after if after is not None else samples[-1]
         windows.append({
+            "gap_index": len(windows) + 1,
             "tau_start": float(first.tau),
             "tau_end": float(end.tau),
             "coverage_start": float(
@@ -51,6 +54,7 @@ def _extract_fine_windows(samples):
             ),
             "coverage_end": float(end.tau),
             "samples": tuple(outage_samples),
+            "outage_duration_s": len(outage_samples) * float(dt),
         })
 
     for sample in samples:
@@ -107,6 +111,11 @@ def _combine_fine_windows(windows):
             (sample for window in windows for sample in window["samples"]),
             key=lambda sample: float(sample.tau),
         )),
+        "gap_count": len(windows),
+        "gap_indices": tuple(int(window["gap_index"]) for window in windows),
+        "outage_duration_sum_s": sum(
+            float(window["outage_duration_s"]) for window in windows
+        ),
     }
 
 
@@ -131,6 +140,39 @@ def _retain_refined_options(gap_options, gap_id, candidate_metrics):
     unaffected = gap_options.loc[~mask]
     refined = pd.concat([unaffected, pd.DataFrame(kept)], ignore_index=True)
     return refined, len(before), len(kept)
+
+
+def _pair_fine_windows(coarse_rows, fine_windows, pattern_id):
+    """Pair by temporal overlap; aggregate many fine outages into one coarse gap."""
+    if len(coarse_rows) == 0 and len(fine_windows) == 0:
+        return []
+    groups = [[] for _ in range(len(coarse_rows))]
+    coarse = list(coarse_rows.itertuples(index=False))
+    for fine in fine_windows:
+        overlaps = []
+        for index, row in enumerate(coarse):
+            overlap = min(float(fine["tau_end"]), float(row.tau_end)) - max(
+                float(fine["tau_start"]), float(row.tau_start)
+            )
+            overlaps.append(max(0.0, overlap))
+        best = max(overlaps, default=0.0)
+        best_indices = [i for i, overlap in enumerate(overlaps)
+                        if abs(overlap - best) <= 1e-9]
+        if best <= 0 and len(coarse) == 1:
+            groups[0].append(fine)
+        elif best > 0 and len(best_indices) == 1:
+            groups[best_indices[0]].append(fine)
+        else:
+            raise RuntimeError(
+                f"{pattern_id}: fine gap {fine.get('gap_index')} has no unique "
+                "coarse-gap interval match"
+            )
+    if any(not group for group in groups):
+        empty = [str(row.gap_id) for row, group in zip(coarse, groups) if not group]
+        raise RuntimeError(
+            f"{pattern_id}: coarse gaps have no fine-window match: {empty}"
+        )
+    return [_combine_fine_windows(group) for group in groups]
 
 
 def _candidate_metrics(samples, options, sites, parameters, terrain):
@@ -215,7 +257,9 @@ def refine_gap_inputs(
         cache.build_segments(required_segment_keys(templates), verbose=False)
         for template in templates:
             profile = _assemble_pattern_profile_with_sources(template, cache)
-            fine_by_pattern[str(template.pattern_id)] = _extract_fine_windows(profile)
+            fine_by_pattern[str(template.pattern_id)] = _extract_fine_windows(
+                profile, dt=dt
+            )
     finally:
         cache.close()
 
@@ -232,15 +276,9 @@ def refine_gap_inputs(
                 ].sort_values("gap_index")
             )
             fine_windows = fine_by_pattern[pattern_id]
-            if len(coarse_rows) == 1 and len(fine_windows) >= 1:
-                paired_fine_windows = [_combine_fine_windows(fine_windows)]
-            elif len(coarse_rows) == len(fine_windows):
-                paired_fine_windows = fine_windows
-            else:
-                raise RuntimeError(
-                    f"{pattern_id}: 10s gap count={len(coarse_rows)}, "
-                    f"1s gap count={len(fine_windows)}; cannot safely pair by gap_index"
-                )
+            paired_fine_windows = _pair_fine_windows(
+                coarse_rows, fine_windows, pattern_id
+            )
             for coarse, fine in zip(
                 coarse_rows.itertuples(index=False), paired_fine_windows
             ):
@@ -267,6 +305,16 @@ def refine_gap_inputs(
                     "pattern_id": pattern_id,
                     "gap_id": str(coarse.gap_id),
                     "fine_dt_s": float(dt),
+                    "fine_gap_count": int(fine["gap_count"]),
+                    "fine_gap_indices": ",".join(
+                        map(str, fine["gap_indices"])
+                    ),
+                    "fine_outage_duration_sum_s": float(
+                        fine["outage_duration_sum_s"]
+                    ),
+                    "fine_envelope_duration_s": float(
+                        fine["tau_end"] - fine["tau_start"]
+                    ),
                     "coarse_tau_start_s": float(coarse.tau_start),
                     "fine_tau_start_s": float(fine["tau_start"]),
                     "refined_tau_start_s": merged["tau_start"],
