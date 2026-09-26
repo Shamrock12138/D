@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import math
 import pandas as pd
 from ortools.sat.python import cp_model
 
@@ -9,6 +10,8 @@ from src.q3.cp_sat_scheduler import (
     DATA, _build_q3_model, _decode_q3_resources, prepare_q3_problem,
     validate_q3_solution,
 )
+from src.q2 import data_model
+from src.q2.cp_sat_scheduler import _deadlines
 from src.q3.objectives import (
     ENERGY_SCALE, F1_TIME_SCALE, OBJECTIVE_NAMES, Q3_MULTI_OBJECTIVE_TIER,
     energy_units, evaluate_objectives, soft_box_targets, time_units,
@@ -17,36 +20,63 @@ from src.q3.step8_acceptance import accept_step8
 
 
 def _build_objective_expression(objective, model, problem, select, starts,
-                                relay_select, joint_cmax):
+                                relay_select, joint_cmax, metadata=None):
+    if metadata is None:
+        if objective == "F2_joint_cmax_s":
+            return joint_cmax
+        if objective == "F4_total_sorties":
+            return sum(select) + sum(relay_select)
+        if objective == "F3_total_energy_kWh":
+            transport_energy = [energy_units(v) for v in problem["tasks"]["energy_kWh"]]
+            relay_energy = [energy_units(v) for v in problem["relay"]["relay_energy_kWh"]]
+            return sum(v * select[i] for i, v in enumerate(transport_energy)) + sum(
+                v * relay_select[i] for i, v in enumerate(relay_energy))
+        targets = soft_box_targets(problem["boxes"], problem["deadlines"])
+        task_index = {str(task_id): i for i, task_id in enumerate(problem["tasks"]["task_id"].astype(str))}
+        terms = []
+        for row in problem["deliveries"].itertuples(index=False):
+            if str(row.box_id) not in targets:
+                continue
+            expected, weight = targets[str(row.box_id)]
+            i = task_index[str(row.task_id)]
+            late = model.NewIntVar(0, problem["horizon_s"] * F1_TIME_SCALE,
+                                   f"soft_late_{row.box_id}_{i}")
+            model.Add(late >= F1_TIME_SCALE * starts[i] + time_units(row.delivery_offset_s)
+                      - time_units(expected)).OnlyEnforceIf(select[i])
+            model.Add(late == 0).OnlyEnforceIf(select[i].Not())
+            terms.append(int(weight) * late)
+        return sum(terms)
     if objective == "F2_joint_cmax_s":
         return joint_cmax
     if objective == "F4_total_sorties":
-        return sum(select) + sum(relay_select)
+        return sum(select) + sum(metadata["relay_session_starts"])
     if objective == "F3_total_energy_kWh":
-        transport_energy = [energy_units(v) for v in problem["tasks"]["energy_kWh"]]
-        relay_energy = [energy_units(v) for v in problem["relay"]["relay_energy_kWh"]]
-        return sum(v * select[i] for i, v in enumerate(transport_energy)) + sum(
-            v * relay_select[i] for i, v in enumerate(relay_energy)
-        )
+        transport_energy = sum(
+            energy_units(occ.energy_kWh) * select[i]
+            for i, occ in enumerate(problem["occurrences"]))
+        relay_energy = sum(
+            energy_units(meta["service_energy_kWh"]) * relay_select[i]
+            + energy_units(meta["outbound_energy_kWh"] + meta["return_energy_kWh"])
+              * metadata["relay_session_starts"][i]
+            for i, meta in enumerate(metadata["relay"]))
+        return transport_energy + relay_energy
     if objective != "F1_timeliness":
         raise ValueError(f"Unknown Q3 objective: {objective}")
-    tasks = problem["tasks"]
-    task_index = {str(task_id): i for i, task_id in enumerate(tasks["task_id"].astype(str))}
-    targets = soft_box_targets(problem["boxes"], problem["deadlines"])
+    class_params = problem["class_params"]
     tardiness_terms = []
-    for row in problem["deliveries"].itertuples(index=False):
-        box_id = str(row.box_id)
-        if box_id not in targets:
-            continue
-        expected, weight = targets[box_id]
-        i = task_index[str(row.task_id)]
-        lateness = model.NewIntVar(0, problem["horizon_s"] * F1_TIME_SCALE,
-                                   f"soft_late_{box_id}_{i}")
-        offset_units = time_units(row.delivery_offset_s)
-        expected_units = time_units(expected)
-        model.Add(lateness >= F1_TIME_SCALE * starts[i] + offset_units - expected_units).OnlyEnforceIf(select[i])
-        model.Add(lateness == 0).OnlyEnforceIf(select[i].Not())
-        tardiness_terms.append(int(weight) * lateness)
+    for i, occ in enumerate(problem["occurrences"]):
+        for class_id, amount in occ.class_counts.items():
+            item = class_params[class_id]
+            expected = float(item["expected_time_s"])
+            if math.isfinite(float(item["hard_deadline_s"])) or not math.isfinite(expected):
+                continue
+            late = model.NewIntVar(0, problem["horizon_s"] * F1_TIME_SCALE,
+                                   f"soft_late_{class_id}_{i}")
+            offset_units = time_units(occ.delivery_offsets.get(class_id, 0.0))
+            expected_units = time_units(expected)
+            model.Add(late >= F1_TIME_SCALE * starts[i] + offset_units - expected_units).OnlyEnforceIf(select[i])
+            model.Add(late == 0).OnlyEnforceIf(select[i].Not())
+            tardiness_terms.append(int(item["priority"]) * int(amount) * late)
     return sum(tardiness_terms)
 
 
@@ -54,24 +84,36 @@ def solve_anchor(problem, objective, time_limit_s=600, workers=8, random_seed=20
                  baseline=None):
     if objective not in OBJECTIVE_NAMES:
         raise ValueError(f"Unknown Q3 objective: {objective}")
-    built = _build_q3_model(problem)
+    built = _build_q3_model(problem, allow_relay_sharing=True)
     model, select, starts, relay_select, relay_starts, transport_cmax, relay_cmax, joint_cmax, metadata = built
     expression = _build_objective_expression(
-        objective, model, problem, select, starts, relay_select, joint_cmax
+        objective, model, problem, select, starts, relay_select, joint_cmax, metadata
     )
     model.Minimize(expression)
     if baseline is not None:
-        transport_start = dict(zip(baseline["transport"]["task_id"].astype(str),
+        transport_start = dict(zip(baseline["transport"]["sortie_id"].astype(str),
                                    baseline["transport"]["start_time_s"].astype(int)))
-        relay_keys = set(map(tuple, baseline["relay"][["gap_id", "task_id", "candidate_id"]]
+        relay_keys = set(map(tuple, baseline["relay"][["sortie_id", "gap_id", "candidate_id"]]
                              .astype(str).itertuples(index=False, name=None)))
-        for i, row in problem["tasks"].iterrows():
-            task_id = str(row.task_id)
-            model.AddHint(select[i], int(task_id in transport_start))
-            model.AddHint(starts[i], transport_start.get(task_id, 0))
-        for i, row in problem["relay"].iterrows():
-            key = (str(row.gap_id), str(row.task_id), str(row.candidate_id))
+        for i, occ in enumerate(problem["occurrences"]):
+            sid = str(occ.sortie_id)
+            model.AddHint(select[i], int(sid in transport_start))
+            model.AddHint(starts[i], transport_start.get(sid, 0))
+        baseline_relay_starts = dict(zip(
+            map(tuple, baseline["relay"][["sortie_id", "gap_id", "candidate_id"]]
+                .astype(str).itertuples(index=False, name=None)),
+            baseline["relay"]["dispatch_time_s"].astype(int)))
+        relay_ids = dict(zip(
+            map(tuple, baseline["relay"][["sortie_id", "gap_id", "candidate_id"]]
+                .astype(str).itertuples(index=False, name=None)),
+            baseline["relay"]["relay_uav_id"].astype(str)))
+        for i, meta in enumerate(metadata["relay"]):
+            key = (str(meta["sortie_id"]), str(meta["gap_id"]), str(meta["candidate_id"]))
             model.AddHint(relay_select[i], int(key in relay_keys))
+            model.AddHint(relay_starts[i], baseline_relay_starts.get(key, 0))
+            for relay_id in metadata["relay_ids"]:
+                model.AddHint(metadata["relay_assign"][(i, relay_id)],
+                              int(relay_ids.get(key) == relay_id))
     solver = cp_model.CpSolver()
     solver.parameters.max_time_in_seconds = float(time_limit_s)
     solver.parameters.num_search_workers = int(workers)
@@ -114,6 +156,8 @@ def run_anchors(time_limit_s=600, workers=8, random_seed=2026):
     }
     problem = prepare_q3_problem(tier=Q3_MULTI_OBJECTIVE_TIER)
     problem["tier"] = Q3_MULTI_OBJECTIVE_TIER
+    problem["boxes"] = data_model.load_boxes()
+    problem["deadlines"] = _deadlines(problem["boxes"])
     output = DATA / "q3_anchors"
     output.mkdir(exist_ok=True)
     rows = []

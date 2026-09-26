@@ -7,7 +7,10 @@ import pandas as pd
 from ortools.sat.python import cp_model
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from src.q3.cp_sat_scheduler import _build_q3_model, _relay_uav_location_compatible
+from src.q3.cp_sat_scheduler import (
+    _build_q3_model, _relay_uav_location_compatible, _weighted_q3_objective,
+)
+from src.q3.anchors import _build_objective_expression
 
 
 def tiny_problem(candidate_ids):
@@ -19,9 +22,12 @@ def tiny_problem(candidate_ids):
         "gap_id": gap, "candidate_id": site, "dispatch_offset_s": 0,
         "return_offset_s": 20, "relay_uav_occupancy_s": 20,
         "energy_component_occupancy_s": 20,
+        "outbound_energy_kWh": .1, "return_energy_kWh": .1,
+        "service_energy_kWh": .01, "relay_energy_kWh": .21,
     } for gap, site in zip(gaps, candidate_ids)])
     return {"occurrences": [occurrence], "class_supply": {"K": 1},
-            "class_params": {"K": {"hard_deadline_s": float("inf")}},
+            "class_params": {"K": {"hard_deadline_s": float("inf"),
+                                     "expected_time_s": float("nan"), "priority": 1}},
             "occurrence_gaps": {"P-1": tuple(gaps)},
             "gap_option_map": {gap: [i] for i, gap in enumerate(gaps)},
             "relay": relay, "uav_ids": {"A": ["U01"]},
@@ -49,6 +55,28 @@ class RelaySharingTests(unittest.TestCase):
         self.assertTrue(_relay_uav_location_compatible(frame))
         frame.loc[1, "candidate_id"] = "C2"
         self.assertFalse(_relay_uav_location_compatible(frame))
+
+    def test_shared_jobs_count_as_one_session_and_weighted_polish_uses_session_energy(self):
+        problem = tiny_problem(["C1"] * 3)
+        built = _build_q3_model(problem, allow_relay_sharing=True)
+        model, select, starts, relay_select, _, _, _, cmax, metadata = built
+        anchor_f3 = _build_objective_expression(
+            "F3_total_energy_kWh", model, problem, select, starts, relay_select,
+            cmax, metadata)
+        anchor_f4 = _build_objective_expression(
+            "F4_total_sorties", model, problem, select, starts, relay_select,
+            cmax, metadata)
+        objective, _ = _weighted_q3_objective(
+            model, problem, select, starts, relay_select, cmax, metadata,
+            (0, 0, 1, 0))
+        model.Minimize(objective)
+        solver = cp_model.CpSolver()
+        self.assertIn(solver.StatusName(solver.Solve(model)), ("OPTIMAL", "FEASIBLE"))
+        self.assertEqual(sum(solver.Value(v) for v in metadata["relay_session_starts"]), 1)
+        self.assertEqual(solver.Value(anchor_f3), 1_230_000)
+        self.assertEqual(solver.Value(anchor_f4), 2)
+        # 1.0 transport + .2 shared outbound/return + 3 * .01 service energy.
+        self.assertEqual(solver.Value(objective), 12_300_000)
 
 
 if __name__ == "__main__":

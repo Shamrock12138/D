@@ -7,7 +7,11 @@ matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt
 import matplotlib.patheffects as pe
-from matplotlib.colors import LightSource, LinearSegmentedColormap
+from matplotlib.colors import (
+    LightSource,
+    LinearSegmentedColormap,
+    Normalize,
+)
 from matplotlib.lines import Line2D
 import numpy as np
 import pandas as pd
@@ -51,18 +55,24 @@ CONNECT_MODE = "hub"
 # 改为：
 # CONNECT_MODE = "sequence"
 
-# 统一浅蓝色高程色带：低处极浅接近白，高处较深蓝但不压暗
-BLUE_TERRAIN_CMAP = LinearSegmentedColormap.from_list(
-    "blue_terrain_soft",
+# ============================================================
+# 统一地形高程色带
+# 低海拔：蓝
+# 中海拔：白
+# 高海拔：红
+# 二维与三维必须共用该 cmap 和 norm
+# ============================================================
+
+TERRAIN_CMAP = LinearSegmentedColormap.from_list(
+    "terrain_blue_white_red",
     [
-        "#C8D9EE",
-        "#B3CDE5",
-        "#9BBFD9",
-        "#81AECD",
-        "#6A9DC1",
-        "#548BB3",
-        "#3D7AA5",
-        "#2E6DA0",
+        (0.00, "#6F9FC8"),  # 低海拔：柔和蓝
+        (0.20, "#A4C4DD"),
+        (0.38, "#D5E4F0"),
+        (0.50, "#FFFFFF"),  # 中间高程：白色
+        (0.62, "#F7DEDE"),
+        (0.80, "#E8A0A0"),
+        (1.00, "#CC6670"),  # 高海拔：柔和红
     ],
     N=256,
 )
@@ -129,6 +139,27 @@ def load_nodes() -> pd.DataFrame:
     return nodes
 
 
+def build_terrain_norm(dem: np.ndarray) -> Normalize:
+    """
+    建立二维/三维共用的高程颜色归一化。
+
+    TERRAIN_CMAP 的 0.5 对应高程范围中点，因此：
+        低值 -> 蓝
+        中点 -> 白
+        高值 -> 红
+    """
+
+    valid = dem[np.isfinite(dem)]
+
+    vmin = float(np.min(valid))
+    vmax = float(np.max(valid))
+
+    return Normalize(
+        vmin=vmin,
+        vmax=vmax,
+    )
+
+
 def calculate_hillshade(
     dem: np.ndarray,
     src: rasterio.io.DatasetReader,
@@ -183,7 +214,7 @@ def draw_connections(
 ) -> None:
     """绘制节点间虚线。"""
 
-    line_color = "#D4380D"
+    line_color = "#62676D"
 
     if CONNECT_MODE == "hub":
 
@@ -403,6 +434,260 @@ def add_scale_bar(
     )
 
 
+def plot_terrain_3d(
+    src,
+    dem,
+    nodes,
+    bounds,
+    terrain_norm,
+) -> None:
+    """绘制蓝-白-红统一高程编码的三维 DEM。"""
+
+    nrows, ncols = dem.shape
+
+    # DEM 下采样，避免 plot_surface 面片过多
+    step = max(
+        1,
+        int(max(nrows, ncols) / 350),
+    )
+
+    rows = np.arange(
+        0,
+        nrows,
+        step,
+    )
+
+    cols = np.arange(
+        0,
+        ncols,
+        step,
+    )
+
+    Z = dem[np.ix_(rows, cols)]
+
+    # 每个栅格中心的经纬度
+    x_all = (
+        src.transform.c
+        + (np.arange(ncols) + 0.5)
+        * src.transform.a
+    )
+
+    y_all = (
+        src.transform.f
+        + (np.arange(nrows) + 0.5)
+        * src.transform.e
+    )
+
+    x = x_all[cols]
+    y = y_all[rows]
+
+    X, Y = np.meshgrid(
+        x,
+        y,
+    )
+
+    fig = plt.figure(
+        figsize=(8.0, 6.3),
+    )
+
+    ax = fig.add_subplot(
+        111,
+        projection="3d",
+    )
+
+    # ========================================================
+    # DEM
+    # ========================================================
+
+    ax.plot_surface(
+        X,
+        Y,
+        Z,
+        cmap=TERRAIN_CMAP,
+        norm=terrain_norm,
+        linewidth=0,
+        antialiased=True,
+        shade=False,
+        rasterized=True,
+        alpha=1.0,
+    )
+
+    # ========================================================
+    # 节点
+    # ========================================================
+
+    base = nodes.loc[
+        nodes["V"] == "O01"
+    ].iloc[0]
+
+    services = nodes.loc[
+        nodes["V"] != "O01"
+    ]
+
+    ax.scatter(
+        services["x"],
+        services["y"],
+        services["h"] + 15,
+        s=28,
+        marker="o",
+        facecolor="#4E79A7",
+        edgecolor="white",
+        linewidth=0.8,
+        depthshade=False,
+        zorder=10,
+    )
+
+    ax.scatter(
+        [base["x"]],
+        [base["y"]],
+        [float(base["h"]) + 20],
+        s=115,
+        marker="*",
+        facecolor="#CC5A6A",
+        edgecolor="white",
+        linewidth=1.0,
+        depthshade=False,
+        zorder=11,
+    )
+
+    # ========================================================
+    # O01 到服务区虚线
+    # ========================================================
+
+    for _, row in services.iterrows():
+
+        n = 100
+
+        lons = np.linspace(
+            float(base["x"]),
+            float(row["x"]),
+            n,
+        )
+
+        lats = np.linspace(
+            float(base["y"]),
+            float(row["y"]),
+            n,
+        )
+
+        samples = np.array(
+            [
+                float(v[0])
+                for v in src.sample(
+                    zip(lons, lats)
+                )
+            ]
+        )
+
+        valid = np.isfinite(samples)
+
+        if src.nodata is not None:
+            valid &= samples != src.nodata
+
+        if not np.all(valid):
+            idx = np.arange(n)
+
+            if np.sum(valid) >= 2:
+                samples[~valid] = np.interp(
+                    idx[~valid],
+                    idx[valid],
+                    samples[valid],
+                )
+
+        ax.plot(
+            lons,
+            lats,
+            samples + 10,
+            linestyle=(0, (4, 3)),
+            linewidth=0.85,
+            color="#62676D",
+            alpha=0.72,
+            zorder=6,
+        )
+
+    # ========================================================
+    # 标签
+    # ========================================================
+
+    for _, row in nodes.iterrows():
+
+        ax.text(
+            float(row["x"]),
+            float(row["y"]),
+            float(row["h"]) + 28,
+            f" {row['V']}",
+            fontsize=7,
+            color="#202124",
+            fontweight=(
+                "bold"
+                if row["V"] == "O01"
+                else "normal"
+            ),
+        )
+
+    # ========================================================
+    # 坐标
+    # ========================================================
+
+    ax.set_xlabel("经度 / °E")
+    ax.set_ylabel("纬度 / °N")
+    ax.set_zlabel("地面高程 / m")
+
+    ax.view_init(
+        elev=32,
+        azim=-62,
+    )
+
+    # 去掉 pane 填充
+    ax.xaxis.pane.fill = False
+    ax.yaxis.pane.fill = False
+    ax.zaxis.pane.fill = False
+
+    # ========================================================
+    # 与二维完全相同的 Colorbar
+    # ========================================================
+
+    from matplotlib.cm import ScalarMappable
+
+    sm = ScalarMappable(
+        norm=terrain_norm,
+        cmap=TERRAIN_CMAP,
+    )
+
+    sm.set_array([])
+
+    cbar = fig.colorbar(
+        sm,
+        ax=ax,
+        shrink=0.64,
+        pad=0.08,
+        aspect=24,
+    )
+
+    cbar.set_label(
+        "地面高程 / m",
+        labelpad=7,
+    )
+
+    # ========================================================
+    # 输出
+    # ========================================================
+
+    fig.savefig(
+        OUTPUT_DIR / "terrain_3d_bwr.pdf",
+        bbox_inches="tight",
+        dpi=400,
+    )
+
+    fig.savefig(
+        OUTPUT_DIR / "terrain_3d_bwr.png",
+        bbox_inches="tight",
+        dpi=600,
+    )
+
+    plt.close(fig)
+
+
 def main() -> None:
 
     configure_matplotlib()
@@ -435,6 +720,8 @@ def main() -> None:
         vmin = float(np.min(valid))
         vmax = float(np.max(valid))
 
+        terrain_norm = build_terrain_norm(dem)
+
         im = ax.imshow(
             dem,
             extent=[
@@ -444,9 +731,8 @@ def main() -> None:
                 bounds.top,
             ],
             origin="upper",
-            cmap=BLUE_TERRAIN_CMAP,
-            vmin=vmin,
-            vmax=vmax,
+            cmap=TERRAIN_CMAP,
+            norm=terrain_norm,
             interpolation="bilinear",
             zorder=1,
         )
@@ -470,7 +756,7 @@ def main() -> None:
             ],
             origin="upper",
             cmap="gray",
-            alpha=0.06,
+            alpha=0.035,
             interpolation="bilinear",
             zorder=2,
         )
@@ -596,7 +882,7 @@ def main() -> None:
                 [0],
                 linestyle=(0, (4, 3)),
                 linewidth=0.9,
-                color="#D4380D",
+                color="#62676D",
                 label="节点连接",
             ),
         ]
@@ -691,6 +977,20 @@ def main() -> None:
         print(f"  PDF: {pdf_file}")
         print(f"  SVG: {svg_file}")
         print(f"  PNG: {png_file}")
+
+        # ====================================================
+        # 三维 DEM（共用 TERRAIN_CMAP 和 terrain_norm）
+        # ====================================================
+
+        plot_terrain_3d(
+            src,
+            dem,
+            nodes,
+            bounds,
+            terrain_norm,
+        )
+
+        print("三维地形图绘制完成。")
 
     finally:
         src.close()

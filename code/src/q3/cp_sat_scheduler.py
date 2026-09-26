@@ -428,6 +428,7 @@ def _build_q3_model(problem, relay_uav_capacity=None, relay_energy_capacity=None
     relay_energy_intervals = []
     relay_return_ends = []
     relay_meta = []
+    relay_session_starts = []
     relay_ids = [f"R0{i + 1}" for i in range(
         RELAY_UAV_CAPACITY if relay_uav_capacity is None else relay_uav_capacity
     )]
@@ -504,6 +505,10 @@ def _build_q3_model(problem, relay_uav_capacity=None, relay_energy_capacity=None
                     "uav_end_var": ru_end,
                     "energy_end_var": re_end,
                     "return_var": rr,
+                    "outbound_energy_kWh": float(row.get("outbound_energy_kWh", 0.0)),
+                    "return_energy_kWh": float(row.get("return_energy_kWh", 0.0)),
+                    "service_energy_kWh": float(row.get(
+                        "service_energy_kWh", row.get("relay_energy_kWh", 0.0))),
                 })
 
     # In sharing mode a physical relay may protect several simultaneous gaps at
@@ -533,6 +538,41 @@ def _build_q3_model(problem, relay_uav_capacity=None, relay_energy_capacity=None
                     model.Add(right["uav_end_var"] <= relay_starts[j]).OnlyEnforceIf(
                         [relay_assign[(j, relay_id)], relay_assign[(k, relay_id)], before.Not()]
                     )
+
+        # Count one session at the earliest interval in each connected
+        # same-site relay-occupancy component.
+        for j, meta in enumerate(relay_meta):
+            session_start = model.NewBoolVar(f"relay_session_start_{j}")
+            relay_session_starts.append(session_start)
+            model.Add(session_start <= relay_select[j])
+            covered_by_prior = []
+            for k, other in enumerate(relay_meta):
+                if j == k or str(meta["candidate_id"]) != str(other["candidate_id"]):
+                    continue
+                for relay_id in relay_ids:
+                    prior = model.NewBoolVar(f"session_prior_{k}_{j}_{relay_id}")
+                    if k < j:
+                        model.Add(relay_starts[k] <= relay_starts[j]).OnlyEnforceIf(prior)
+                        model.Add(relay_starts[k] >= relay_starts[j] + 1).OnlyEnforceIf(prior.Not())
+                    else:
+                        model.Add(relay_starts[k] + 1 <= relay_starts[j]).OnlyEnforceIf(prior)
+                        model.Add(relay_starts[k] >= relay_starts[j]).OnlyEnforceIf(prior.Not())
+                    active_at_start = model.NewBoolVar(f"session_active_{k}_{j}_{relay_id}")
+                    model.Add(other["uav_end_var"] >= relay_starts[j] + 1).OnlyEnforceIf(active_at_start)
+                    model.Add(other["uav_end_var"] <= relay_starts[j]).OnlyEnforceIf(active_at_start.Not())
+                    cover = model.NewBoolVar(f"session_cover_{k}_{j}_{relay_id}")
+                    left_assigned = relay_assign[(k, relay_id)]
+                    right_assigned = relay_assign[(j, relay_id)]
+                    model.Add(cover <= left_assigned)
+                    model.Add(cover <= right_assigned)
+                    model.Add(cover <= prior)
+                    model.Add(cover <= active_at_start)
+                    model.Add(cover >= left_assigned + right_assigned + prior + active_at_start - 3)
+                    model.Add(session_start + cover <= 1)
+                    covered_by_prior.append(cover)
+            model.Add(session_start >= relay_select[j] - sum(covered_by_prior))
+    else:
+        relay_session_starts = list(relay_select)
 
     # Each selected occurrence gets exactly one relay option per gap
     gap_option_idx_by_occ_gap = defaultdict(list)
@@ -576,6 +616,7 @@ def _build_q3_model(problem, relay_uav_capacity=None, relay_energy_capacity=None
         "relay": relay_meta,
         "occ_index": occ_index,
         "relay_assign": relay_assign,
+        "relay_session_starts": relay_session_starts,
         "relay_ids": relay_ids,
         "allow_relay_sharing": allow_relay_sharing,
     }
@@ -686,6 +727,10 @@ def _decode_q3_resources(problem, solver, select_vars, start_vars, relay_select_
             "uav_release_time_s": uav_end,
             "energy_release_time_s": energy_end,
             "relay_energy_kWh": float(option["relay_energy_kWh"]),
+            "outbound_energy_kWh": float(option.get("outbound_energy_kWh", 0.0)),
+            "return_energy_kWh": float(option.get("return_energy_kWh", 0.0)),
+            "service_energy_kWh": float(option.get(
+                "service_energy_kWh", option["relay_energy_kWh"])),
             "end_soc": float(option["end_soc"]),
             "coverage_start_offset_s": float(option["coverage_start_s"]),
             "coverage_end_offset_s": float(option["coverage_end_s"]),
@@ -717,13 +762,24 @@ def _decode_q3_resources(problem, solver, select_vars, start_vars, relay_select_
                 by_session.append((index, session_id))
         for index, session_id in by_session:
             relay_rows[index]["relay_session_id"] = session_id
+        session_energy = defaultdict(list)
+        for row in relay_rows:
+            session_energy[row["relay_session_id"]].append(row)
+        for rows in session_energy.values():
+            energy = (max(float(row["outbound_energy_kWh"]) for row in rows)
+                      + max(float(row["return_energy_kWh"]) for row in rows)
+                      + sum(float(row["service_energy_kWh"]) for row in rows))
+            for row in rows:
+                row["relay_session_energy_kWh"] = energy
 
     relay_columns = [
         "sortie_id", "pattern_id", "gap_id", "candidate_id",
         "relay_uav_id", "relay_session_id", "energy_component_id",
         "dispatch_time_s", "arrival_time_s", "service_start_s", "service_end_s",
         "return_time_s", "uav_release_time_s", "energy_release_time_s",
-        "relay_energy_kWh", "end_soc", "coverage_start_offset_s", "coverage_end_offset_s",
+        "relay_energy_kWh", "outbound_energy_kWh", "return_energy_kWh",
+        "service_energy_kWh", "relay_session_energy_kWh",
+        "end_soc", "coverage_start_offset_s", "coverage_end_offset_s",
         "relay_uav_occupancy_s", "energy_component_occupancy_s", "dispatch_offset_s",
     ]
     relay_schedule = pd.DataFrame(relay_rows, columns=relay_columns).sort_values(
@@ -745,10 +801,10 @@ def _decode_q3_resources(problem, solver, select_vars, start_vars, relay_select_
 
 
 def _solve_q3(model, joint_cmax, all_vars, time_limit_s=600, workers=8,
-              random_seed=2026, feasibility_only=False):
+              random_seed=2026, feasibility_only=False, objective=None):
     u"""求解 Q3 CP-SAT 模型。"""
     if not feasibility_only:
-        model.Minimize(joint_cmax)
+        model.Minimize(joint_cmax if objective is None else objective)
 
     solver = cp_model.CpSolver()
     solver.parameters.max_time_in_seconds = float(time_limit_s)
@@ -913,7 +969,8 @@ def _relay_uav_location_compatible(relay):
     return True
 
 
-def _add_joint_hint(model, problem, select, starts, relay_select, relay_starts, hint):
+def _add_joint_hint(model, problem, select, starts, relay_select, relay_starts, hint,
+                    metadata=None):
     occ_index = {occ.sortie_id: i for i, occ in enumerate(problem["occurrences"])}
     transport_starts = dict(zip(
         hint["transport"]["sortie_id"].astype(str),
@@ -928,31 +985,117 @@ def _add_joint_hint(model, problem, select, starts, relay_select, relay_starts, 
         (str(row.sortie_id), str(row.gap_id), str(row.candidate_id)): int(row.dispatch_time_s)
         for row in hint["relay"].itertuples(index=False)
     }
+    relay_uav_hint = {
+        (str(row.sortie_id), str(row.gap_id), str(row.candidate_id)): str(row.relay_uav_id)
+        for row in hint["relay"].itertuples(index=False)
+    }
     for i, meta in enumerate(problem.get("_relay_meta_for_hint", [])):
         key = (str(meta["sortie_id"]), str(meta["gap_id"]), str(meta["candidate_id"]))
         model.AddHint(relay_select[i], int(key in relay_hint))
         model.AddHint(relay_starts[i], relay_hint.get(key, 0))
+        if metadata is not None:
+            for relay_id in metadata["relay_ids"]:
+                if (i, relay_id) in metadata["relay_assign"]:
+                    model.AddHint(metadata["relay_assign"][(i, relay_id)],
+                                  int(relay_uav_hint.get(key) == relay_id))
+
+
+def _weighted_q3_objective(model, problem, select, starts, relay_select,
+                           joint_cmax, metadata, weights):
+    weights = tuple(float(value) for value in weights)
+    if len(weights) != 4 or any(not math.isfinite(v) or v < 0 for v in weights) or sum(weights) <= 0:
+        raise ValueError("objective_weights must be four finite nonnegative values")
+    total = sum(weights)
+    weights = tuple(value / total for value in weights)
+    scale = 1_000_000_000
+    params = problem["class_params"]
+    f1_scale = sum(
+        int(amount) * int(params[cid]["priority"]) * max(
+            1.0, problem["horizon_s"] - float(params[cid]["expected_time_s"]))
+        for cid, amount in problem["class_supply"].items()
+        if (not math.isfinite(params[cid]["hard_deadline_s"])
+            and math.isfinite(params[cid]["expected_time_s"]))
+    )
+    scales = (max(1.0, f1_scale) * 10.0,
+              max(1.0, float(problem["horizon_s"])),
+              100.0 * 1_000_000.0, 40.0)
+    coefficients = [0 if weight == 0 else max(1, round(scale * weight / norm))
+                    for weight, norm in zip(weights, scales)]
+
+    tardiness = []
+    for i, occ in enumerate(problem["occurrences"]):
+        for class_id, amount in occ.class_counts.items():
+            item = params[class_id]
+            expected = float(item["expected_time_s"])
+            if math.isfinite(float(item["hard_deadline_s"])) or not math.isfinite(expected):
+                continue
+            offset_units = int(round(float(occ.delivery_offsets.get(class_id, 0.0)) * 10))
+            expected_units = int(round(expected * 10))
+            late = model.NewIntVar(0, int(problem["horizon_s"] * 10 + abs(offset_units)),
+                                   f"weighted_late_{i}_{class_id}")
+            model.Add(late >= starts[i] * 10 + offset_units - expected_units).OnlyEnforceIf(select[i])
+            model.Add(late == 0).OnlyEnforceIf(select[i].Not())
+            tardiness.append(int(item["priority"]) * int(amount) * late)
+    f1_expr = sum(tardiness)
+    f2_expr = joint_cmax
+
+    transport_energy = sum(
+        int(round(float(occ.energy_kWh) * 1_000_000)) * select[i]
+        for i, occ in enumerate(problem["occurrences"])
+    )
+    relay_service_energy = []
+    relay_session_flight_energy = []
+    for j, meta in enumerate(metadata["relay"]):
+        relay_service_energy.append(
+            int(round(float(meta["service_energy_kWh"]) * 1_000_000)) * relay_select[j])
+        relay_session_flight_energy.append(
+            int(round((float(meta["outbound_energy_kWh"])
+                       + float(meta["return_energy_kWh"])) * 1_000_000))
+            * metadata["relay_session_starts"][j])
+    f3_expr = transport_energy + sum(relay_service_energy) + sum(relay_session_flight_energy)
+    f4_expr = sum(select) + sum(metadata["relay_session_starts"])
+    return (coefficients[0] * f1_expr + coefficients[1] * f2_expr
+            + coefficients[2] * f3_expr + coefficients[3] * f4_expr), weights
 
 
 def solve_q3_joint(tier="tier1", time_limit_s=600, workers=8, random_seed=2026,
                    problem=None, feasibility_only=False, hint=None,
-                   transport_start_hint=None, allow_relay_sharing=False):
+                   transport_start_hint=None, allow_relay_sharing=False,
+                   objective_weights=None, fixed_sortie_ids=None):
     if problem is None:
         problem = prepare_q3_problem(tier=tier)
     built = _build_q3_model(problem, allow_relay_sharing=allow_relay_sharing)
     model, select, starts, relay_select, relay_starts, transport_cmax, relay_cmax, joint_cmax, metadata = built
+    if fixed_sortie_ids is not None:
+        fixed_ids = set(map(str, fixed_sortie_ids))
+        known_ids = {str(occ.sortie_id) for occ in problem["occurrences"]}
+        if not fixed_ids <= known_ids:
+            raise ValueError(f"Unknown fixed sortie IDs: {sorted(fixed_ids-known_ids)[:10]}")
+        for i, occ in enumerate(problem["occurrences"]):
+            model.Add(select[i] == int(str(occ.sortie_id) in fixed_ids))
     if hint is not None:
         # 创建临时 relay_meta_for_hint
         problem["_relay_meta_for_hint"] = metadata["relay"]
-        _add_joint_hint(model, problem, select, starts, relay_select, relay_starts, hint)
+        _add_joint_hint(model, problem, select, starts, relay_select, relay_starts, hint,
+                        metadata=metadata)
     elif transport_start_hint is not None:
         occ_index = {occ.sortie_id: i for i, occ in enumerate(problem["occurrences"])}
         for sid, start_val in transport_start_hint.items():
             if sid in occ_index:
                 model.AddHint(starts[occ_index[sid]], int(start_val))
+    objective = None
+    normalized_weights = None
+    if objective_weights is not None:
+        objective, normalized_weights = _weighted_q3_objective(
+            model, problem, select, starts, relay_select, joint_cmax,
+            metadata, objective_weights)
+        feasibility_only = False
     solver, status = _solve_q3(
-        model, joint_cmax, select + starts + relay_select + list(metadata["relay_assign"].values()), time_limit_s,
-        workers, random_seed, feasibility_only=feasibility_only,
+        model, joint_cmax,
+        select + starts + relay_select + list(metadata["relay_assign"].values())
+        + list(metadata["relay_session_starts"]),
+        time_limit_s, workers, random_seed,
+        feasibility_only=feasibility_only, objective=objective,
     )
     if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
         return {"status": solver.StatusName(status), "tier": tier, "wall_time_s": solver.WallTime()}
@@ -972,7 +1115,9 @@ def solve_q3_joint(tier="tier1", time_limit_s=600, workers=8, random_seed=2026,
         "occurrence_count": len(problem["occurrences"]),
         "relay_option_count": len(metadata["relay"]),
         "allow_relay_sharing": bool(allow_relay_sharing),
-        "solve_mode": "feasibility" if feasibility_only else "min_joint_cmax",
+        "objective_weights": list(normalized_weights) if normalized_weights is not None else None,
+        "solve_mode": ("weighted_polish" if normalized_weights is not None else
+                       "feasibility" if feasibility_only else "min_joint_cmax"),
     }
 
 
@@ -1008,7 +1153,11 @@ def write_step8_outputs(result, output_dir=None):
     result["relay"].to_csv(output_dir / "q3_joint_relay_schedule.csv", index=False, encoding="utf-8-sig")
     delivery.to_csv(output_dir / "q3_joint_delivery_schedule.csv", index=False, encoding="utf-8-sig")
     transport_energy = float(transport["energy_kWh"].sum())
-    relay_energy = float(result["relay"]["relay_energy_kWh"].sum())
+    relay_gap_job_energy = float(result["relay"]["relay_energy_kWh"].sum())
+    relay_energy = (float(result["relay"].drop_duplicates("relay_session_id")
+                          ["relay_session_energy_kWh"].sum())
+                    if len(result["relay"]) and "relay_session_energy_kWh" in result["relay"]
+                    else relay_gap_job_energy)
     pd.DataFrame([{
         "transport_Cmax_s": result["transport_cmax_s"],
         "relay_Cmax_s": result["relay_cmax_s"],
@@ -1017,6 +1166,8 @@ def write_step8_outputs(result, output_dir=None):
         "relay_jobs": len(result["relay"]),
         "transport_energy_kWh": transport_energy,
         "relay_energy_kWh": relay_energy,
+        "relay_session_energy_kWh": relay_energy,
+        "relay_gap_job_energy_kWh": relay_gap_job_energy,
         "total_energy_kWh": transport_energy + relay_energy,
         "relay_uav_capacity": RELAY_UAV_CAPACITY,
         "relay_energy_capacity": RELAY_ENERGY_CAPACITY,

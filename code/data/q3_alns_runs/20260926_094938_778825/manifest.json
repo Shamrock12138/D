@@ -1,0 +1,157 @@
+{
+  "status": "UNKNOWN",
+  "algorithm": "ALNS_CP_SAT",
+  "seed": 2027,
+  "input_sha256": {
+    "q3_compact_patterns.csv": "b170f5531b838e77a95628ad084f8f9d3b390ceceea521c77e0a89d73297c96e",
+    "q3_compact_pattern_counts.csv": "725b642bbf241d7acd72d9ddbc29a63366ee41089650538001144bc9f575597e",
+    "q3_pattern_comm_gaps.csv": "9435f6b02daa12f8fb8a098f467a1fafcbd9afc24f63bb55e0d09c60434da8b5",
+    "q3_relay_job_options.csv": "51d77413c02d0c91aecaf84eb73444b488183ac18637849e20b4b90d4bfe0ff7",
+    "q3_pattern_gap_manifest.json": "f5b08e07f7b9ba9b14ec6b74305d8dacd9e64f541c99ea9583700af4e84ee4e5",
+    "q3_step7_manifest.json": "f8234d5c0b6afacf1b5e4886e3cd8c297463f7ed5f6772da590efde63949567b"
+  },
+  "iterations": 17,
+  "generated": 16,
+  "unique_candidates": 5,
+  "repair_wall_time_s": 5.544999999998254,
+  "attempts": [
+    {
+      "iteration": 1,
+      "sortie_ids": [
+        "P002754-1",
+        "P002756-1",
+        "P002867-1",
+        "P002874-1",
+        "P002888-1",
+        "P002895-1",
+        "P002902-1",
+        "P002909-1",
+        "P002910-1",
+        "P008320-1",
+        "P008382-1",
+        "P008441-1",
+        "P008547-1",
+        "P008594-1",
+        "P008641-1",
+        "P025360-1",
+        "P051203-1"
+      ],
+      "status": "UNKNOWN",
+      "wall_time_s": 20.072081100000002,
+      "score": 0.6592036243078642
+    },
+    {
+      "iteration": 3,
+      "sortie_ids": [
+        "P002754-1",
+        "P002829-1",
+        "P002867-1",
+        "P002874-1",
+        "P002888-1",
+        "P002895-1",
+        "P002902-1",
+        "P002909-1",
+        "P002910-1",
+        "P008320-1",
+        "P008382-1",
+        "P008441-1",
+        "P008547-1",
+        "P008594-1",
+        "P008641-1",
+        "P025496-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.1470574,
+      "score": 0.6498587776044228,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    },
+    {
+      "iteration": 5,
+      "sortie_ids": [
+        "P002771-1",
+        "P002867-1",
+        "P002874-1",
+        "P002888-1",
+        "P002895-1",
+        "P002902-1",
+        "P002910-1",
+        "P008320-1",
+        "P008382-1",
+        "P008441-1",
+        "P008451-1",
+        "P008547-1",
+        "P008594-1",
+        "P008641-1",
+        "P050623-1",
+        "P051203-1"
+      ],
+      "status": "UNKNOWN",
+      "wall_time_s": 20.053455,
+      "score": 0.6512162033602255
+    },
+    {
+      "iteration": 6,
+      "sortie_ids": [
+        "P002761-1",
+        "P002867-1",
+        "P002874-1",
+        "P002888-1",
+        "P002895-1",
+        "P002902-1",
+        "P002910-1",
+        "P008320-1",
+        "P008382-1",
+        "P008441-1",
+        "P008486-1",
+        "P008547-1",
+        "P008594-1",
+        "P008641-1",
+        "P050623-1",
+        "P051203-1"
+      ],
+      "status": "INFEASIBLE",
+      "wall_time_s": 0.159036,
+      "score": 0.6520026134560938,
+      "core": {
+        "status": "DISABLED",
+        "reason": "exclusive relay core is invalid under same-site sharing"
+      }
+    }
+  ],
+  "config": {
+    "iterations": 100,
+    "wall_time_s": 60.0,
+    "repair_time_s": 1.0,
+    "joint_time_s": 20.0,
+    "workers": 4,
+    "batch_size": 1,
+    "objective_weights": [
+      0.0,
+      0.0,
+      1.0,
+      0.0
+    ],
+    "polish_time_s": 10.0
+  },
+  "initial_exact_cover_seeds": 7,
+  "forbidden_occurrences": 0,
+  "max_additional_solutions": 1,
+  "baseline_excluded": true,
+  "run_directory": "D:\\\u6570\u5b66\u5efa\u6a21\\\u7b2c\u4e8c\u5341\u4e09\u5c4a\u4e2d\u56fd\u7814\u7a76\u751f\u6570\u5b66\u5efa\u6a21\u7ade\u8d5b - \u4e2d\u6587\u9898\u76ee\\\u4e2d\u6587\u9898\u76ee\\Project\\code\\data\\q3_alns_runs\\20260926_094938_778825",
+  "solutions": [],
+  "archive_errors": [],
+  "wall_time_s": 60.14100000000326,
+  "operator_weights": {
+    "random": 1.0,
+    "relay_load": 1.1024,
+    "gaps": 0.8400000000000001,
+    "congestion": 1.0,
+    "deadline": 1.0,
+    "related": 1.0
+  },
+  "reason": "Search budget exhausted before requested distinct solution count"
+}

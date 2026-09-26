@@ -1,5 +1,5 @@
 {
-  "status": "SEARCHING",
+  "status": "INTERRUPTED_SUPERSEDED_BEFORE_REPAIR_FIXES",
   "algorithm": "weighted_ALNS_exact_joint_CP_SAT_Pareto",
   "objective_names": [
     "F1_timeliness",
@@ -73,12 +73,43 @@
     "max_solutions_per_weight": 5,
     "batch_size": 1
   },
-  "completed_weight_runs": 0,
+  "completed_weight_runs": 2,
   "candidate_count": 0,
   "pareto_size": 0,
   "pareto_solution_ids": [],
-  "elapsed_wall_time_s": 0.0,
+  "elapsed_wall_time_s": 401.6560000000027,
   "run_directory": "D:\\数学建模\\第二十三届中国研究生数学建模竞赛 - 中文题目\\中文题目\\Project\\code\\data\\q3_multiobjective\\20260926_091143_023980",
-  "weight_runs": [],
+  "weight_runs": [
+    {
+      "weight_index": 1,
+      "weights": [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "status": "UNKNOWN",
+      "run_directory": "D:\\数学建模\\第二十三届中国研究生数学建模竞赛 - 中文题目\\中文题目\\Project\\code\\data\\q3_alns_runs\\20260926_091152_521773",
+      "iterations": 12,
+      "unique_candidates": 6,
+      "joint_attempts": 5,
+      "accepted_solutions": 0
+    },
+    {
+      "weight_index": 2,
+      "weights": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "status": "UNKNOWN",
+      "run_directory": "D:\\数学建模\\第二十三届中国研究生数学建模竞赛 - 中文题目\\中文题目\\Project\\code\\data\\q3_alns_runs\\20260926_091456_420968",
+      "iterations": 10,
+      "unique_candidates": 6,
+      "joint_attempts": 6,
+      "accepted_solutions": 0
+    }
+  ],
   "candidates": []
 }

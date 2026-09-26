@@ -3,7 +3,7 @@ import argparse
 import json
 import sys
 
-from src.q3.multiobjective import WEIGHT_VECTORS, run_multiobjective
+from src.q3.multiobjective import WEIGHT_LABELS, WEIGHT_VECTORS, run_multiobjective
 
 
 if __name__ == '__main__':
@@ -15,23 +15,32 @@ if __name__ == '__main__':
                         help='Wall-time budget in seconds for each weight vector')
     parser.add_argument('--repair-time', type=float, default=1)
     parser.add_argument('--joint-time', type=float, default=20)
+    parser.add_argument('--polish-time', type=float, default=30,
+                        help='Weighted joint CP-SAT polish time for each feasible candidate')
     parser.add_argument('--workers', type=int, default=4)
     parser.add_argument('--seed', type=int, default=2026)
     parser.add_argument('--max-solutions-per-weight', type=int, default=5)
+    parser.add_argument('--directions', nargs='+', choices=WEIGHT_LABELS,
+                        default=list(WEIGHT_LABELS),
+                        help='Select a subset for smoke tests, e.g. --directions F1 E N')
     args = parser.parse_args()
     if min(args.iterations, args.wall_time_per_weight, args.repair_time,
-           args.joint_time, args.workers, args.max_solutions_per_weight) <= 0:
+           args.joint_time, args.polish_time, args.workers,
+           args.max_solutions_per_weight) <= 0:
         parser.error('Budgets and counts must be positive')
     report = run_multiobjective(
         iterations=args.iterations,
         wall_time_per_weight_s=args.wall_time_per_weight,
         repair_time_s=args.repair_time, joint_time_s=args.joint_time,
+        polish_time_s=args.polish_time,
         workers=args.workers, seed=args.seed,
         max_solutions_per_weight=args.max_solutions_per_weight,
+        weight_vectors=[WEIGHT_VECTORS[WEIGHT_LABELS.index(name)]
+                        for name in args.directions],
     )
     print(json.dumps({
         'status': report['status'],
-        'weight_vectors': len(WEIGHT_VECTORS),
+        'weight_vectors': len(args.directions),
         'candidate_count': report['candidate_count'],
         'pareto_size': report['pareto_size'],
         'manifest': report['run_directory'] + '/manifest.json',

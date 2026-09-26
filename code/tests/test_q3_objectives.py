@@ -7,7 +7,10 @@ from ortools.sat.python import cp_model
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from src.q3.anchors import _build_objective_expression
-from src.q3.objectives import ENERGY_SCALE, F1_TIME_SCALE, evaluate_objectives, soft_box_targets
+from src.q3.objectives import (
+    ENERGY_SCALE, F1_TIME_SCALE, evaluate_objectives, relay_session_energy_kwh,
+    soft_box_targets,
+)
 
 
 def test_four_objectives_keep_hard_deadlines_out_of_f1():
@@ -95,3 +98,15 @@ def test_f1_distinguishes_tenth_second_delivery_offsets():
         c = other.NewIntVar(0, 0, "c")
         _build_objective_expression(objective, other, problem, x, s, [], c)
         assert not any(v.name.startswith("soft_late_") for v in other.Proto().variables)
+
+
+def test_shared_relay_session_counts_flight_energy_once():
+    relay = pd.DataFrame([
+        {"relay_session_id": "R01-RS001", "relay_energy_kWh": .21,
+         "outbound_energy_kWh": .1, "return_energy_kWh": .1,
+         "service_energy_kWh": .01},
+        {"relay_session_id": "R01-RS001", "relay_energy_kWh": .21,
+         "outbound_energy_kWh": .1, "return_energy_kWh": .1,
+         "service_energy_kWh": .01},
+    ])
+    assert relay_session_energy_kwh(relay) == .22

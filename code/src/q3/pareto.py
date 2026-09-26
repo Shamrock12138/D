@@ -9,7 +9,8 @@ def dominates(left, right, tolerance=1e-9):
             and any(float(a) < float(b) - tolerance for a, b in zip(left, right)))
 
 
-def update_archive(archive, candidate, objective_key="objectives", tolerance=1e-9):
+def update_archive(archive, candidate, objective_key="objectives", objective_names=None,
+                   tolerance=1e-9):
     """Insert a feasible candidate and return a new nondominated archive.
 
     ``candidate[objective_key]`` may be either a mapping or a sequence. Exact
@@ -17,7 +18,13 @@ def update_archive(archive, candidate, objective_key="objectives", tolerance=1e-
     """
     def vector(item):
         values = item[objective_key]
-        return tuple(float(value) for value in values.values()) if isinstance(values, dict) else tuple(map(float, values))
+        if isinstance(values, dict):
+            names = tuple(objective_names) if objective_names is not None else tuple(sorted(values))
+            missing = set(names) - set(values)
+            if missing:
+                raise ValueError(f"Objective mapping is missing keys: {sorted(missing)}")
+            return tuple(float(values[name]) for name in names)
+        return tuple(map(float, values))
 
     target = vector(candidate)
     current = list(archive)

@@ -20,6 +20,13 @@ from src.q3.decomposition import _input_hashes
 from src.q3.relay_master import latest_start, relay_intervals
 
 
+REPAIR_COST_SCALE = 1_000_000
+
+
+def integer_repair_cost(value, jitter=1.0):
+    return max(1, round(REPAIR_COST_SCALE * max(0.0, float(value)) * float(jitter)))
+
+
 class TransportSearch:
     operators = ('random', 'relay_load', 'gaps', 'congestion', 'deadline', 'related')
 
@@ -35,9 +42,20 @@ class TransportSearch:
                                 for o in self.occ], dtype=int)
         options = relay_intervals(problem)
         self.allowed, self.base, self.loads, self.latest = [], [], [], []
+        self.occ_energy = np.asarray([float(o.energy_kWh) for o in self.occ], dtype=float)
+        self.occ_duration = np.asarray([float(o.duration_s) for o in self.occ], dtype=float)
+        self.uav_types = sorted({str(o.uav_type) for o in self.occ})
+        self.uav_type_index = {typ: index for index, typ in enumerate(self.uav_types)}
+        self.occ_type_index = np.asarray(
+            [self.uav_type_index[str(o.uav_type)] for o in self.occ], dtype=int)
+        self.uav_count_by_type = np.asarray([
+            max(1, len(problem['uav_ids'].get(typ, ()))) for typ in self.uav_types
+        ], dtype=float)
+        self.occ_soft_terms = []
         self.grid = np.arange(0, problem['horizon_s'], 250) + 125
         self.footprint = np.zeros((len(self.occ), len(self.grid)), dtype=float)
         self.copies = defaultdict(list)
+        params = problem['class_params']
         for i, o in enumerate(self.occ):
             self.copies[o.pattern_id].append(i)
             upper = latest_start(problem, o)
@@ -55,11 +73,28 @@ class TransportSearch:
             self.allowed.append(usable)
             self.loads.append(load)
             self.base.append(1000 + 2000*len(o.gap_ids) + 2*load + o.energy_kWh)
+            terms = []
+            for class_id, amount in o.class_counts.items():
+                item = params[class_id]
+                expected = float(item.get('expected_time_s', float('nan')))
+                if math.isfinite(item.get('hard_deadline_s', float('inf'))) or not math.isfinite(expected):
+                    continue
+                delta = float(o.delivery_offsets.get(class_id, 0.0)) - expected
+                terms.append((int(amount) * int(item.get('priority', 0)), delta))
+            self.occ_soft_terms.append(tuple(terms))
         self.allowed = np.array(self.allowed)
         self.base = np.array(self.base)
         self.weights = {op: 1.0 for op in self.operators}
         self.objective_weights = self._validate_objective_weights(objective_weights)
         self.objective_scales = self._build_objective_scales()
+        relay = problem.get('relay')
+        self.min_relay_energy_by_gap = {}
+        if relay is not None and len(relay) and 'relay_energy_kWh' in relay:
+            self.min_relay_energy_by_gap = (
+                relay.assign(_gap_id=relay['gap_id'].astype(str))
+                .groupby('_gap_id')['relay_energy_kWh'].min().astype(float).to_dict())
+        self.occ_gap_ids = [tuple(map(str, o.gap_ids)) for o in self.occ]
+        self.occ_relay_load = np.asarray(self.loads, dtype=float)
         self.cores = []
         self.excluded_sets = []
 
@@ -76,10 +111,9 @@ class TransportSearch:
         return tuple(value / total for value in values)
 
     def _build_objective_scales(self):
-        params = self.problem['class_params']
         f1_scale = 0.0
         for class_id, amount in self.problem['class_supply'].items():
-            item = params[class_id]
+            item = self.problem['class_params'][class_id]
             deadline = item.get('hard_deadline_s', float('inf'))
             expected = item.get('expected_time_s', float('nan'))
             if math.isfinite(deadline) or not math.isfinite(expected):
@@ -106,35 +140,22 @@ class TransportSearch:
         """Normalized transport-set proxies; never used to certify feasibility."""
         if not selected:
             return (0.0, 0.0, 0.0, 0.0)
-        params = self.problem['class_params']
+        indices = np.asarray(selected, dtype=int)
         f1 = 0.0
-        transport_work = defaultdict(float)
-        transport_energy = 0.0
-        relay_energy = 0.0
-        relay_work = 0.0
-        gaps = set()
+        workload = np.bincount(self.occ_type_index[indices],
+                               weights=self.occ_duration[indices],
+                               minlength=len(self.uav_types))
+        predicted_start = 0.5 * workload / self.uav_count_by_type
         for i in selected:
-            occurrence = self.occ[i]
-            transport_energy += float(occurrence.energy_kWh)
-            transport_work[occurrence.uav_type] += float(occurrence.duration_s)
-            for class_id, amount in occurrence.class_counts.items():
-                item = params[class_id]
-                deadline = item.get('hard_deadline_s', float('inf'))
-                expected = item.get('expected_time_s', float('nan'))
-                if math.isfinite(deadline) or not math.isfinite(expected):
-                    continue
-                offset = float(occurrence.delivery_offsets.get(class_id, 0.0))
-                f1 += int(amount) * int(item.get('priority', 0)) * max(0.0, offset - expected)
-            for gap in occurrence.gap_ids:
-                gaps.add(str(gap))
-                relay_work += float(self.loads[i]) / max(1, len(occurrence.gap_ids))
-        transport_cmax = max((work / max(1, len(self.problem['uav_ids'].get(typ, ())))
-                              for typ, work in transport_work.items()), default=0.0)
+            start_hat = predicted_start[self.occ_type_index[i]]
+            f1 += sum(weight * max(0.0, start_hat + offset_minus_expected)
+                      for weight, offset_minus_expected in self.occ_soft_terms[i])
+        transport_cmax = max((workload / self.uav_count_by_type), default=0.0)
+        relay_work = float(self.occ_relay_load[indices].sum())
         relay_cmax = relay_work / 2.0
-        relay = self.problem.get('relay')
-        if relay is not None and len(relay) and 'relay_energy_kWh' in relay:
-            per_gap = relay.groupby(relay['gap_id'].astype(str))['relay_energy_kWh'].min()
-            relay_energy = sum(float(per_gap.get(gap, 0.0)) for gap in gaps)
+        transport_energy = float(self.occ_energy[indices].sum())
+        gaps = {gap for i in selected for gap in self.occ_gap_ids[i]}
+        relay_energy = sum(self.min_relay_energy_by_gap.get(gap, 0.0) for gap in gaps)
         estimates = (f1, max(transport_cmax, relay_cmax), transport_energy + relay_energy,
                     len(selected) + len(gaps))
         return tuple(value / scale for value, scale in zip(estimates, self.objective_scales))
@@ -194,7 +215,7 @@ class TransportSearch:
             base_score = self.score(kept)
             raw_costs = {i: max(1e-6, self.score(kept+[i])-base_score)
                          for i in candidates}
-        costs = {i: max(1, int(value * self.rng.uniform(.5, 1.5)))
+        costs = {i: integer_repair_cost(value, self.rng.uniform(.95, 1.05))
                  for i, value in raw_costs.items()}
         model.Minimize(sum(costs[i]*x for i, x in variables.items()))
         solver = cp_model.CpSolver()
@@ -227,7 +248,7 @@ class TransportSearch:
 
 def run_alns(iterations=200, wall_time_s=300, repair_time_s=1, joint_time_s=20,
              workers=4, seed=42, batch_size=5, max_solutions=3,
-             objective_weights=None, excluded_sortie_sets=()):
+             objective_weights=None, excluded_sortie_sets=(), polish_time_s=0):
     started = time.monotonic()
     hashes = _input_hashes()
     problem = prepare_q3_problem(tier='all')
@@ -244,8 +265,10 @@ def run_alns(iterations=200, wall_time_s=300, repair_time_s=1, joint_time_s=20,
         search.excluded_sets.append(frozenset(baseline))
     for excluded_ids in excluded_sortie_sets:
         if excluded_ids and all(str(s) in search.by_id for s in excluded_ids):
-            search.excluded_sets.append(frozenset(
-                search.canonical([search.by_id[str(s)] for s in excluded_ids])))
+            excluded = frozenset(search.canonical(
+                [search.by_id[str(s)] for s in excluded_ids]))
+            if excluded not in search.excluded_sets:
+                search.excluded_sets.append(excluded)
     admissible_seeds = [s for s in seeds if search.eligible(s)]
     current = min(admissible_seeds or seeds, key=search.score) if seeds else ()
     run_dir = DATA/'q3_alns_runs'/datetime.now().strftime('%Y%m%d_%H%M%S_%f')
@@ -256,7 +279,8 @@ def run_alns(iterations=200, wall_time_s=300, repair_time_s=1, joint_time_s=20,
               'config': dict(iterations=iterations, wall_time_s=wall_time_s,
                              repair_time_s=repair_time_s, joint_time_s=joint_time_s,
                              workers=workers, batch_size=batch_size,
-                             objective_weights=search.objective_weights),
+                             objective_weights=search.objective_weights,
+                             polish_time_s=polish_time_s),
               'initial_exact_cover_seeds': len(seeds),
               'forbidden_occurrences': int((~search.allowed).sum()),
               'max_additional_solutions': max_solutions,
@@ -305,7 +329,8 @@ def run_alns(iterations=200, wall_time_s=300, repair_time_s=1, joint_time_s=20,
             ids = [search.occ[i].sortie_id for i in candidate]
             solution = solve_q3_joint(tier='all', time_limit_s=min(joint_time_s, remaining),
                         workers=workers, random_seed=seed, problem=subset_problem(problem, ids),
-                        feasibility_only=True, allow_relay_sharing=True)
+                        feasibility_only=True, allow_relay_sharing=True,
+                        fixed_sortie_ids=ids)
             attempt = {'iteration': iteration, 'sortie_ids': ids, 'status': solution['status'],
                        'wall_time_s': solution['wall_time_s'], 'score': search.score(candidate)}
             report['attempts'].append(attempt)
@@ -313,9 +338,28 @@ def run_alns(iterations=200, wall_time_s=300, repair_time_s=1, joint_time_s=20,
                   f"generated={report['generated']}", flush=True)
             if solution['status'] == 'MODEL_INVALID': raise RuntimeError('Invalid joint model')
             if solution['status'] in ('FEASIBLE', 'OPTIMAL'):
+                if polish_time_s > 0:
+                    remaining = wall_time_s-(time.monotonic()-started)
+                    if remaining > 0:
+                        polished = solve_q3_joint(
+                            tier='all', time_limit_s=min(polish_time_s, remaining),
+                            workers=workers, random_seed=seed + iteration,
+                            problem=subset_problem(problem, ids), feasibility_only=False,
+                            hint=solution, allow_relay_sharing=True,
+                            objective_weights=(search.objective_weights or (0.25,)*4),
+                            fixed_sortie_ids=ids)
+                        attempt['polish_status'] = polished['status']
+                        attempt['polish_wall_time_s'] = polished.get('wall_time_s', 0.0)
+                        if polished['status'] in ('FEASIBLE', 'OPTIMAL'):
+                            solution = polished
+                    else:
+                        attempt['polish_status'] = 'SKIPPED_WALL_BUDGET'
                 if _input_hashes() != hashes: raise RuntimeError('Inputs changed during ALNS')
-                solution.update(input_sha256=hashes, solve_mode='ALNS_CP_SAT',
-                                optimization_status='NOT_RUN', alns_iteration=iteration)
+                solution.update(input_sha256=hashes, alns_iteration=iteration)
+                if solution.get('solve_mode') != 'weighted_polish':
+                    solution.update(solve_mode='ALNS_CP_SAT', optimization_status='NOT_RUN')
+                else:
+                    solution['optimization_status'] = solution['status']
                 ordinal = len(report['solutions']) + 1
                 solution_dir = run_dir/f'solution_{iteration:04d}'
                 try:
@@ -346,6 +390,7 @@ def run_alns(iterations=200, wall_time_s=300, repair_time_s=1, joint_time_s=20,
                     'relay_gap_jobs': len(solution['relay']),
                     'relay_sessions': int(solution['relay']['relay_session_id'].nunique())
                         if 'relay_session_id' in solution['relay'] else len(solution['relay']),
+                    'search_source': 'weighted_alns',
                 })
                 report['distinct_additional_solutions'] = len(report['solutions'])
                 print(f"ALNS archived distinct solution #{ordinal} at iteration {iteration}", flush=True)
