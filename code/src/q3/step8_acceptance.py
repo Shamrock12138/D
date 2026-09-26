@@ -12,6 +12,8 @@ from src.q2 import data_model
 from src.q2.compact_classes import decode_box_deliveries
 from src.q2.cp_sat_scheduler import _deadlines
 from src.q3.objectives import evaluate_objectives
+from src.q3.relay.operation_profile import load_relay_flight_parameters
+from src.q3.session_resources import attach_session_resources
 
 
 OUTPUTS = (
@@ -21,6 +23,7 @@ OUTPUTS = (
     "q3_joint_resource_summary.csv",
     "q3_step8_manifest.json",
 )
+SESSION_OUTPUT = "q3_joint_relay_session_schedule.csv"
 
 
 def _hash(path):
@@ -37,17 +40,21 @@ def _verify_solver_inputs(input_sha256, input_dir=DATA):
             raise AssertionError(f"Step8 input changed since solve: {name}")
 
 
-def _output_hashes(data_dir):
+def _output_hashes(data_dir, outputs=OUTPUTS):
     """Hash the Step8 artifacts in the candidate directory being accepted."""
-    return {name: _hash(Path(data_dir) / name) for name in OUTPUTS}
+    return {name: _hash(Path(data_dir) / name) for name in outputs}
 
 
-def accept_step8(freeze=True, data_dir=None):
+def accept_step8(freeze=True, data_dir=None, freeze_dir=None):
     data_dir = Path(data_dir) if data_dir is not None else DATA
     missing = [name for name in OUTPUTS if not (data_dir / name).is_file()]
     if missing:
         raise FileNotFoundError(f"Step8 outputs are incomplete: {missing}")
     manifest = json.loads((data_dir / "q3_step8_manifest.json").read_text(encoding="utf-8"))
+    objective_schema = manifest.get("objective_schema", "relay_gap_v1")
+    outputs = OUTPUTS + ((SESSION_OUTPUT,) if objective_schema == "relay_session_v2" else ())
+    if objective_schema == "relay_session_v2" and not (data_dir / SESSION_OUTPUT).is_file():
+        raise FileNotFoundError(f"Session-v2 Step8 output is missing: {data_dir / SESSION_OUTPUT}")
     status = manifest.get("status")
     if status not in ("FEASIBLE", "OPTIMAL") or manifest.get("validation", {}).get("all_pass") is not True:
         raise AssertionError(f"Step8 status/validation failed: {status}, {manifest.get('validation')}")
@@ -106,6 +113,28 @@ def accept_step8(freeze=True, data_dir=None):
         set(relay["relay_uav_id"].astype(str)) <= {"R01", "R02"}
         and set(relay["energy_component_id"].astype(str)) <= {f"E0{i}" for i in range(1, 7)}
     )
+    if objective_schema == "relay_session_v2":
+        session_rows = pd.read_csv(data_dir / SESSION_OUTPUT, encoding="utf-8-sig")
+        annotated, recomputed_sessions, components_fit = attach_session_resources(
+            relay, load_relay_flight_parameters(), relay_options=problem.get("relay"))
+        expected = recomputed_sessions.sort_values("relay_session_id").reset_index(drop=True)
+        actual = session_rows.sort_values("relay_session_id").reset_index(drop=True)
+        validation["checks"]["relay_session_resource_table"] = (
+            list(actual.columns) == list(expected.columns)
+            and len(actual) == len(expected)
+            and (actual["relay_session_id"].astype(str).tolist()
+                 == expected["relay_session_id"].astype(str).tolist())
+            and all(abs(float(a)-float(b)) <= 1e-6
+                    for column in ("relay_session_energy_kWh", "end_soc",
+                                   "energy_release_time_s")
+                    for a, b in zip(actual[column], expected[column]))
+            and actual["energy_component_id"].astype(str).tolist()
+                == expected["energy_component_id"].astype(str).tolist()
+        )
+        validation["checks"]["relay_session_component_capacity"] = components_fit
+        validation["checks"]["relay_session_component_consistency"] = all(
+            relay.groupby("relay_session_id")["energy_component_id"].nunique() <= 1
+        ) if len(relay) else True
     allowed = problem["relay"][["gap_id", "pattern_id", "candidate_id"]].astype(str)
     allowed_keys = set(map(tuple, allowed.itertuples(index=False, name=None)))
     actual_keys = set(map(tuple, relay[["gap_id", "pattern_id", "candidate_id"]].astype(str).itertuples(index=False, name=None)))
@@ -115,20 +144,23 @@ def accept_step8(freeze=True, data_dir=None):
     if not validation["all_pass"]:
         failed = [key for key, passed in validation["checks"].items() if not passed]
         raise AssertionError(f"Step8.5 failed: {failed}")
-    outputs_sha256 = _output_hashes(data_dir)
+    outputs_sha256 = _output_hashes(data_dir, outputs)
     result = {
         "status": status,
         "validation": validation,
         "objectives": evaluate_objectives(problem, transport, relay, delivery),
         "outputs_sha256": outputs_sha256,
         "solver_input_sha256": solver_input_sha256,
+        "objective_schema": objective_schema,
         # Keep the historical field as an alias for downstream compatibility.
         "input_sha256": outputs_sha256,
     }
     if freeze:
-        target = data_dir / "q3_step8_frozen"
+        target = Path(freeze_dir) if freeze_dir is not None else (
+            data_dir / ("q3_step8_frozen_v2" if objective_schema == "relay_session_v2"
+                        else "q3_step8_frozen"))
         target.mkdir(exist_ok=True)
-        for name in OUTPUTS:
+        for name in outputs:
             destination = target / name
             if destination.exists() and _hash(destination) != outputs_sha256[name]:
                 raise FileExistsError(f"Frozen Step8 file differs: {destination}")

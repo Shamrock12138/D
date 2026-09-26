@@ -76,7 +76,9 @@ def run_multiobjective(iterations=200, wall_time_per_weight_s=180,
     excluded = []
     generated_total = unique_total = attempted_total = feasible_total = 0
 
-    frozen_dir = DATA / 'q3_step8_frozen'
+    frozen_v2 = DATA / 'q3_step8_frozen_v2'
+    frozen_dir = (frozen_v2 if (frozen_v2 / 'q3_joint_transport_schedule.csv').is_file()
+                  else DATA / 'q3_step8_frozen')
     if (frozen_dir / 'q3_joint_transport_schedule.csv').is_file():
         baseline_acceptance = accept_step8(freeze=False, data_dir=frozen_dir)
         baseline_transport = pd.read_csv(
@@ -167,7 +169,6 @@ def run_multiobjective(iterations=200, wall_time_per_weight_s=180,
                 'solution_directory': candidate['solution_directory'],
                 'search_source': 'weighted_alns',
             })
-            excluded.append(candidate['sortie_ids'])
             if candidate['validation_all_pass'] is True:
                 archive = update_archive(archive, item, objective_key='objectives',
                                          objective_names=OBJECTIVE_NAMES)

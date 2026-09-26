@@ -24,6 +24,7 @@ from src.q2 import data_model
 from src.q2.battery import charge_time_to_full, soc_after_task
 from src.q2.compact_classes import decode_box_deliveries
 from src.q3.relay.operation_profile import load_relay_flight_parameters
+from src.q3.session_resources import attach_session_resources
 from src.q3.transport.occurrence import generate_occurrences
 
 PROJECT = Path(__file__).resolve().parents[2]
@@ -595,7 +596,7 @@ def _build_q3_model(problem, relay_uav_capacity=None, relay_energy_capacity=None
             relay_uav_intervals, [1] * len(relay_uav_intervals),
             RELAY_UAV_CAPACITY if relay_uav_capacity is None else relay_uav_capacity
         )
-    if relay_energy_intervals:
+    if relay_energy_intervals and not allow_relay_sharing:
         model.AddCumulative(
             relay_energy_intervals, [1] * len(relay_energy_intervals),
             RELAY_ENERGY_CAPACITY if relay_energy_capacity is None else relay_energy_capacity
@@ -682,7 +683,7 @@ def _decode_q3_resources(problem, solver, select_vars, start_vars, relay_select_
     ).reset_index(drop=True)
 
     # Relay 解码
-    energy_ready = {f"E0{i + 1}": 0 for i in range(RELAY_ENERGY_CAPACITY)}
+    relay_uav_ready = {rid: 0 for rid in metadata["relay_ids"]}
     relay_rows = []
 
     active_relays = []
@@ -706,12 +707,12 @@ def _decode_q3_resources(problem, solver, select_vars, start_vars, relay_select_
             )
         else:
             relay_uav = next((rid for rid, ready in relay_uav_ready.items() if ready <= start), None)
-        energy_id = next((eid for eid, ready in energy_ready.items() if ready <= start), None)
-        if relay_uav is None or energy_id is None:
+        energy_id = "" if metadata.get("allow_relay_sharing") else None
+        if relay_uav is None:
             raise AssertionError("Cumulative capacity cannot be decoded to relay resources")
         if not metadata.get("allow_relay_sharing"):
             relay_uav_ready[relay_uav] = uav_end
-        energy_ready[energy_id] = energy_end
+            energy_id = f"E0{(len(relay_rows) % RELAY_ENERGY_CAPACITY) + 1}"
         relay_rows.append({
             "sortie_id": str(meta["sortie_id"]),
             "pattern_id": str(meta["pattern_id"]),
@@ -785,6 +786,11 @@ def _decode_q3_resources(problem, solver, select_vars, start_vars, relay_select_
     relay_schedule = pd.DataFrame(relay_rows, columns=relay_columns).sort_values(
         ["relay_uav_id", "dispatch_time_s"]
     ).reset_index(drop=True)
+    relay_schedule, session_schedule, session_resources_feasible = attach_session_resources(
+        relay_schedule, load_relay_flight_parameters(), RELAY_ENERGY_CAPACITY, relay_df
+    )
+    metadata["session_resources_feasible"] = session_resources_feasible
+    metadata["relay_sessions"] = session_schedule
 
     # Physical box delivery decode
     classes_df = problem["classes"]
@@ -886,12 +892,22 @@ def validate_q3_solution(problem, transport, relay, joint_cmax_s):
 
     # 5. relay resources non-overlap
     checks["relay_uav_location_compatible"] = _relay_uav_location_compatible(relay)
-    checks["relay_energy_nonoverlap"] = _nonoverlap(relay, "energy_component_id", "dispatch_time_s", "energy_release_time_s")
+    from src.q3.session_resources import attach_session_resources
+    relay_params = load_relay_flight_parameters()
+    _, sessions, session_components_fit = attach_session_resources(
+        relay, relay_params, RELAY_ENERGY_CAPACITY, problem.get("relay")
+    )
+    checks["relay_energy_nonoverlap"] = bool(session_components_fit)
 
     # 6. relay energy / soc limits
-    relay_params = load_relay_flight_parameters()
     checks["relay_energy_limit"] = bool((relay["relay_energy_kWh"] <= relay_params.max_energy_kwh + 1e-6).all()) if not relay.empty else True
     checks["relay_end_soc_limit"] = bool((relay["end_soc"] >= relay_params.safety_margin - 1e-6).all()) if not relay.empty else True
+    checks["relay_session_energy_limit"] = bool(
+        (sessions["relay_session_energy_kWh"] <= relay_params.max_energy_kwh + 1e-6).all()
+    ) if not sessions.empty else True
+    checks["relay_session_end_soc_limit"] = bool(
+        (sessions["end_soc"] >= relay_params.safety_margin - 1e-6).all()
+    ) if not sessions.empty else True
 
     # 7. joint Cmax consistency
     relay_end = float(relay["return_time_s"].max()) if not relay.empty else 0.0
@@ -1105,10 +1121,13 @@ def solve_q3_joint(tier="tier1", time_limit_s=600, workers=8, random_seed=2026,
     validation = validate_q3_solution(problem, transport, relay, int(solver.Value(joint_cmax)))
     if not validation["all_pass"]:
         failed = [key for key, value in validation["checks"].items() if not value]
-        raise AssertionError(f"Step8 validator failed: {failed}")
+        return {"status": "POSTCHECK_INFEASIBLE", "tier": tier,
+                "wall_time_s": solver.WallTime(), "validation": validation,
+                "postcheck_failed": failed}
     return {
         "status": solver.StatusName(status), "tier": tier, "wall_time_s": solver.WallTime(),
         "transport": transport, "relay": relay, "delivery": delivery,
+        "relay_sessions": metadata.get("relay_sessions", pd.DataFrame()),
         "transport_cmax_s": int(solver.Value(transport_cmax)),
         "relay_cmax_s": int(solver.Value(relay_cmax)),
         "joint_cmax_s": int(solver.Value(joint_cmax)), "validation": validation,
@@ -1151,6 +1170,14 @@ def write_step8_outputs(result, output_dir=None):
     result["delivery"] = delivery
     transport.to_csv(output_dir / "q3_joint_transport_schedule.csv", index=False, encoding="utf-8-sig")
     result["relay"].to_csv(output_dir / "q3_joint_relay_schedule.csv", index=False, encoding="utf-8-sig")
+    session_schedule = result.get("relay_sessions")
+    if session_schedule is None:
+        session_schedule = attach_session_resources(
+            result["relay"], load_relay_flight_parameters(), RELAY_ENERGY_CAPACITY,
+            prepare_q3_problem(tier=result.get("tier", "all")).get("relay")
+        )[1]
+    session_schedule.to_csv(output_dir / "q3_joint_relay_session_schedule.csv",
+                            index=False, encoding="utf-8-sig")
     delivery.to_csv(output_dir / "q3_joint_delivery_schedule.csv", index=False, encoding="utf-8-sig")
     transport_energy = float(transport["energy_kWh"].sum())
     relay_gap_job_energy = float(result["relay"]["relay_energy_kWh"].sum())
@@ -1164,6 +1191,7 @@ def write_step8_outputs(result, output_dir=None):
         "joint_Cmax_s": result["joint_cmax_s"],
         "transport_sorties": len(result["transport"]),
         "relay_jobs": len(result["relay"]),
+        "relay_sessions": len(session_schedule),
         "transport_energy_kWh": transport_energy,
         "relay_energy_kWh": relay_energy,
         "relay_session_energy_kWh": relay_energy,
@@ -1173,10 +1201,14 @@ def write_step8_outputs(result, output_dir=None):
         "relay_energy_capacity": RELAY_ENERGY_CAPACITY,
         "status": result["status"],
         "tier": result["tier"],
+        "objective_schema": "relay_session_v2",
     }]).to_csv(output_dir / "q3_joint_resource_summary.csv", index=False, encoding="utf-8-sig")
 
     manifest = {key: value for key, value in result.items()
-                if key not in {"transport", "relay", "delivery"}}
+                if key not in {"transport", "relay", "relay_sessions", "delivery"}}
+    manifest["objective_schema"] = "relay_session_v2"
+    manifest["session_resources_feasible"] = bool(result.get("validation", {}).get(
+        "checks", {}).get("relay_energy_nonoverlap", True))
     with (output_dir / "q3_step8_manifest.json").open("w", encoding="utf-8") as stream:
         json.dump(manifest, stream, ensure_ascii=False, indent=2)
         stream.write("\n")

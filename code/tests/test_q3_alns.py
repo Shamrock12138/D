@@ -7,7 +7,8 @@ from types import SimpleNamespace
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from src.q3.alns_search import TransportSearch, integer_repair_cost
+from src.q3.alns_search import (TransportSearch, accept_candidate,
+                                alns_temperature, integer_repair_cost)
 from src.q3.pareto import dominates, update_archive
 from src.q3.step8_acceptance import OUTPUTS, _output_hashes, _verify_solver_inputs
 
@@ -38,6 +39,23 @@ class AlnsTests(unittest.TestCase):
         search = self.make_search()
         search.excluded_sets.append(frozenset([0, 1]))
         self.assertEqual(search.repair([], 2), (2,))
+
+    def test_excluded_baseline_remains_structurally_feasible_current(self):
+        search = self.make_search()
+        baseline = (0, 1)
+        search.excluded_sets.append(frozenset(baseline))
+        self.assertTrue(search.structurally_feasible(baseline))
+        self.assertFalse(search.eligible(baseline))
+
+    def test_local_destroy_removes_one_to_three_jobs(self):
+        search = self.make_search()
+        kept = search.destroy((0, 1), 'local')
+        self.assertEqual(len(kept), 1)
+
+    def test_annealing_temperature_cools_and_acceptance_uses_it(self):
+        self.assertGreater(alns_temperature(1), alns_temperature(100))
+        import random
+        self.assertFalse(accept_candidate(1.01, 1.0, True, random.Random(1), 1000))
 
     def test_destroy_all_operators_preserve_subset(self):
         search = self.make_search()

@@ -1,0 +1,66 @@
+{
+  "status": "OPTIMAL",
+  "validation": {
+    "all_pass": true,
+    "checks": {
+      "class_conservation": true,
+      "transport_hard_deadlines": true,
+      "transport_uav_nonoverlap": true,
+      "transport_battery_nonoverlap": true,
+      "one_relay_per_selected_gap": true,
+      "relay_uav_location_compatible": true,
+      "relay_energy_nonoverlap": true,
+      "relay_energy_limit": true,
+      "relay_end_soc_limit": true,
+      "relay_session_energy_limit": true,
+      "relay_session_end_soc_limit": true,
+      "joint_cmax_consistent": true,
+      "relay_dispatch_nonnegative": true,
+      "relay_arrives_by_coverage": true,
+      "relay_service_covers_gap": true,
+      "relay_uav_release_valid": true,
+      "relay_energy_release_valid": true,
+      "delivery_schedule_matches_selected_tasks": true,
+      "delivery_times_match_offsets": true,
+      "transport_resource_ids_valid": true,
+      "relay_resource_ids_valid": true,
+      "relay_session_resource_table": true,
+      "relay_session_component_capacity": true,
+      "relay_session_component_consistency": true,
+      "relay_option_in_step7": true,
+      "joint_cmax_exact": true
+    },
+    "actual_cmax_s": 12627.0
+  },
+  "objectives": {
+    "F1_timeliness": 679141.4,
+    "F2_joint_cmax_s": 12627.0,
+    "F3_total_energy_kWh": 69.127368,
+    "F4_total_sorties": 26
+  },
+  "outputs_sha256": {
+    "q3_joint_transport_schedule.csv": "95c17dfe94cf392fe3399d9687b3ee196661c15826d0a64cc8b7679e1cf40751",
+    "q3_joint_relay_schedule.csv": "0d493134f8d81b4eb91ba93525d6e838f6b9802681a3f989040c8d86022eaf43",
+    "q3_joint_delivery_schedule.csv": "b6441d2f4ee990797c633e18b83497913c7b015409dc8332419443a4ed28921b",
+    "q3_joint_resource_summary.csv": "953eed1c902e3df54bff8a8f9386296fd2464c8ef53d9cdc5f41b6aa3e7ec051",
+    "q3_step8_manifest.json": "5f02b15aed0695fd546d46b0c3d7d8ae4c775ab91efaed84cf6d64e8d1aa57d6",
+    "q3_joint_relay_session_schedule.csv": "b307d41e697e1e4222d9c686f3b40f7209cb14f5e293b048dbe131d47b25f074"
+  },
+  "solver_input_sha256": {
+    "q3_compact_patterns.csv": "b170f5531b838e77a95628ad084f8f9d3b390ceceea521c77e0a89d73297c96e",
+    "q3_compact_pattern_counts.csv": "725b642bbf241d7acd72d9ddbc29a63366ee41089650538001144bc9f575597e",
+    "q3_pattern_comm_gaps.csv": "9435f6b02daa12f8fb8a098f467a1fafcbd9afc24f63bb55e0d09c60434da8b5",
+    "q3_relay_job_options.csv": "51d77413c02d0c91aecaf84eb73444b488183ac18637849e20b4b90d4bfe0ff7",
+    "q3_pattern_gap_manifest.json": "f5b08e07f7b9ba9b14ec6b74305d8dacd9e64f541c99ea9583700af4e84ee4e5",
+    "q3_step7_manifest.json": "f8234d5c0b6afacf1b5e4886e3cd8c297463f7ed5f6772da590efde63949567b"
+  },
+  "objective_schema": "relay_session_v2",
+  "input_sha256": {
+    "q3_joint_transport_schedule.csv": "95c17dfe94cf392fe3399d9687b3ee196661c15826d0a64cc8b7679e1cf40751",
+    "q3_joint_relay_schedule.csv": "0d493134f8d81b4eb91ba93525d6e838f6b9802681a3f989040c8d86022eaf43",
+    "q3_joint_delivery_schedule.csv": "b6441d2f4ee990797c633e18b83497913c7b015409dc8332419443a4ed28921b",
+    "q3_joint_resource_summary.csv": "953eed1c902e3df54bff8a8f9386296fd2464c8ef53d9cdc5f41b6aa3e7ec051",
+    "q3_step8_manifest.json": "5f02b15aed0695fd546d46b0c3d7d8ae4c775ab91efaed84cf6d64e8d1aa57d6",
+    "q3_joint_relay_session_schedule.csv": "b307d41e697e1e4222d9c686f3b40f7209cb14f5e293b048dbe131d47b25f074"
+  }
+}

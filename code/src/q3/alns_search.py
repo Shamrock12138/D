@@ -27,8 +27,18 @@ def integer_repair_cost(value, jitter=1.0):
     return max(1, round(REPAIR_COST_SCALE * max(0.0, float(value)) * float(jitter)))
 
 
+def alns_temperature(iteration):
+    return max(1e-6, 0.05 * (0.985 ** max(0, int(iteration) - 1)))
+
+
+def accept_candidate(value, previous, structurally_valid, rng, iteration):
+    if not structurally_valid or value < previous:
+        return True
+    return rng.random() < math.exp(min(0.0, (previous - value) / alns_temperature(iteration)))
+
+
 class TransportSearch:
-    operators = ('random', 'relay_load', 'gaps', 'congestion', 'deadline', 'related')
+    operators = ('random', 'local', 'relay_load', 'gaps', 'congestion', 'deadline', 'related')
 
     def __init__(self, problem, seed=42, objective_weights=None):
         self.problem = problem
@@ -85,6 +95,7 @@ class TransportSearch:
         self.allowed = np.array(self.allowed)
         self.base = np.array(self.base)
         self.weights = {op: 1.0 for op in self.operators}
+        self.weights['local'] = 3.0
         self.objective_weights = self._validate_objective_weights(objective_weights)
         self.objective_scales = self._build_objective_scales()
         relay = problem.get('relay')
@@ -131,10 +142,13 @@ class TransportSearch:
         return (len(selected) == len(set(selected)) and
                 np.array_equal(self.counts[list(selected)].sum(axis=0), self.supply))
 
+    def structurally_feasible(self, selected):
+        return (self.exact_cover(selected) and bool(selected)
+                and all(self.allowed[list(selected)]))
+
     def eligible(self, selected):
         signature = frozenset(selected)
-        return (self.exact_cover(selected) and all(self.allowed[list(selected)])
-                and signature not in self.excluded_sets)
+        return self.structurally_feasible(selected) and signature not in self.excluded_sets
 
     def objective_estimates(self, selected):
         """Normalized transport-set proxies; never used to certify feasibility."""
@@ -173,8 +187,10 @@ class TransportSearch:
         selected = list(selected)
         if not selected:
             return []
-        n = max(1, math.ceil(len(selected)*self.rng.uniform(.2, .55)))
-        if operator == 'random':
+        n = (min(len(selected), self.rng.randint(1, min(3, len(selected))))
+             if operator == 'local' else
+             max(1, math.ceil(len(selected)*self.rng.uniform(.2, .55))))
+        if operator == 'random' or operator == 'local':
             removed = self.rng.sample(selected, n)
         else:
             profile = self.footprint[selected].sum(axis=0)
@@ -270,7 +286,12 @@ def run_alns(iterations=200, wall_time_s=300, repair_time_s=1, joint_time_s=20,
             if excluded not in search.excluded_sets:
                 search.excluded_sets.append(excluded)
     admissible_seeds = [s for s in seeds if search.eligible(s)]
-    current = min(admissible_seeds or seeds, key=search.score) if seeds else ()
+    structurally_valid_seeds = [s for s in seeds if search.structurally_feasible(s)]
+    current = min(admissible_seeds or structurally_valid_seeds, key=search.score) if seeds else ()
+    if baseline_ids and all(s in search.by_id for s in baseline_ids):
+        baseline_seed = search.canonical([search.by_id[s] for s in baseline_ids])
+        if search.structurally_feasible(baseline_seed):
+            current = baseline_seed
     run_dir = DATA/'q3_alns_runs'/datetime.now().strftime('%Y%m%d_%H%M%S_%f')
     run_dir.mkdir(parents=True, exist_ok=False)
     report = {'status': 'SEARCHING', 'algorithm': 'ALNS_CP_SAT', 'seed': seed,
@@ -285,6 +306,7 @@ def run_alns(iterations=200, wall_time_s=300, repair_time_s=1, joint_time_s=20,
               'forbidden_occurrences': int((~search.allowed).sum()),
               'max_additional_solutions': max_solutions,
               'baseline_excluded': bool(search.excluded_sets),
+              'baseline_initialized_as_current': bool(current and baseline_ids),
               'run_directory': str(run_dir), 'solutions': [], 'archive_errors': []}
     pending, visited = {}, set()
     path = run_dir/'manifest.json'
@@ -299,7 +321,8 @@ def run_alns(iterations=200, wall_time_s=300, repair_time_s=1, joint_time_s=20,
         op = search.rng.choices(search.operators, weights=list(search.weights.values()))[0]
         kept = search.destroy(current, op) if current else []
         kept = [i for i in kept if search.allowed[i]]
-        if iteration % 10 == 0: kept = []  # diversify beyond the current basin
+        if iteration > 100 and iteration % 25 == 0:
+            kept = []
         before = time.monotonic()
         candidate = search.repair(kept, min(repair_time_s, remaining))
         report['repair_wall_time_s'] += time.monotonic()-before
@@ -309,8 +332,9 @@ def run_alns(iterations=200, wall_time_s=300, repair_time_s=1, joint_time_s=20,
             report['generated'] += 1
             value = search.score(candidate)
             previous = search.score(current) if current else float('inf')
-            if (not search.eligible(current) or value < previous
-                    or search.rng.random() < math.exp(min(0, (previous-value)/max(100, previous*.05)))):
+            if accept_candidate(value, previous,
+                                search.structurally_feasible(current),
+                                search.rng, iteration):
                 current = candidate
                 reward = 2 if value < previous else 1
             if candidate not in visited and candidate not in pending:
@@ -327,12 +351,37 @@ def run_alns(iterations=200, wall_time_s=300, repair_time_s=1, joint_time_s=20,
             remaining = wall_time_s-(time.monotonic()-started)
             if remaining <= 0: break
             ids = [search.occ[i].sortie_id for i in candidate]
-            solution = solve_q3_joint(tier='all', time_limit_s=min(joint_time_s, remaining),
-                        workers=workers, random_seed=seed, problem=subset_problem(problem, ids),
-                        feasibility_only=True, allow_relay_sharing=True,
-                        fixed_sortie_ids=ids)
+            hint = None
+            similarity = 0.0
+            if baseline_ids and len(set(ids) | set(baseline_ids)):
+                similarity = len(set(ids) & set(baseline_ids)) / len(set(ids) | set(baseline_ids))
+                if similarity >= 0.5:
+                    hint = {
+                        'transport': pd.read_csv(DATA/'q3_step8_frozen'/'q3_joint_transport_schedule.csv', encoding='utf-8-sig'),
+                        'relay': pd.read_csv(DATA/'q3_step8_frozen'/'q3_joint_relay_schedule.csv', encoding='utf-8-sig'),
+                    }
+            solve_args = dict(tier='all', workers=workers, random_seed=seed,
+                        problem=subset_problem(problem, ids), feasibility_only=True,
+                        allow_relay_sharing=True, fixed_sortie_ids=ids, hint=hint)
+            first_budget = min(joint_time_s, remaining)
+            solution = solve_q3_joint(time_limit_s=first_budget, **solve_args)
             attempt = {'iteration': iteration, 'sortie_ids': ids, 'status': solution['status'],
-                       'wall_time_s': solution['wall_time_s'], 'score': search.score(candidate)}
+                       'wall_time_s': solution.get('wall_time_s', 0.0), 'score': search.score(candidate),
+                       'baseline_jaccard_similarity': similarity,
+                       'hint_used': hint is not None,
+                       'first_status': solution['status'],
+                       'first_wall_time_s': solution.get('wall_time_s', 0.0)}
+            if solution['status'] == 'UNKNOWN':
+                remaining = wall_time_s-(time.monotonic()-started)
+                retry_budget = min(60.0, remaining)
+                if retry_budget > 0:
+                    retry = solve_q3_joint(time_limit_s=retry_budget, **solve_args)
+                    attempt['retry_status'] = retry['status']
+                    attempt['retry_wall_time_s'] = retry.get('wall_time_s', 0.0)
+                    if retry['status'] != 'UNKNOWN':
+                        solution = retry
+                    attempt['status'] = solution['status']
+                    attempt['wall_time_s'] += retry.get('wall_time_s', 0.0)
             report['attempts'].append(attempt)
             print(f"ALNS #{iteration}: {len(ids)} sorties, joint {solution['status']}, "
                   f"generated={report['generated']}", flush=True)
