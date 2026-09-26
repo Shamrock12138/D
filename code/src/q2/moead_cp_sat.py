@@ -194,22 +194,6 @@ def run_q2_moead(
     polish_time_s: float = 30.0,
     verbose: bool = True,
 ):
-    
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     rng = np.random.default_rng(random_seed)
     if verbose:
         print("=" * 60, flush=True)
