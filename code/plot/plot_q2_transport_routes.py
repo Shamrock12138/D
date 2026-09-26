@@ -14,9 +14,9 @@ import rasterio
 from rasterio.windows import from_bounds
 
 
-# ============================================================
-# 路径
-# ============================================================
+
+
+
 
 THIS_FILE = Path(__file__).resolve()
 CODE_ROOT = THIS_FILE.parents[1]
@@ -37,9 +37,9 @@ DEM_FILE = (
 OUTPUT_DIR = CODE_ROOT / "figures" / "q2"
 
 
-# ============================================================
-# 地图范围
-# ============================================================
+
+
+
 
 LON_MIN = 109.10
 LON_MAX = 109.35
@@ -47,11 +47,11 @@ LAT_MIN = 22.95
 LAT_MAX = 23.17
 
 
-# ============================================================
-# 配色
-# ============================================================
 
-# 地形：低处蓝 — 中间白(400m) — 高处红（与 plot_terrain_heatmap 共用同一色带）
+
+
+
+
 TERRAIN_CMAP = LinearSegmentedColormap.from_list(
     "terrain_blue_white_red",
     [
@@ -76,9 +76,9 @@ BASE_COLOR = "#C44E52"
 NODE_COLOR = "#3B6FB6"
 
 
-# ============================================================
-# 样式
-# ============================================================
+
+
+
 
 def configure_matplotlib() -> None:
     plt.rcParams.update(
@@ -102,9 +102,9 @@ def configure_matplotlib() -> None:
     )
 
 
-# ============================================================
-# 数据读取
-# ============================================================
+
+
+
 
 def load_dem():
     src = rasterio.open(DEM_FILE)
@@ -169,9 +169,9 @@ def load_routes() -> pd.DataFrame:
     return df
 
 
-# ============================================================
-# 地形底图
-# ============================================================
+
+
+
 
 def build_terrain_norm(dem: np.ndarray) -> Normalize:
     valid = dem[np.isfinite(dem)]
@@ -256,9 +256,9 @@ def draw_dem_base(ax, dem, bounds, dem_transform, terrain_norm):
     return im
 
 
-# ============================================================
-# 节点与路线
-# ============================================================
+
+
+
 
 def get_node_xy(nodes: pd.DataFrame, node_id: str) -> tuple[float, float]:
     row = nodes.loc[nodes["V"] == node_id]
@@ -443,7 +443,7 @@ def draw_double_route(
     lw_outer = 0.5 + 0.1 * max(count - 1, 0)
     lw_inner = 0.8 + 0.15 * max(count - 1, 0)
 
-    # O01 -> Si
+
     draw_arrow_segment(
         ax,
         p0,
@@ -456,7 +456,7 @@ def draw_double_route(
         zorder=12,
     )
 
-    # Si -> Sj 重点高亮
+
     draw_arrow_segment(
         ax,
         pi,
@@ -469,7 +469,7 @@ def draw_double_route(
         zorder=15,
     )
 
-    # Sj -> O01
+
     draw_arrow_segment(
         ax,
         pj,
@@ -494,21 +494,21 @@ def draw_routes(ax, nodes: pd.DataFrame, route_df: pd.DataFrame):
 
         seq = parse_route(route)
 
-        # 单站：O01 > Si > O01
+
         if len(seq) == 3:
             stop = seq[1]
             draw_single_route(ax, nodes, stop, uav_type, count)
 
-        # 双站：O01 > Si > Sj > O01
+
         elif len(seq) == 4:
             stop_i = seq[1]
             stop_j = seq[2]
             draw_double_route(ax, nodes, stop_i, stop_j, uav_type, count)
 
 
-# ============================================================
-# 图例、坐标轴与输出
-# ============================================================
+
+
+
 
 def add_legend(ax):
     handles = [

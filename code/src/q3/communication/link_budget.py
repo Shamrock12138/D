@@ -1,4 +1,4 @@
-u"""依据赛题附录 3 计算运输无人机与 G01 的双向链路预算。"""
+
 
 import math
 from dataclasses import dataclass
@@ -49,7 +49,7 @@ class DirectLinkParameters:
 
 
 def load_direct_parameters(path: Path = PARAMETER_PATH) -> DirectLinkParameters:
-    """直接读取题目附件，避免在代码中复制设备参数数值。"""
+
     workbook = load_workbook(path, read_only=True, data_only=True)
     try:
         sheet = workbook.active
@@ -81,7 +81,7 @@ def load_direct_parameters(path: Path = PARAMETER_PATH) -> DirectLinkParameters:
 
 
 def horizontal_distance_m(a: Tuple[float, float, float], b: Tuple[float, float, float]) -> float:
-    """经纬度按 WGS84 坐标用 Haversine 计算局部水平距离。"""
+
     lon1, lat1, _ = a
     lon2, lat2, _ = b
     phi1, phi2 = math.radians(lat1), math.radians(lat2)
@@ -98,8 +98,8 @@ def distance_3d_m(a: Tuple[float, float, float], b: Tuple[float, float, float]) 
 def free_space_loss_db(distance_m: float, frequency_mhz: float) -> float:
     if distance_m < 0 or frequency_mhz <= 0:
         raise ValueError("三维距离不得为负且载波频率必须大于零")
-    # The far-field formula is singular at a colocated gateway/aircraft sample.
-    # A 1 m reference is conservative for this clearly direct-covered state.
+
+
     effective_distance_m = max(distance_m, 1.0)
     return 32.45 + 20 * math.log10(frequency_mhz) + 20 * math.log10(effective_distance_m / 1000.0)
 

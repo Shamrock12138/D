@@ -1,15 +1,15 @@
-u"""
-Q2 基础一致性验证
-=================
 
-自动检查:
-  1. 数据完整性 (节点、货箱、无人机、电池、航段矩阵)
-  2. 单点退化一致性 (evaluate_route 退化到 O01→Si→O01 == Q1 往返结果)
-  3. 多点路线动态载荷逻辑 (载荷逐段递减、返航空载)
-  4. 电池充电模型边界值
 
-所有检查通过后 printed "Q2 FOUNDATION CHECK PASSED".
-"""
+
+
+
+
+
+
+
+
+
+
 
 import numpy as np
 from pathlib import Path
@@ -21,7 +21,7 @@ TOL = 1e-8
 
 
 def _load_route_matrices():
-    u"""加载航段矩阵"""
+
     matrices = {}
     for key in ["distance", "climb_height", "descent_height"]:
         matrices[key] = pd.read_csv(
@@ -31,14 +31,14 @@ def _load_route_matrices():
 
 
 def run_foundation_check(verbose=True):
-    u"""运行全部基础一致性检查。
+    
 
-    Returns
-    -------
-    dict
-        passed : bool
-        checks : list[(name, status, detail)]
-    """
+
+
+
+
+
+
     results = []
     all_pass = True
 
@@ -51,7 +51,7 @@ def run_foundation_check(verbose=True):
             tag = "PASS" if ok else "FAIL"
             print(f"[{tag}] {name}" + (f"  ({detail})" if detail else ""))
 
-    # ── 数据完整性 ────────────────────────────────────────
+
     matrices = _load_route_matrices()
     nodes = list(matrices["distance"].index)
 
@@ -81,11 +81,11 @@ def run_foundation_check(verbose=True):
         log(f"{key} matrix", matrices[key].shape == shape,
             f"got {matrices[key].shape}")
 
-    # ── 物理模型加载 ──────────────────────────────────────
+
     from src.physics import load_models
     models = load_models()
 
-    # ── 桥接测试: 单点退化一致性 ─────────────────────────
+
     from .route_evaluator import evaluate_route
     boxes_df = data["boxes"]
 
@@ -119,7 +119,7 @@ def run_foundation_check(verbose=True):
                     False, f"evaluate_route 标记为不可行: {result['reason']}")
                 continue
 
-            # Q1 往返能耗
+
             q1_energy = model.round_trip_energy(total_mass, sv)
             q2_energy = result["energy_kwh"]
             energy_ok = abs(q2_energy - q1_energy) < TOL
@@ -127,7 +127,7 @@ def run_foundation_check(verbose=True):
             log(f"桥接-能耗-{g_name}-{sv}", energy_ok,
                 f"Q1={q1_energy:.6f} Q2={q2_energy:.6f} diff={abs(q2_energy-q1_energy):.2e}")
 
-            # Q1 往返时间
+
             q1_time = model.sortie_total_time(total_n, sv)
             q2_time = result["duration_s"]
             time_ok = abs(q2_time - q1_time) < TOL
@@ -135,7 +135,7 @@ def run_foundation_check(verbose=True):
             log(f"桥接-时间-{g_name}-{sv}", time_ok,
                 f"Q1={q1_time:.6f} Q2={q2_time:.6f} diff={abs(q2_time-q1_time):.2e}")
 
-    # ── 多点路线载荷逻辑 ──────────────────────────────────
+
     if len(test_svs) >= 2:
         sv_a, sv_b = test_svs[0], test_svs[1]
         boxes_a = boxes_df[boxes_df["service"] == sv_a]
@@ -164,7 +164,7 @@ def run_foundation_check(verbose=True):
 
                     log("多点-返航载荷=0", abs(r2["legs"][-1]["payload_kg"]) < TOL)
 
-    # ── 电池充电模型 ──────────────────────────────────────
+
     from .battery import soc_after_task, charge_time_to_full
 
     for g_name, model in models.items():
@@ -188,7 +188,7 @@ def run_foundation_check(verbose=True):
         log(f"充电-{g}-SOC=1", abs(t1) < TOL,
             f"T_chg={t1:.1f}")
 
-    # ── 汇总 ──────────────────────────────────────────────
+
     if verbose:
         n_pass = sum(1 for _, ok, _ in results if ok)
         n_fail = len(results) - n_pass

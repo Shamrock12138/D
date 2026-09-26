@@ -1,4 +1,4 @@
-u"""逐轨迹点计算运输无人机与固定网关 G01 的双向直连状态。"""
+
 
 import csv
 import hashlib
@@ -32,7 +32,7 @@ def check_direct_link(
     terrain: DemTerrain,
     parameters: DirectLinkParameters,
 ) -> Dict[str, float]:
-    """返回地形、自由空间损耗、双向门限和直连状态。"""
+
     distance = distance_3d_m(position, gateway)
     terrain_result = terrain.check_line(position, gateway)
     fspl = free_space_loss_db(distance, parameters.frequency_mhz)
@@ -63,7 +63,7 @@ def run_direct_check(
     status_path: Path = STATUS_PATH,
     manifest_path: Path = MANIFEST_PATH,
 ) -> dict:
-    """从 Q3 运输轨迹生成逐点直连状态与可复现参数清单。"""
+
     parameters = load_direct_parameters()
     base = load_nodes()["O01"]
     gateway = (base["x"], base["y"], base["h"] + parameters.gateway_height_m)

@@ -1,9 +1,9 @@
-"""Find a first fully feasible Q3 schedule.
 
-Phase A: 优先加载 Q2 verified transport seeds（F1 → compact_feasible → N → Cmax → E），
-         固定 occurrence composition，由 Q3 Joint CP-SAT 重新联合调度 relay。
-Phase B: 若所有 seed 均失败，退回到 (class_id, uav_type) Pattern Top-K shortlist。
-"""
+
+
+
+
+
 
 import json
 from collections import defaultdict
@@ -64,12 +64,12 @@ RANKING = (
 
 
 def shortlist_occurrence_ids(problem, k):
-    u"""Top-K patterns per (class_id, uav_type), return all sortie_ids.
+    
 
-    不对 occurrence 直接排 Top-K，而是:
-        class_id → 相关 pattern → 按 UAV type 分组 → Pattern Top-K
-        → 保留选中 Pattern 的全部 occurrence copies
-    """
+
+
+
+
     patterns = problem["patterns"]
     counts = problem["pattern_counts"]
     occurrences = problem["occurrences"]
@@ -107,15 +107,15 @@ def shortlist_occurrence_ids(problem, k):
 
 
 def subset_problem(problem, sortie_ids):
-    u"""裁剪 occurrence，保持 class supply、classes、pattern_counts 完整。
+    
 
-    只裁剪:
-        occurrences
-        occurrence_gaps
-        gaps (仅保留相关 gap_id)
-        relay (仅保留相关 gap_id)
-        gap_option_map (重建)
-    """
+
+
+
+
+
+
+
     sortie_ids = set(map(str, sortie_ids))
 
     subset = dict(problem)
@@ -177,11 +177,11 @@ def subset_problem(problem, sortie_ids):
 
 
 def class_conservation_status(problem, time_limit_s=10):
-    u"""结构可行性检查：class_counts 能否满足 class_supply。
+    
 
-    返回 CP-SAT 状态字符串，区分 INFEASIBLE / UNKNOWN。
-    只回答"数量组合是否可能"，不声称资源调度可行。
-    """
+
+
+
     model = cp_model.CpModel()
 
     occurrences = problem["occurrences"]
@@ -215,23 +215,23 @@ def class_conservation_status(problem, time_limit_s=10):
     return solver.StatusName(status)
 
 
-# ─────────────────────────────────────────────────────────
-# Phase A: Verified Q2 transport seeds
-# ─────────────────────────────────────────────────────────
+
+
+
 
 
 def _load_q2_transport_seed(problem, seed_source):
-    u"""读取并验证 Q2 transport seed。
+    
 
-    验证:
-        1. selected.csv / manifest.json 存在
-        2. manifest.all_pass == true
-        3. 所有 sortie_id 当前 Q3 occurrence pool 中仍存在
-        4. 提取 start_time_s 作为 hint
 
-    不做 SHA 强一致检查（旧 seed 可在最新 pool 上复用）。
-    不做 anchor_ready 检查（FEASIBLE 即可当 seed）。
-    """
+
+
+
+
+
+
+
+
     registry = {
         entry["source"]: entry
         for entry in SEED_REGISTRY
@@ -322,14 +322,14 @@ def _load_q2_transport_seed(problem, seed_source):
 
 
 def _validate_fixed_seed(problem, sortie_ids):
-    u"""验证固定 occurrence set 是否精确覆盖当前 class supply。
+    
 
-    不用 CP-SAT，直接统计 class 数量。
-    校验:
-        - 62 classes exact conservation
-        - 总箱数 = 80
-        - 无 class shortage / excess
-    """
+
+
+
+
+
+
     occ_by_id = {occ.sortie_id: occ for occ in problem["occurrences"]}
 
     totals = defaultdict(int)
@@ -364,7 +364,7 @@ def _validate_fixed_seed(problem, sortie_ids):
 
 
 def _apply_relay_tier(problem, tier):
-    u"""对已裁剪 problem 应用 relay option tier，并重建 gap_option_map。"""
+
     small = dict(problem)
 
     relay_df = problem.get("relay")
@@ -407,14 +407,14 @@ def _apply_relay_tier(problem, tier):
 
 
 def solve_q2_transport_seed(full_problem, seed_source, time_limit_s=180, workers=8, random_seed=2026):
-    u"""固定 Q2 transport composition，重新联合调度 Q3 relay。
+    
 
-    对指定 seed_source:
-        1. 加载并验证 seed
-        2. 检查 class conservation
-        3. 先 tier1 → 再 all relay options
-        4. FEASIBLE/OPTIMAL 即返回
-    """
+
+
+
+
+
+
     loaded = _load_q2_transport_seed(full_problem, seed_source)
 
     if not loaded["valid"]:
@@ -504,9 +504,9 @@ def solve_q2_transport_seed(full_problem, seed_source, time_limit_s=180, workers
     }
 
 
-# ─────────────────────────────────────────────────────────
-# Main bootstrap entry point
-# ─────────────────────────────────────────────────────────
+
+
+
 
 
 def find_bootstrap(
@@ -515,18 +515,18 @@ def find_bootstrap(
     random_seed=2026,
     shortlist_sizes=(1, 2, 4, 8),
 ):
-    u"""优先 verified Q2 seeds，再退回 heuristic shortlist。
+    
 
-    Phase A: Q2 seeds in order (F1 → compact_feasible → N → Cmax → E)
-             → Q3 joint relay scheduling
-    Phase B: (class_id, uav_type) Pattern Top-K shortlist
-    """
+
+
+
+
     full_problem = prepare_q3_problem(tier="all")
     attempts = []
 
-    # =====================================================
-    # Phase A: verified Q2 transport seeds
-    # =====================================================
+
+
+
 
     seed_order = (
         "F1",
@@ -574,9 +574,9 @@ def find_bootstrap(
         flush=True,
     )
 
-    # =====================================================
-    # Phase B: heuristic occurrence shortlist
-    # =====================================================
+
+
+
 
     for k in shortlist_sizes:
         sortie_ids = shortlist_occurrence_ids(full_problem, k)

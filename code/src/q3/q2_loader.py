@@ -1,4 +1,4 @@
-u"""读取 Q2 运输方案并标准化为 Q3 的 FlightTask 对象。"""
+
 
 import csv
 import json
@@ -26,7 +26,7 @@ def _split_ids(value: Any, separator: str = ",") -> List[str]:
 
 
 def _normalise_route(value: Any) -> List[str]:
-    """将 Q2 的 ``S001>S002`` 转成 ``O01-S001-S002-O01``。"""
+
     if isinstance(value, (list, tuple)):
         stops = [str(item).strip() for item in value if str(item).strip()]
         if stops and stops[0] in {"0", DEPOT_ID}:
@@ -79,11 +79,11 @@ def _validate_flight(flight: FlightTask) -> None:
 
 
 def load_q2_solution(path: Optional[Path] = None) -> Q3Scenario:
-    """读取 Q2 的 CSV/JSON 方案，并转换为 Q3Scenario。
+    
 
-    默认读取 ``data/Q2_final_schedule.csv``。原始 ``task_id`` 保存在
-    ``source_task_id`` 中，便于通信结果追溯到 Q2 候选任务。
-    """
+
+
+
     source = Path(path) if path is not None else DEFAULT_Q2_PATH
     if not source.exists():
         raise FileNotFoundError(f"找不到 Q2 运输方案: {source}")
@@ -124,7 +124,7 @@ def load_q2_solution(path: Optional[Path] = None) -> Q3Scenario:
 
 
 def save_q3_input(scenario: Q3Scenario, path: Optional[Path] = None) -> Path:
-    """将标准化运输架次保存为后续 Q3 模块直接读取的 JSON。"""
+
     target = Path(path) if path is not None else DEFAULT_Q3_PATH
     target.parent.mkdir(parents=True, exist_ok=True)
     with target.open("w", encoding="utf-8") as stream:

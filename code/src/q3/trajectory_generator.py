@@ -1,4 +1,4 @@
-u"""将 Q2 固定运输架次展开为带绝对时刻的三维轨迹。"""
+
 
 import csv
 import math
@@ -19,7 +19,7 @@ def _read_csv(path: Path) -> List[dict]:
 
 
 def load_nodes(path: Optional[Path] = None) -> Dict[str, dict]:
-    """读取节点经纬度、地面高程和作业高度。"""
+
     rows = _read_csv(Path(path) if path is not None else DATA / "服务区数据.csv")
     nodes = {}
     for row in rows:
@@ -35,7 +35,7 @@ def load_nodes(path: Optional[Path] = None) -> Dict[str, dict]:
 
 
 def load_route_parameters(path: Optional[Path] = None) -> Dict[Tuple[str, str], dict]:
-    """读取 Q1 已从 DEM 计算的有向航段参数。"""
+
     rows = _read_csv(Path(path) if path is not None else DATA / "route_parameter_all.csv")
     return {
         (row["from"], row["to"]): {
@@ -47,7 +47,7 @@ def load_route_parameters(path: Optional[Path] = None) -> Dict[Tuple[str, str], 
 
 
 def load_uav_parameters(path: Optional[Path] = None) -> Dict[str, dict]:
-    """读取 Q2 使用的各机型速度和作业时间。"""
+
     rows = _read_csv(Path(path) if path is not None else DATA / "运输无人机_机型参数.csv")
     return {
         row["type"]: {
@@ -64,7 +64,7 @@ def load_uav_parameters(path: Optional[Path] = None) -> Dict[str, dict]:
 
 
 def load_box_services(path: Optional[Path] = None) -> Dict[str, str]:
-    """按照 Q2 展箱顺序重建货箱编号与服务区的映射。"""
+
     rows = _read_csv(Path(path) if path is not None else DATA / "物资需求.csv")
     boxes = {}
     next_id = 1
@@ -76,7 +76,7 @@ def load_box_services(path: Optional[Path] = None) -> Dict[str, str]:
 
 
 class TrajectoryGenerator:
-    """按 Q2 的有向航段参数、机型速度和作业时间生成连续轨迹。"""
+
 
     def __init__(self, nodes: Mapping[str, dict], route_params: Mapping[Tuple[str, str], dict], dt: float = 10.0):
         if not math.isfinite(dt) or dt <= 0:
@@ -86,7 +86,7 @@ class TrajectoryGenerator:
         self.dt = dt
 
     def get_cruise_height(self, i: str, j: str) -> float:
-        """返回由 DEM 航段最高地形高程加 50 m 得到的巡航海拔。"""
+
         try:
             return float(self.route_params[(i, j)]["cruise_height"])
         except KeyError as exc:
@@ -114,7 +114,7 @@ class TrajectoryGenerator:
 
     @staticmethod
     def _extend(points: List[TrajectoryPoint], phase_points: Sequence[TrajectoryPoint]) -> None:
-        """阶段边界保留后一阶段的标签，时间轴上不产生重复采样。"""
+
         if not phase_points:
             return
         if points and math.isclose(points[-1].time, phase_points[0].time, abs_tol=1e-8):
@@ -124,7 +124,7 @@ class TrajectoryGenerator:
     def generate_segment(
         self, i: str, j: str, start_time: float, uav_params: Mapping[str, float]
     ) -> Tuple[List[TrajectoryPoint], float]:
-        """生成单航段的爬升、水平巡航、下降，含每阶段精确终点。"""
+
         origin, destination = self.nodes[i], self.nodes[j]
         leg = self.route_params.get((i, j))
         if leg is None:
@@ -168,7 +168,7 @@ class TrajectoryGenerator:
         self, flight: FlightTask, uav_params: Mapping[str, float],
         box_services: Mapping[str, str], end_tolerance_s: float = 0.1,
     ) -> List[TrajectoryPoint]:
-        """生成与 Q2 准备、装载、交接、各有向航段一致的完整时间轨迹。"""
+
         if len(flight.route) < 3 or flight.route[0] != DEPOT_ID or flight.route[-1] != DEPOT_ID:
             raise ValueError(f"架次 {flight.flight_id} 路线没有完整往返")
         visits = flight.route[1:-1]
@@ -217,11 +217,11 @@ class TrajectoryGenerator:
         self, uav_type: str, route: list, services_list: list,
         uav_params: dict, strict: bool = False, verbose: bool = False,
     ):
-        u"""生成 pattern 模板的相对轨迹，从 t=0 开始。
+        
 
-        返回简单对象，含 n_points/times/x/y/z 属性，
-        供 communication_summary 校验用。
-        """
+
+
+
         if len(route) < 3 or route[0] != DEPOT_ID or route[-1] != DEPOT_ID:
             raise ValueError(f"Pattern route 没有完整往返: {route}")
         visits = route[1:-1]

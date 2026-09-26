@@ -12,7 +12,7 @@ print(f"Relay gaps IN pattern gaps: {len(rgaps & pgaps)}")
 print(f"Relay gaps NOT in pattern gaps: {len(rgaps - pgaps)}")
 print(f"Pattern gaps NOT in relay: {len(pgaps - rgaps)}")
 
-# Check: are all relay gap_ids actually referenced by their task_ids in the old task_gaps?
+
 t = pd.read_csv("data/q3_task_comm_gaps.csv")
 tgaps = set(t["gap_id"])
 print(f"\nTask gaps: {len(tgaps)}")

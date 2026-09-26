@@ -1,4 +1,4 @@
-"""Explicit Step13 export of an accepted, finally selected Q3 schedule for Q4."""
+
 
 import hashlib
 import json
@@ -45,11 +45,6 @@ def _enrich_delivery(delivery):
 
 
 def freeze_q3_for_q4(source_dir, accepted_q3, final_selection_id, target_dir=None):
-    """Create Q4 input only after Q3's final selection and independent acceptance.
-
-    ``accepted_q3`` is the final Q3 validator result. A Step8 first feasible
-    solution is not exported by this function automatically.
-    """
     if not str(final_selection_id or "").strip():
         raise ValueError("Final Q3 selection ID is required; Step8 is not automatically final")
     if (accepted_q3.get("status") not in ("FEASIBLE", "OPTIMAL")

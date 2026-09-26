@@ -1,13 +1,13 @@
-u"""Q2 MOEA/D + CP-SAT 集成：运输方案多目标优化。
 
-职责:
-  - 加载 Q2 问题数据与 anchor 方案
-  - 实现 Consensus + Destroy + CP-SAT Repair 算子
-  - 将 MOEA/D 子问题映射到 solve_local_subproblem
-  - 缓存、精修与结果输出
 
-锚点由当前 Q2 joint 结果动态加载，并通过输入 SHA-256 防止候选池与 anchor 错配。
-"""
+
+
+
+
+
+
+
+
 
 import hashlib
 import json
@@ -40,7 +40,7 @@ def _sha256(path: Path) -> str:
 
 
 def anchors_are_current() -> bool:
-    u"""检查 joint anchor 是否与当前候选池一致且三套文件齐全。"""
+
     manifest_path = DATA / "Q2_joint_manifest.json"
     try:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -59,7 +59,7 @@ def anchors_are_current() -> bool:
 
 
 def _load_anchor(problem: Dict, objective: str) -> Dict:
-    u"""从已保存的 joint 方案加载 anchor 解。"""
+
     sel = pd.read_csv(
         DATA / f"Q2_joint_selected_{objective}.csv", encoding="utf-8-sig",
     )
@@ -79,7 +79,7 @@ def _load_anchor(problem: Dict, objective: str) -> Dict:
 
 
 def _load_anchors(problem: Dict) -> Dict[str, Dict]:
-    u"""加载 N/E/T 三个 anchor 方案。"""
+
     if not anchors_are_current():
         raise RuntimeError(
             "Q2 joint anchors 缺失或已过期；请先运行 CP-SAT N/E/T 基准"
@@ -100,7 +100,7 @@ def _load_anchors(problem: Dict) -> Dict[str, Dict]:
 
 
 def _get_boxes_for_tasks(problem: Dict, task_ids: Set[str]) -> Set[str]:
-    u"""获取任务集合覆盖的所有货箱。"""
+
     task_boxes = problem["task_boxes"]
     boxes = set()
     for tid in task_ids:
@@ -116,16 +116,16 @@ def destroy_and_recombine(
     min_destroy: int = 1,
     max_destroy: int = 3,
 ) -> Tuple[Set[str], Set[str], Set[str], Dict[str, float]]:
-    u"""Consensus + Destroy + Recombine 算子。
+    
 
-    1. 求父代共同任务 S_common
-    2. 释放差异区域涉及的货箱
-    3. 随机从共同任务中额外 destroy 1~3 个
-    4. 返回固定集、自由箱集，以及完整父代 select + start 热启动
 
-    Returns:
-        (fixed, free_boxes, seed_task_ids, seed_starts)
-    """
+
+
+
+
+
+
+
     tasks_a = set(parent_a["task_ids"])
     tasks_b = set(parent_b["task_ids"])
 
@@ -157,7 +157,7 @@ def _subproblem_cache_key(
     ideal_point,
     objective_ranges,
 ) -> str:
-    u"""对真正的局部子问题输入建缓存键；热启动不改变数学子问题。"""
+
     payload = {
         "fixed": sorted(fixed_task_ids),
         "free_boxes": sorted(free_box_ids),
@@ -194,22 +194,22 @@ def run_q2_moead(
     polish_time_s: float = 30.0,
     verbose: bool = True,
 ):
-    u"""Q2 MOEA/D + CP-SAT 完整流程。
+    
 
-    Args:
-        time_limit_s_local: 内层 CP-SAT 每次求解时限
-        max_generations: MOEA/D 最大代数
-        H: 权重分割数
-        T: 邻域大小
-        nr: 每后代最大替换邻居数
-        random_seed: 随机种子
-        per_box_type_k: 候选缩减参数
-        polish_time_s: 最终精修时限
-        verbose: 是否输出进度
 
-    Returns:
-        (population, archive, stats)
-    """
+
+
+
+
+
+
+
+
+
+
+
+
+
     rng = np.random.default_rng(random_seed)
     if verbose:
         print("=" * 60, flush=True)
@@ -273,7 +273,7 @@ def run_q2_moead(
         subproblem_cache[key] = dict(result)
         return result, False
 
-    # 初始化：三个纯权重位置显式放入 N/E/T anchor；其余从最近 anchor 局部修复。
+
     population: List[Dict] = []
     for i, lam in enumerate(weights):
         if i in pure_anchor_index:
@@ -391,7 +391,7 @@ def run_q2_moead(
                 flush=True,
             )
 
-    # 两阶段精修：先固定任务集合精修时间，再释放小邻域重新组合任务。
+
     if verbose:
         print(f"\n最终精修: {len(archive)} 个不同非支配点", flush=True)
     polished_archive: List[Dict] = []
@@ -489,7 +489,7 @@ def save_moead_results(
     archive: List[Dict],
     stats: Dict,
 ) -> None:
-    u"""保存 MOEA/D 结果，并独立复核每个 Pareto 解。"""
+
     problem = prepare_q2_problem(per_box_type_k=stats.get("per_box_type_k", 8))
     validated = []
     for idx, sol in enumerate(archive):
@@ -520,7 +520,7 @@ def save_moead_results(
         DATA / "Q2_moead_pareto.csv", index=False, encoding="utf-8-sig",
     )
 
-    # 种群
+
     pop_rows = []
     weights = stats["weights"]
     for idx, sol in enumerate(population):
@@ -542,7 +542,7 @@ def save_moead_results(
         DATA / "Q2_moead_convergence.csv", index=False, encoding="utf-8-sig",
     )
 
-    # 每个 Pareto 解均输出任务、实体资源排程、逐箱送达复核三张表。
+
     for sid, sol, checked in validated:
         tasks_out = checked["selected_tasks"].copy()
         tasks_out.insert(
@@ -566,7 +566,7 @@ def save_moead_results(
             index=False, encoding="utf-8-sig",
         )
 
-    # manifest
+
     manifest = {
         "algorithm": "MOEA/D + CP-SAT matheuristic",
         "n_obj": 3,

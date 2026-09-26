@@ -1,10 +1,10 @@
-"""Freeze a finally selected, accepted Q3 schedule as Q4 input.
 
-Example after final Q3 selection and validation:
-python code/Q3_step13_freeze_for_q4.py --source code/data/q3_selected_final \
-  --acceptance code/data/q3_selected_final/acceptance.json \
-  --selection-id selected-pareto-solution
-"""
+
+
+
+
+
+
 
 import argparse
 import json

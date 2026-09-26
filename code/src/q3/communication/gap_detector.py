@@ -1,4 +1,4 @@
-u"""把逐点直连状态转换为按架次划分的中继保障需求。"""
+
 
 import csv
 import json
@@ -17,7 +17,7 @@ SUMMARY_PATH = DATA / "communication_gap_summary.csv"
 
 
 def _point(row: dict) -> dict:
-    """保留后续中继候选位置计算需要的时空信息。"""
+
     return {
         "time": float(row["time"]),
         "x": float(row["x"]),
@@ -38,12 +38,12 @@ def _load_rows(path: Path) -> List[dict]:
 
 
 def detect_gaps(rows: Iterable[dict]) -> Tuple[List[dict], List[dict]]:
-    """合并同一架次中相邻的 ``direct=0`` 采样点。
+    
 
-    ``gap_start/end`` 是实测为零的首末采样时刻；``coverage_start/end``
-    扩展到两侧最近的采样时刻，作为下一步中继规划的保守服务窗口。
-    离散采样无法证明窗口内部每个连续时刻的状态。
-    """
+
+
+
+
     grouped = OrderedDict()
     for row in rows:
         flight_id = int(row["flight_id"])

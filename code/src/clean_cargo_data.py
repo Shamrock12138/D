@@ -1,28 +1,28 @@
 import pandas as pd
 from pathlib import Path
 
-r"""
-物资需求数据清洗模块
-====================
 
-从 ``物资需求与配送时限.xlsx`` 中提取各服务区的货箱需求数据并输出为 CSV。
 
-输出字段
---------
-=============== ==================
-字段             含义
-=============== ==================
-service         服务区编号 (S001~S015)
-cargo_type      物资类型
-total_boxes     总需求箱数
-first_batch     首批必须送达箱数
-mass_per_box    单箱质量 (kg)
-volume_per_box  单箱体积 (m³)
-priority        应急优先系数
-first_deadline  首批截止时间 (s)
-expected_time   期望送达时间 (s)
-=============== ==================
-"""
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 def main():

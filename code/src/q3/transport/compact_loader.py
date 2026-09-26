@@ -1,8 +1,8 @@
-"""Q3 compact transport loader.
 
-Q3 直接消费 Q2 已保存的 62-class / compact-pattern 数据，
-禁止重新构造另一套 physical-box candidate pool。
-"""
+
+
+
+
 
 from __future__ import annotations
 
@@ -61,17 +61,17 @@ def _sha256(path: Path) -> str:
 
 
 def load_q2_compact_artifacts():
-    """读取并严格验证 Q2 compact artifacts。
+    
 
-    Returns
-    -------
-    classes:
-        含 box_ids tuple 的真实 class 表。
-    patterns:
-        Q2 全量 compact patterns。
-    pattern_counts:
-        pattern-class count / delivery offset 表。
-    """
+
+
+
+
+
+
+
+
+
 
     required = [
         CLASSES_PATH,
@@ -180,7 +180,7 @@ def build_compact_pattern_templates(
     pattern_counts: pd.DataFrame,
     classes: pd.DataFrame,
 ) -> List[CompactPatternTemplate]:
-    """将 DataFrame 转成 Q3 通信层使用的 pattern template。"""
+
 
     class_rows = classes.set_index("class_id")
 

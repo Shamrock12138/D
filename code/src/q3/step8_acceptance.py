@@ -1,4 +1,4 @@
-"""Step 8.5: validate and freeze a completed Q3 minimum joint schedule."""
+
 
 import hashlib
 import json
@@ -32,7 +32,7 @@ def _hash(path):
 
 
 def resolve_frozen_dir():
-    """Return the final relay-session-v2 Step8 baseline; never fall back to v1."""
+
     candidate = DATA / "q3_step8_frozen_v2"
     if ((candidate / OUTPUTS[0]).is_file()
             and (candidate / OUTPUTS[1]).is_file()
@@ -44,7 +44,7 @@ def resolve_frozen_dir():
 
 
 def _verify_solver_inputs(input_sha256, input_dir=DATA):
-    """Verify shared Step8 solver inputs, which live outside candidate dirs."""
+
     for name, recorded in input_sha256.items():
         source = Path(input_dir) / name
         if not source.is_file():
@@ -54,7 +54,7 @@ def _verify_solver_inputs(input_sha256, input_dir=DATA):
 
 
 def _output_hashes(data_dir, outputs=OUTPUTS):
-    """Hash the Step8 artifacts in the candidate directory being accepted."""
+
     return {name: _hash(Path(data_dir) / name) for name in outputs}
 
 
@@ -175,7 +175,7 @@ def accept_step8(freeze=True, data_dir=None, freeze_dir=None):
         "outputs_sha256": outputs_sha256,
         "solver_input_sha256": solver_input_sha256,
         "objective_schema": objective_schema,
-        # Keep the historical field as an alias for downstream compatibility.
+
         "input_sha256": outputs_sha256,
     }
     if freeze:

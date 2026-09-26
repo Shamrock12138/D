@@ -1,4 +1,4 @@
-"""ALNS transport selection + exact CP-SAT joint scheduling."""
+
 import argparse
 import json
 import sys

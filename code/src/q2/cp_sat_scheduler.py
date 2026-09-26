@@ -1,8 +1,8 @@
-u"""Q2 的 CP-SAT 联合任务选择与连续整数秒调度器。
 
-物理量（航时、逐箱送达偏移、能耗与充电时间）由既有 Python 模型预计算；
-本模块只处理集合划分、可选区间调度、异构无人机/共享电池容量和字典序目标。
-"""
+
+
+
+
 
 import hashlib
 import json
@@ -39,7 +39,7 @@ def _read_inputs():
 
 
 def _deadlines(boxes):
-    """返回逐箱硬截止；无硬截止的货箱取正无穷。"""
+
     result = {}
     for row in boxes.itertuples(index=False):
         deadline = float("inf")
@@ -52,11 +52,11 @@ def _deadlines(boxes):
 
 
 def _candidate_subset(tasks, deliveries, boxes, per_box_type_k=8):
-    """按“货箱×机型”保留节能、短时和大松弛候选。
+    
 
-    该规则避免全局逐箱筛选偏向单一机型；理论并集上限约为
-    ``货箱数 × 机型数 × 3 × k``，重复候选会自动合并。
-    """
+
+
+
     work = tasks.copy()
     work["task_id"] = work["task_id"].astype(str)
     work["uav_type"] = work["uav_type"].astype(str)
@@ -98,7 +98,7 @@ def _candidate_subset(tasks, deliveries, boxes, per_box_type_k=8):
             keep.update(group.nsmallest(per_box_type_k, "duration_s").index.astype(str))
             keep.update(group.nlargest(per_box_type_k, "hard_latest_start_s").index.astype(str))
 
-    # 既有方案作为可行覆盖骨架，便于模型热启动式缩池，但仍接受全部硬约束复核。
+
     for objective in ("N", "E", "T"):
         paths = [
             DATA / f"Q2_joint_selected_{objective}.csv",
@@ -122,22 +122,22 @@ def _candidate_subset(tasks, deliveries, boxes, per_box_type_k=8):
 
 
 def prepare_q2_problem(per_box_type_k=8):
-    u"""加载并预计算 Q2 CP-SAT 所需全部数据，供基础调度和 MOEA/D 子问题共用。
+    
 
-    Returns:
-        dict:
-            tasks           — 缩减后的候选任务 DataFrame (已 reset_index)
-            deliveries      — 原始候选 delivery 表
-            boxes           — 货箱原始数据
-            task_boxes      — {task_id: (box_id, ...)}
-            task_offsets    — {task_id: {box_id: delivery_offset_s}}
-            deadlines       — {box_id: hard_deadline_s or inf}
-            uav_ids         — {type: [uav_id, ...]}
-            battery_ids     — {type: [battery_id, ...]}
-            energy_capacity — {type: E_use_kWh}
-            charge_full     — {type: full_charge_time_s}
-            horizon_s       — 调度时域 (默认 36000)
-    """
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     tasks_raw, deliveries, boxes, uavs, batteries, energy_capacity, charge_full = _read_inputs()
     tasks, task_boxes, task_offsets, deadlines = _candidate_subset(
         tasks_raw, deliveries, boxes, per_box_type_k=per_box_type_k
@@ -263,7 +263,7 @@ def _build_model(tasks, task_boxes, task_offsets, deadlines, uav_ids,
 
 
 def _solve_lexicographic(model, variables, stages, time_limit_s, workers, random_seed):
-    """逐阶段固定上一目标的当前最优值，再优化下一目标。"""
+
     stage_records = []
     solver = None
     status = cp_model.UNKNOWN
@@ -293,9 +293,9 @@ def _solve_lexicographic(model, variables, stages, time_limit_s, workers, random
             "wall_time_s": solver.WallTime(),
         })
         if stage_index + 1 < len(stages):
-            # 若时间限制下仅找到可行解，这里固定的是该阶段 incumbent；清单会明确记录。
+
             model.Add(expression == value)
-            # 将完整的选择与开始时刻传给下一阶段，保证其从已知可行排程继续搜索。
+
             model.ClearHints()
             for variable in variables:
                 model.AddHint(variable, solver.Value(variable))
@@ -303,14 +303,14 @@ def _solve_lexicographic(model, variables, stages, time_limit_s, workers, random
 
 
 def _build_tchebycheff_model(full_problem, fixed_task_ids, free_box_ids):
-    u"""为局部子问题构建 CP-SAT 模型（不含目标函数）。
+    
 
-    固定任务强制 x_k=1，自由任务仅保留货箱完全落在 free_box_ids 内的候选。
 
-    Returns:
-        (model, select, starts, cmax, n_sorties, energy_units, metadata,
-         fixed_count, free_count)
-    """
+
+
+
+
+
     p = full_problem
     all_tasks = p["tasks"]
     task_boxes = p["task_boxes"]
@@ -459,12 +459,12 @@ def _build_tchebycheff_model(full_problem, fixed_task_ids, free_box_ids):
 
 def _add_tchebycheff_objective(model, n_sorties, energy_units, cmax,
                                weight, ideal_point, objective_ranges):
-    u"""向模型添加 augmented Tchebycheff 标量化目标。
+    
 
-    g(X|λ,z*) = max_i { λ_i * (f_i - z_i*) / r_i } + ρ * Σ_i λ_i * (f_i - z_i*) / r_i
 
-    CP-SAT 只处理整数，所有系数预先缩放为整数。
-    """
+
+
+
     SCALE = 1_000_000
     rho = 0.01
 
@@ -496,8 +496,8 @@ def _add_tchebycheff_objective(model, n_sorties, energy_units, cmax,
     model.Add(max_d >= cT * dT)
 
     augment = cN * dN + cE * dE + cT * dT
-    # max_d 与 augment 已使用同一 SCALE。100*M + A 等比例等价于
-    # M + 0.01*A，和论文中的 rho=0.01 完全一致。
+
+
     augment_multiplier = int(round(1.0 / rho))
     model.Minimize(augment_multiplier * max_d + augment)
 
@@ -516,29 +516,29 @@ def solve_local_subproblem(
     workers=2,
     random_seed=2026,
 ):
-    u"""MOEA/D 内层 CP-SAT 局部子问题求解。
+    
 
-    给定固定任务集合 + 自由货箱集合 + MOEA/D 权重 λ，
-    由 CP-SAT 在局部候选池内重新选择任务、安排开始时刻并分配资源。
 
-    Args:
-        problem: prepare_q2_problem() 返回值
-        fixed_task_ids: 强制选择的任务 ID 集合 (iterable)
-        free_box_ids: 允许新任务覆盖的货箱 ID 集合 (iterable)
-        weight: MOEA/D 权重 (λ_N, λ_E, λ_T)，和为 1
-        ideal_point: 当前理想点 (z_N*, z_E*, z_T*)
-        objective_ranges: 归一化尺度 (r_N, r_E, r_T)
-        start_hints: 兼容旧调用的开始时刻 hint
-        seed_task_ids: 完整父代所选任务集合，用作 select incumbent hint
-        seed_starts: 完整父代开始时刻，用作 start incumbent hint
-        time_limit_s: CP-SAT 求解时限
-        workers: CP-SAT 并行 worker 数
-        random_seed: 随机种子
 
-    Returns:
-        dict: {'task_ids', 'starts', 'N', 'E', 'Cmax', 'status', 'wall_time_s'}
-              字段均为 None 若不可行。
-    """
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     (model, select, starts, cmax, n_sorties, energy_units, metadata,
      n_fixed, n_free_candidates, local_tasks) = _build_tchebycheff_model(
         problem, fixed_task_ids, free_box_ids
@@ -662,10 +662,10 @@ def solve_fixed_schedule(
     workers=2,
     random_seed=2026,
 ):
-    u"""固定任务集合，仅优化秒级开始时刻与 Cmax。
+    
 
-    模型只包含当前任务，不把完整候选池重新放入 polishing 子问题。
-    """
+
+
     task_set = set(task_ids)
     (model, select, starts, cmax, n_sorties, energy_units, metadata,
      n_fixed, n_free_candidates, local_tasks) = _build_tchebycheff_model(
@@ -720,7 +720,7 @@ def solve_fixed_schedule(
 
 
 def validate_moead_solution(problem, task_ids, starts):
-    u"""独立解码并复核 MOEA/D 解的覆盖、资源与硬时限。"""
+
     task_set = set(task_ids)
     selected_tasks = problem["tasks"][
         problem["tasks"]["task_id"].astype(str).isin(task_set)
@@ -776,7 +776,7 @@ def solve_joint(tasks, deliveries, boxes, uavs, batteries, objective="N",
                 energy_capacity=None, charge_full=None, horizon_s=36000,
                 time_limit_s=600, per_box_type_k=8, workers=None,
                 random_seed=2026):
-    """使用 CP-SAT 联合决定任务、整数秒开始时刻和资源容量。"""
+
     if objective not in {"N", "E", "T"}:
         raise ValueError(f"未知目标: {objective}")
     if energy_capacity is None or charge_full is None:
@@ -835,7 +835,7 @@ def solve_joint(tasks, deliveries, boxes, uavs, batteries, objective="N",
 
 
 def _decode_resources(tasks, selected_records, uav_ids, battery_ids):
-    """将容量可行的区间表贪心着色为具体 UAV 和电池编号。"""
+
     uav_ready = {typ: {uid: 0 for uid in ids} for typ, ids in uav_ids.items()}
     battery_ready = {typ: {bid: 0 for bid in ids} for typ, ids in battery_ids.items()}
     task_map = tasks.set_index(tasks["task_id"].astype(str), drop=False)

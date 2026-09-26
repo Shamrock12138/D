@@ -1,4 +1,4 @@
-"""Weighted ALNS runs with exact joint CP-SAT validation and a Pareto archive."""
+
 import json
 import time
 from datetime import datetime
@@ -55,12 +55,12 @@ def run_multiobjective(iterations=200, wall_time_per_weight_s=180,
                         repair_time_s=1, joint_time_s=20, polish_time_s=30, workers=4,
                         seed=2026, max_solutions_per_weight=5,
                         weight_vectors=WEIGHT_VECTORS, output_dir=None):
-    """Search each weight direction and save all strictly feasible Pareto points.
+    
 
-    ``wall_time_per_weight_s`` is an independent budget for each weight vector;
-    exact joint CP-SAT validation is run for every unique ALNS candidate by
-    defaulting to ``batch_size=1``.
-    """
+
+
+
+
     started = time.monotonic()
     weights = [tuple(map(float, row)) for row in weight_vectors]
     if not weights or any(len(row) != 4 or sum(row) <= 0 for row in weights):

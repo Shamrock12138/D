@@ -1,4 +1,4 @@
-"""Solve the four single-objective Q3 anchors after Step8.5 acceptance."""
+
 
 import sys
 from pathlib import Path

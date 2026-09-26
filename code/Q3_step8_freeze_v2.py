@@ -1,8 +1,8 @@
-"""Migrate and accept a Step8 baseline using the relay-session-v2 schema.
 
-This script only performs schema migration and acceptance. It never repairs or
-re-solves a schedule; failed validation is reported to the caller.
-"""
+
+
+
+
 
 import hashlib
 import json
@@ -23,7 +23,7 @@ def _sha256(path):
 
 
 def _restore_gap_fields(relay, transport, relay_params):
-    """Restore gap-level SOC/release fields in older v2 rows if needed."""
+
     fields = {"relay_energy_kWh", "energy_component_occupancy_s",
               "dispatch_offset_s", "sortie_id"}
     if relay.empty or not fields <= set(relay.columns):
@@ -115,8 +115,8 @@ def migrate(source=None, target=None):
     summary["status"] = manifest["status"]
     summary.to_csv(target / OUTPUTS[3], index=False, encoding="utf-8-sig")
 
-    # Upgrade old v2 gap rows whose session-level values occupied gap-level
-    # columns. New v2 writes keep the meanings separate through attach_session_resources.
+
+
     problem = prepare_q3_problem(tier="all")
     transport = pd.read_csv(target / OUTPUTS[0], encoding="utf-8-sig")
     relay = pd.read_csv(target / OUTPUTS[1], encoding="utf-8-sig")

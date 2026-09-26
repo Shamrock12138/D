@@ -1,12 +1,12 @@
-u"""Q3 CP-SAT 联合运输-中继调度器 (Compact Occurrence 版)。
 
-将 compact pattern 展开为 sortie occurrence，
-使用 class-level conservation 替代 physical-box ExactlyOne，
-occurrence gap 替代 task gap。
 
-Transport:   x_o 是否选择 occurrence,  s_o 开始时刻
-Relay:       y_{o,g,r} 为该 occurrence 的 gap 选中继 option
-"""
+
+
+
+
+
+
+
 
 import hashlib
 import json
@@ -44,15 +44,15 @@ PATTERN_GAPS = DATA / "q3_pattern_comm_gaps.csv"
 RELAY_OPTIONS = DATA / "q3_relay_job_options.csv"
 
 
-# ── 数据加载 ────────────────────────────────────────────────
+
 
 
 def _read_compact_q3_inputs():
-    u"""读取 compact 口径的 Q3 输入数据。
+    
 
-    返回 occurrences（含 delivery_offsets、gap_ids），
-    以及 classes、patterns、relay options、UAV/电池资源。
-    """
+
+
+
     from src.q3.transport.compact_loader import load_q2_compact_artifacts
 
     classes, patterns, pattern_counts = load_q2_compact_artifacts()
@@ -97,7 +97,7 @@ def _read_compact_q3_inputs():
 
 
 def _build_class_parameters(classes):
-    u"""构建 class-level 参数表：supply、hard_deadline、expected_time、priority、service。"""
+
     class_params = {}
     for row in classes.itertuples(index=False):
         class_params[str(row.class_id)] = {
@@ -111,22 +111,22 @@ def _build_class_parameters(classes):
 
 
 def _validate_compact_q3_input(classes, patterns, pattern_counts, occurrences, gaps, relay, relay_params):
-    u"""7 项 compact 口径完整性断言。"""
 
-    # 5.1  62 classes 全覆盖
+
+
     assert set(classes["class_id"].astype(str)) == {
         c for occ in occurrences for c in occ.class_counts
     }, "classes 未全被 occurrence 覆盖"
 
-    # 5.2  occurrence ID 唯一
+
     assert len({occ.sortie_id for occ in occurrences}) == len(occurrences), \
         "sortie_id 不唯一"
 
-    # 5.3  每个 occurrence 的 pattern 存在
+
     assert {occ.pattern_id for occ in occurrences} <= set(patterns["pattern_id"].astype(str)), \
         "occurrence 引用了未知 pattern"
 
-    # 5.4  needs_relay pattern 必须有 gap
+
     relay_pattern_ids = set(
         patterns.loc[patterns["needs_relay"] == 1, "pattern_id"].astype(str)
     )
@@ -134,7 +134,7 @@ def _validate_compact_q3_input(classes, patterns, pattern_counts, occurrences, g
     assert relay_pattern_ids <= patterns_with_gap, \
         f"needs_relay pattern 缺少 gap: {sorted(relay_pattern_ids - patterns_with_gap)[:10]}"
 
-    # 5.5  每个 gap 至少一个 relay option
+
     if gaps is not None and relay is not None:
         required = set(gaps["gap_id"].astype(str))
         available = set(relay["gap_id"].astype(str))
@@ -142,7 +142,7 @@ def _validate_compact_q3_input(classes, patterns, pattern_counts, occurrences, g
         assert not missing, \
             f"gap 缺少 relay option: {len(missing)}/{len(required)} gaps, e.g. {sorted(missing)[:5]}"
 
-    # 5.6  relay option 能耗安全
+
     if relay is not None:
         max_energy = relay_params.max_energy_kwh
         assert relay["relay_energy_kWh"].max() <= max_energy + 1e-6, \
@@ -150,7 +150,7 @@ def _validate_compact_q3_input(classes, patterns, pattern_counts, occurrences, g
         assert relay["end_soc"].min() >= relay_params.safety_margin - 1e-6, \
             f"存在 end_soc < {relay_params.safety_margin:.0%}"
 
-    # 5.7  relay 与 gaps 的 gap_id 集合完全匹配
+
     if gaps is not None and relay is not None:
         relay_gaps = set(relay["gap_id"].astype(str))
         required_gaps = set(gaps["gap_id"].astype(str))
@@ -173,7 +173,7 @@ def _resource_ids(uavs, batteries):
 
 
 def _reduce_relay_options(relay_raw, tier="tier1"):
-    u"""三级 relay option 缩减。"""
+
     if tier == "all":
         return relay_raw.copy()
 
@@ -192,22 +192,22 @@ def _reduce_relay_options(relay_raw, tier="tier1"):
     return relay_raw.loc[sorted(keep_indices)].copy().reset_index(drop=True)
 
 
-# ── 模型构建 ────────────────────────────────────────────────
+
 
 
 def prepare_q3_problem(tier="tier2"):
-    u"""加载并预计算 Q3 CP-SAT 全部 compact 数据。
+    
 
-    Returns:
-        dict with keys:
-            classes, patterns, pattern_counts,
-            occurrences,
-            class_supply, class_params,
-            gaps, relay,
-            occurrence_gaps, gap_option_map,
-            uav_ids, battery_ids, energy_capacity, charge_full,
-            horizon_s
-    """
+
+
+
+
+
+
+
+
+
+
     (classes, patterns, pattern_counts, occurrences,
      gaps, relay_raw,
      uavs, batteries, energy_capacity, charge_full,
@@ -224,13 +224,13 @@ def prepare_q3_problem(tier="tier2"):
 
     class_params = _build_class_parameters(classes)
 
-    # occurrence_gaps: sortie_id → (gap_id, ...)
+
     occurrence_gaps = {
         occ.sortie_id: tuple(occ.gap_ids)
         for occ in occurrences
     }
 
-    # gap_option_map: gap_id → [relay row indices]
+
     gap_option_map = defaultdict(list)
     if relay is not None:
         for idx, row in relay.iterrows():
@@ -271,19 +271,19 @@ def prepare_q3_problem(tier="tier2"):
 
 def _build_q3_model(problem, relay_uav_capacity=None, relay_energy_capacity=None,
                     allow_relay_sharing=False):
-    u"""构建 Q3 联合 CP-SAT 模型：Transport (occurrence) + Relay + Communication Coupling。
+    
 
-    Transport 变量：
-        x[o]  — 是否选 occurrence o
-        s[o]  — occurrence 开始时间
 
-    Relay 变量：
-        y[idx] — occurrence × gap × relay option
 
-    Returns:
-        (model, select, starts, relay_select, relay_starts,
-         transport_cmax, relay_cmax, joint_cmax, metadata)
-    """
+
+
+
+
+
+
+
+
+
     occurrences = problem["occurrences"]
     class_supply = problem["class_supply"]
     class_params = problem["class_params"]
@@ -301,15 +301,15 @@ def _build_q3_model(problem, relay_uav_capacity=None, relay_energy_capacity=None
         charge_time_to_full(0.0, full) for full in charge_full.values()
     ))
 
-    # ── 1. Transport 层 (occurrence-based) ──
-    select = []        # x[o]
-    starts = []        # s[o]
+
+    select = []
+    starts = []
     active_ends = []
     flight_intervals = defaultdict(list)
     battery_intervals = defaultdict(list)
     transport_meta = []
 
-    previous = {}      # pattern_id → (x, s) 用于对称破除
+    previous = {}
 
     for i, occ in enumerate(occurrences):
         typ = occ.uav_type
@@ -363,7 +363,7 @@ def _build_q3_model(problem, relay_uav_capacity=None, relay_energy_capacity=None
         model.Add(active_end == f_end).OnlyEnforceIf(x)
         model.Add(active_end == 0).OnlyEnforceIf(x.Not())
 
-        # hard deadline per class in this occurrence
+
         for class_id, amount in occ.class_counts.items():
             params = class_params[class_id]
             deadline = params["hard_deadline_s"]
@@ -371,7 +371,7 @@ def _build_q3_model(problem, relay_uav_capacity=None, relay_energy_capacity=None
                 offset = occ.delivery_offsets.get(class_id, 0.0)
                 model.Add(s + math.ceil(offset) <= math.floor(deadline)).OnlyEnforceIf(x)
 
-        # symmetry breaking: same pattern copies ordered
+
         prior = previous.get(occ.pattern_id)
         if prior is not None:
             prior_x, prior_s = prior
@@ -398,7 +398,7 @@ def _build_q3_model(problem, relay_uav_capacity=None, relay_energy_capacity=None
             "class_counts": occ.class_counts,
         })
 
-    # ── class conservation ──
+
     for class_id, supply_val in class_supply.items():
         terms = []
         for i, occ in enumerate(occurrences):
@@ -409,7 +409,7 @@ def _build_q3_model(problem, relay_uav_capacity=None, relay_energy_capacity=None
             raise RuntimeError(f"Class {class_id} 没有 transport pattern")
         model.Add(sum(terms) == int(supply_val))
 
-    # Transport cumulative
+
     for typ, intervals in flight_intervals.items():
         model.AddCumulative(intervals, [1] * len(intervals), len(uav_ids[typ]))
     for typ, intervals in battery_intervals.items():
@@ -422,7 +422,7 @@ def _build_q3_model(problem, relay_uav_capacity=None, relay_energy_capacity=None
     else:
         model.Add(transport_cmax == 0)
 
-    # ── 2. Relay 层 (occurrence × gap × option) ──
+
     relay_select = []
     relay_starts = []
     relay_uav_intervals = []
@@ -435,7 +435,7 @@ def _build_q3_model(problem, relay_uav_capacity=None, relay_energy_capacity=None
     )]
     relay_assign = {}
 
-    # Build relay variables per (occurrence, gap, gap_option)
+
     occ_index = {occ.sortie_id: i for i, occ in enumerate(occurrences)}
 
     for occ in occurrences:
@@ -478,7 +478,7 @@ def _build_q3_model(problem, relay_uav_capacity=None, relay_energy_capacity=None
                 )
 
                 o_idx = occ_index[occ.sortie_id]
-                # relay_start == transport_start + dispatch_offset
+
                 model.Add(rs == starts[o_idx] + dispatch_int).OnlyEnforceIf(y)
                 model.Add(rr == starts[o_idx] + return_int).OnlyEnforceIf(y)
 
@@ -512,10 +512,10 @@ def _build_q3_model(problem, relay_uav_capacity=None, relay_energy_capacity=None
                         "service_energy_kWh", row.get("relay_energy_kWh", 0.0))),
                 })
 
-    # In sharing mode a physical relay may protect several simultaneous gaps at
-    # one candidate site, but it cannot occupy two different sites at once.
-    # The option-selection equations below remain unchanged: every gap still
-    # chooses exactly one Step7-certified option.
+
+
+
+
     if allow_relay_sharing:
         for j, y in enumerate(relay_select):
             assigned = []
@@ -540,8 +540,8 @@ def _build_q3_model(problem, relay_uav_capacity=None, relay_energy_capacity=None
                         [relay_assign[(j, relay_id)], relay_assign[(k, relay_id)], before.Not()]
                     )
 
-        # Count one session at the earliest interval in each connected
-        # same-site relay-occupancy component.
+
+
         for j, meta in enumerate(relay_meta):
             session_start = model.NewBoolVar(f"relay_session_start_{j}")
             relay_session_starts.append(session_start)
@@ -575,7 +575,7 @@ def _build_q3_model(problem, relay_uav_capacity=None, relay_energy_capacity=None
     else:
         relay_session_starts = list(relay_select)
 
-    # Each selected occurrence gets exactly one relay option per gap
+
     gap_option_idx_by_occ_gap = defaultdict(list)
     for var_idx, meta in enumerate(relay_meta):
         gap_option_idx_by_occ_gap[(meta["sortie_id"], meta["gap_id"])].append(var_idx)
@@ -590,7 +590,7 @@ def _build_q3_model(problem, relay_uav_capacity=None, relay_energy_capacity=None
                     sum(relay_select[vi] for vi in option_vars) == select[o_idx]
                 )
 
-    # Relay UAV cumulative (capacity = 2)
+
     if relay_uav_intervals and not allow_relay_sharing:
         model.AddCumulative(
             relay_uav_intervals, [1] * len(relay_uav_intervals),
@@ -608,7 +608,7 @@ def _build_q3_model(problem, relay_uav_capacity=None, relay_energy_capacity=None
     else:
         model.Add(relay_cmax == 0)
 
-    # ── 3. 联合 Cmax ──
+
     joint_cmax = model.NewIntVar(0, horizon_s, "joint_cmax")
     model.AddMaxEquality(joint_cmax, [transport_cmax, relay_cmax])
 
@@ -625,12 +625,12 @@ def _build_q3_model(problem, relay_uav_capacity=None, relay_energy_capacity=None
             transport_cmax, relay_cmax, joint_cmax, metadata)
 
 
-# ── 求解与解码 ──────────────────────────────────────────────
+
 
 
 def _decode_q3_resources(problem, solver, select_vars, start_vars, relay_select_vars,
                          relay_start_vars, metadata):
-    u"""解码 CP-SAT 解，分配 Transport UAV/Battery ID 和 Relay UAV/Energy ID。"""
+
     occurrences = problem["occurrences"]
     relay_df = problem["relay"]
     uav_ids = problem["uav_ids"]
@@ -639,7 +639,7 @@ def _decode_q3_resources(problem, solver, select_vars, start_vars, relay_select_
     t_meta = metadata["transport"]
     r_meta = metadata["relay"]
 
-    # Transport 解码
+
     t_selected = []
     for i, x in enumerate(select_vars):
         if solver.Value(x):
@@ -647,7 +647,7 @@ def _decode_q3_resources(problem, solver, select_vars, start_vars, relay_select_
             rec["start_time_s"] = int(solver.Value(start_vars[i]))
             t_selected.append(rec)
 
-    # 贪心着色 transport resources
+
     uav_ready = {typ: {uid: 0 for uid in ids} for typ, ids in uav_ids.items()}
     battery_ready = {typ: {bid: 0 for bid in ids} for typ, ids in battery_ids.items()}
 
@@ -682,7 +682,7 @@ def _decode_q3_resources(problem, solver, select_vars, start_vars, relay_select_
         ["uav_id", "start_time_s"]
     ).reset_index(drop=True)
 
-    # Relay 解码
+
     relay_uav_ready = {rid: 0 for rid in metadata["relay_ids"]}
     relay_rows = []
 
@@ -740,8 +740,8 @@ def _decode_q3_resources(problem, solver, select_vars, start_vars, relay_select_
             "dispatch_offset_s": float(option["dispatch_offset_s"]),
         })
 
-    # Each connected overlapping run at one relay/candidate is one physical
-    # hover session; individual rows remain gap-level coverage certificates.
+
+
     if relay_rows:
         by_session = []
         for relay_id, group in pd.DataFrame(relay_rows).groupby("relay_uav_id", sort=True):
@@ -783,7 +783,7 @@ def _decode_q3_resources(problem, solver, select_vars, start_vars, relay_select_
     metadata["session_resources_feasible"] = session_resources_feasible
     metadata["relay_sessions"] = session_schedule
 
-    # Physical box delivery decode
+
     classes_df = problem["classes"]
     pattern_counts = problem["pattern_counts"]
     selected_sorties = [
@@ -799,7 +799,7 @@ def _decode_q3_resources(problem, solver, select_vars, start_vars, relay_select_
 
 def _solve_q3(model, joint_cmax, all_vars, time_limit_s=600, workers=8,
               random_seed=2026, feasibility_only=False, objective=None):
-    u"""求解 Q3 CP-SAT 模型。"""
+
     if not feasibility_only:
         model.Minimize(joint_cmax if objective is None else objective)
 
@@ -815,21 +815,21 @@ def _solve_q3(model, joint_cmax, all_vars, time_limit_s=600, workers=8,
 
 
 def validate_q3_solution(problem, transport, relay, joint_cmax_s):
-    u"""Independently validate all Step8 minimum-model constraints (class conservation 口径)。"""
+
     checks = {}
     classes = problem["classes"]
     class_supply = problem["class_supply"]
     class_params = problem["class_params"]
     occurrences = problem["occurrences"]
 
-    # 0. build lookup maps (occurrence map + start times, 不依赖 CSV dict 序列化)
+
     occ_by_sortie = {occ.sortie_id: occ for occ in occurrences}
     starts = dict(zip(
         transport["sortie_id"].astype(str),
         transport["start_time_s"].astype(float),
     ))
 
-    # 1. class conservation
+
     selected_class_counts = defaultdict(int)
     for sid in transport["sortie_id"].astype(str):
         occ = occ_by_sortie[sid]
@@ -842,7 +842,7 @@ def validate_q3_solution(problem, transport, relay, joint_cmax_s):
             break
     checks["class_conservation"] = conservation_ok
 
-    # 2. hard deadlines
+
     deadline_ok = True
     for _, row in transport.iterrows():
         sid = row["sortie_id"]
@@ -858,11 +858,11 @@ def validate_q3_solution(problem, transport, relay, joint_cmax_s):
                     deadline_ok = False
     checks["transport_hard_deadlines"] = bool(deadline_ok)
 
-    # 3. transport resources non-overlap
+
     checks["transport_uav_nonoverlap"] = _nonoverlap(transport, "uav_id", "start_time_s", "end_time_s")
     checks["transport_battery_nonoverlap"] = _nonoverlap(transport, "battery_id", "start_time_s", "charge_end_s")
 
-    # 4. relay assignment: one relay per selected gap
+
     selected_sortie_ids = set(transport["sortie_id"].astype(str))
     occ_gaps = problem["occurrence_gaps"]
     expected_gaps = set()
@@ -881,7 +881,7 @@ def validate_q3_solution(problem, transport, relay, joint_cmax_s):
         else len(relay) == 0
     )
 
-    # 5. relay resources non-overlap
+
     checks["relay_uav_location_compatible"] = _relay_uav_location_compatible(relay)
     from src.q3.session_resources import attach_session_resources
     relay_params = load_relay_flight_parameters()
@@ -890,7 +890,7 @@ def validate_q3_solution(problem, transport, relay, joint_cmax_s):
     )
     checks["relay_session_component_capacity"] = bool(session_components_fit)
 
-    # 6. relay energy / soc limits
+
     checks["relay_session_energy_limit"] = bool(
         (sessions["relay_session_energy_kWh"] <= relay_params.max_energy_kwh + 1e-6).all()
     ) if not sessions.empty else True
@@ -898,13 +898,13 @@ def validate_q3_solution(problem, transport, relay, joint_cmax_s):
         (sessions["end_soc"] >= relay_params.safety_margin - 1e-6).all()
     ) if not sessions.empty else True
 
-    # 7. joint Cmax consistency
+
     relay_end = float(relay["return_time_s"].max()) if not relay.empty else 0.0
     transport_end = float(transport["end_time_s"].max()) if not transport.empty else 0.0
     actual_cmax = max(transport_end, relay_end)
     checks["joint_cmax_consistent"] = actual_cmax <= float(joint_cmax_s) + 1.0 + 1e-9
 
-    # 8. relay timing coverage checks (occurrence-gap coupling 验证)
+
     if not relay.empty:
         checks["relay_dispatch_nonnegative"] = bool((relay["dispatch_time_s"] >= 0).all())
 
@@ -960,7 +960,7 @@ def _nonoverlap(frame, resource_col, start_col, end_col):
 
 
 def _relay_uav_location_compatible(relay):
-    """Overlapping tasks may share a relay only when at the same candidate."""
+
     if relay.empty:
         return True
     for _, group in relay.groupby("relay_uav_id"):
@@ -1079,7 +1079,7 @@ def solve_q3_joint(tier="tier1", time_limit_s=600, workers=8, random_seed=2026,
         for i, occ in enumerate(problem["occurrences"]):
             model.Add(select[i] == int(str(occ.sortie_id) in fixed_ids))
     if hint is not None:
-        # 创建临时 relay_meta_for_hint
+
         problem["_relay_meta_for_hint"] = metadata["relay"]
         _add_joint_hint(model, problem, select, starts, relay_select, relay_starts, hint,
                         metadata=metadata)
@@ -1204,10 +1204,10 @@ def write_step8_outputs(result, output_dir=None):
 
 
 def run_step8(time_limit_s=180, workers=8, bootstrap_time_limit_s=180):
-    u"""Step8: 找到第一个 Strict Joint Feasible 解并保存。
+    
 
-    不再对 full 6449 occurrences 做再优化。
-    """
+
+
     from src.q3.bootstrap import find_bootstrap
 
     result, _ = find_bootstrap(

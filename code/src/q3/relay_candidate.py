@@ -1,4 +1,4 @@
-u"""生成离散中继悬停候选，并计算断连样本的双链路覆盖。"""
+
 
 import csv
 import hashlib
@@ -31,7 +31,7 @@ CANDIDATE_PATH = DATA / "relay_candidates.csv"
 COVERAGE_PATH = DATA / "relay_coverage_matrix.csv"
 SUMMARY_PATH = DATA / "relay_requirement_candidate_summary.csv"
 MANIFEST_PATH = DATA / "q3_relay_candidate_manifest.json"
-# DEM 视线检查已向量化；较大的批次显著减少百万级 uncertain pair 的 Python 调用开销。
+
 LINK_BATCH_SIZE = 2048
 
 
@@ -59,7 +59,7 @@ def _fspl_array(distance_m: np.ndarray, frequency_mhz: float) -> np.ndarray:
 
 def _candidate_xy(requirements: Sequence[dict], terrain: DemTerrain,
                   parameters: RelayLinkParameters) -> List[Tuple[int, int]]:
-    """4×4 DEM 像元块中心中，至少可能连到一个断连点的位置。"""
+
     radius = _coverage_radius_m(parameters.uav_relay_limit_db, parameters)
     pixel_step = parameters.grid_pixel_step
     row_first = pixel_step // 2
@@ -154,7 +154,7 @@ def _screen_access(
     parameters: RelayLinkParameters,
     terrain: DemTerrain,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """返回物理上可能的候选子集、可用状态和保守/实际链路余量。"""
+
     radius = _coverage_radius_m(parameters.uav_relay_limit_db, parameters)
     lat = float(point["y"])
     lon = float(point["x"])
@@ -247,7 +247,7 @@ def build_coverage(
 
         from src.q3.trajectory_generator import load_nodes
         base = load_nodes()["O01"]
-        # G01 antenna height is read from the communications workbook.
+
         from src.q3.communication.link_budget import load_direct_parameters
         gateway = (base["x"], base["y"], base["h"] + load_direct_parameters().gateway_height_m)
 
@@ -342,9 +342,9 @@ def build_coverage(
                 flush=True,
             )
 
-        # Store the exact sample-level matrix as a sparse candidate-by-requirement
-        # table. covered_sample_indices are zero-based positions in the requirement's
-        # trajectory_points array; absence means A=0.
+
+
+
         with coverage_path.open("w", encoding="utf-8", newline="") as stream:
             writer = csv.DictWriter(stream, fieldnames=(
                 "requirement_id", "flight_id", "candidate_id", "total_samples",

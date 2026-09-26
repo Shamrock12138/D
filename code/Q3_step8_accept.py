@@ -1,4 +1,4 @@
-"""Validate and freeze the completed Step8 joint schedule."""
+
 
 import json
 import sys

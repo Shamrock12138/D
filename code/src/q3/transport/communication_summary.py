@@ -1,4 +1,4 @@
-u"""由航段/节点直连缓存生成 Q3 全量 compact pattern 的通信摘要。"""
+
 
 import csv as _csv
 import hashlib
@@ -60,7 +60,7 @@ def assemble_pattern_profile(
     template: CompactPatternTemplate,
     cache: DirectProfileCache,
 ):
-    """根据 compact pattern 重建完整相对通信 profile。"""
+
 
     params = cache.uav_params[template.uav_type]
 
@@ -249,7 +249,7 @@ def _validation_templates(templates: Sequence[CompactPatternTemplate], seed: int
 
 
 def validate_pattern_profiles(templates, cache, path=None):
-    """30 个 pattern：全轨迹 direct check 与航段缓存逐时刻对账。"""
+
     out_path = path if path is not None else VALIDATION_PATH
     selected = _validation_templates(templates)
     from src.q3.communication.checker import check_direct_link

@@ -3,56 +3,56 @@ import numpy as np
 from pathlib import Path
 from dem_route import DEMRouteAnalyzer
 
-r"""
-航段参数矩阵生成模块
-====================
 
-功能：基于服务区数据与DEM，计算所有节点对之间的航段参数，生成5个16×16矩阵和1个完整长表。
 
-输入
-----
-- ``data/服务区数据.csv`` : 16个节点（1调度中心O01 + 15服务区S001~S015）的编号、经纬度、地面高程、需保障人口
-- DEM : 镇龙乡30m分辨率数字高程模型（由 ``DEMRouteAnalyzer`` 自动加载）
 
-处理流程
---------
 
-1. 加载节点数据，区分调度中心（作业高度 = 地面高程）与服务区（作业高度 = 地面高程 + 30m）
-2. 对每一对有序节点 (i, j), i≠j，调用 ``DEMRouteAnalyzer.get_route_parameter()`` 计算航段参数
-3. 输出矩阵和长表到 ``data/`` 目录
 
-输出文件
---------
-============ ============================== ======
-文件名        内容                           维度
-============ ============================== ======
-distance_matrix.csv         水平距离 L_ij (m)       16×16
-h_max_matrix.csv            最高地面高程 (m)         16×16
-cruise_height_matrix.csv    巡航高度 H_cr (m)        16×16
-climb_height_matrix.csv     爬升高度 H_up (m)        16×16
-descent_height_matrix.csv   下降高度 H_down (m)      16×16
-route_parameter_all.csv     全部航段参数长表          240×8
-============ ============================== ======
 
-对应模型变量
-------------
 
-.. math::
 
-    \mathcal{A}_{ij} = (L_{ij},\; H_{ij}^{cr},\; H_{ij}^{up},\; H_{ij}^{down})
 
-使用方式
---------
 
->>> from build_route_matrices import main
->>> main()
 
-或直接运行：
 
-.. code-block:: bash
 
-    python build_route_matrices.py
-"""
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 def load_nodes():

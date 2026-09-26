@@ -75,7 +75,7 @@ class RelaySharingTests(unittest.TestCase):
         self.assertEqual(sum(solver.Value(v) for v in metadata["relay_session_starts"]), 1)
         self.assertEqual(solver.Value(anchor_f3), 1_230_000)
         self.assertEqual(solver.Value(anchor_f4), 2)
-        # 1.0 transport + .2 shared outbound/return + 3 * .01 service energy.
+
         self.assertEqual(solver.Value(objective), 12_300_000)
 
 

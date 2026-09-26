@@ -1,8 +1,8 @@
-"""Lossless box symmetry classes and count-based transport patterns.
 
-Box IDs are retained only as class members for final deterministic decoding.
-All attributes that affect constraints or objectives participate in the key.
-"""
+
+
+
+
 
 from collections import defaultdict
 from itertools import combinations, product
@@ -16,12 +16,12 @@ from src.q2.route_evaluator import _box_data, evaluate_route
 
 
 def _number(value, default=math.inf):
-    """Normalize absent numeric values without merging them with finite values."""
+
     return default if pd.isna(value) else float(value)
 
 
 def build_box_classes(boxes):
-    """Return class table and physical-box to class mapping."""
+
     grouped = defaultdict(list)
     for row in boxes.itertuples(index=False):
         first = bool(row.is_first_batch)
@@ -50,7 +50,7 @@ def build_box_classes(boxes):
 
 
 def count_signature(class_counts):
-    """Canonical immutable signature of a class-count vector."""
+
     return tuple(sorted(
         (str(class_id), int(amount))
         for class_id, amount in class_counts.items()
@@ -59,7 +59,7 @@ def count_signature(class_counts):
 
 
 def pattern_signature(uav_type, visit_order, class_counts):
-    """Canonical identity of a compact transport pattern."""
+
     if isinstance(visit_order, str):
         visit_order = tuple(visit_order.split(">"))
     else:
@@ -73,7 +73,7 @@ def pattern_signature(uav_type, visit_order, class_counts):
 
 
 def enumerate_service_loads(classes, service, max_mass, max_volume):
-    """Enumerate class-count vectors within one service and UAV payload limits."""
+
     local = classes.loc[classes["service"] == service]
     rows = list(local.itertuples(index=False))
     for amounts in product(*(range(int(row.count) + 1) for row in rows)):
@@ -87,11 +87,11 @@ def enumerate_service_loads(classes, service, max_mass, max_volume):
 
 def select_service_loads(loads, classes, service, max_mass, max_volume,
                          limit):
-    """Deterministically shortlist local loads before two-site products.
+    
 
-    The limit is a search budget, not a model constraint. Unit and largest
-    single-class loads remain mandatory even when they exceed that budget.
-    """
+
+
+
     if limit is None or len(loads) <= limit:
         return loads
     if limit < 1:
@@ -153,11 +153,11 @@ def select_service_loads(loads, classes, service, max_mass, max_volume,
 
 def generate_compact_patterns(boxes, models, max_stops=2, services=None,
                               progress=None, local_load_limit=None):
-    """Generate one/two-stop physical patterns with class counts, never box IDs.
+    
 
-    Representative member IDs are used only transiently by the established
-    route physics evaluator; they are absent from the returned pattern tables.
-    """
+
+
+
     if max_stops not in (1, 2):
         raise ValueError("Only one- and two-stop pattern generation is implemented")
     classes, _ = build_box_classes(boxes)
@@ -244,7 +244,7 @@ def generate_compact_patterns(boxes, models, max_stops=2, services=None,
 
 
 def pattern_multiplicity(counts, class_supply):
-    """Safe upper bound on repeat sorties for a count-based pattern."""
+
     if not counts:
         raise ValueError("A transport pattern must carry at least one box")
     return min(int(class_supply[class_id]) // int(amount)
@@ -252,12 +252,12 @@ def pattern_multiplicity(counts, class_supply):
 
 
 def select_compact_patterns(patterns, pattern_counts, classes, top_k=8):
-    """Keep diverse patterns per class/UAV across multiple ranking dimensions.
+    
 
-    Dimensions include energy, duration, per-box efficiency, box count,
-    target-class count, mass/volume utilisation, deadline slack, and
-    explicit single-stop / two-stop structure preservation.
-    """
+
+
+
+
     if top_k < 1:
         raise ValueError("top_k must be positive")
 
@@ -384,7 +384,7 @@ def select_compact_patterns(patterns, pattern_counts, classes, top_k=8):
 
 
 def expand_pattern_counts(pattern_counts, class_supply):
-    """Create distinguishable sortie slots; a pattern may appear repeatedly."""
+
     slots = []
     for pattern_id, counts in pattern_counts.items():
         maximum = pattern_multiplicity(counts, class_supply)
@@ -396,7 +396,7 @@ def expand_pattern_counts(pattern_counts, class_supply):
 
 
 def add_class_conservation(model, slots, chosen, class_supply):
-    """Enforce exact quantity, not ExactlyOne on representative box IDs."""
+
     for class_id, supply in class_supply.items():
         terms = [slot["class_counts"].get(class_id, 0) * chosen[i]
                  for i, slot in enumerate(slots)
@@ -407,7 +407,7 @@ def add_class_conservation(model, slots, chosen, class_supply):
 
 
 def assign_box_ids(selected_sorties, classes):
-    """Decode selected class counts to each original box exactly once."""
+
     available = {row.class_id: list(row.box_ids)
                  for row in classes.itertuples(index=False)}
     assignments = []
@@ -426,7 +426,7 @@ def assign_box_ids(selected_sorties, classes):
 
 
 def decode_box_deliveries(selected_sorties, classes, pattern_counts):
-    """Produce the required per-box delivery times after scheduling sorties."""
+
     assigned = assign_box_ids(selected_sorties, classes)
     if assigned.empty:
         return assigned
@@ -446,7 +446,7 @@ def decode_box_deliveries(selected_sorties, classes, pattern_counts):
 
 
 def class_timeliness(selected_sorties, classes, pattern_counts):
-    """Return F1 = sum(count * priority * lateness) without box-ID variables."""
+
     class_rows = classes.set_index("class_id")
     offsets = {(row.pattern_id, row.class_id): float(row.delivery_offset_s)
                for row in pattern_counts.itertuples(index=False)}
@@ -464,11 +464,11 @@ def class_timeliness(selected_sorties, classes, pattern_counts):
 
 
 def materialize_selected_sorties(selected_sorties, patterns, pattern_counts, classes):
-    """Bridge scheduled compact sorties to legacy Q2/Q3 task and delivery tables.
+    
 
-    This is called only after category conservation is solved; box IDs are
-    assigned once here, never enumerated as candidate decision variables.
-    """
+
+
+
     pattern_rows = patterns.set_index("pattern_id")
     task_rows = []
     for sortie in selected_sorties:
@@ -490,7 +490,7 @@ def materialize_selected_sorties(selected_sorties, patterns, pattern_counts, cla
 def build_compact_master(patterns, pattern_counts, classes, uav_ids,
                          battery_ids, energy_capacity, charge_full, horizon_s,
                          objective="N"):
-    """Build transport-feasible class-count master with a Q2 single objective."""
+
     if objective not in {
         "F1",
         "Cmax",
@@ -532,13 +532,13 @@ def build_compact_master(patterns, pattern_counts, classes, uav_ids,
         )
     slots = expand_pattern_counts(counts, supply)
 
-    # COMM 主目标:
-    #   1. 最小化总 communication gap 数
-    #   2. 相同 gap 数下最小化运输架次
-    #
-    # 因为最大可能架次数不超过 len(slots)，
-    # 令 COMM_SCALE > len(slots)，即可保证
-    # 一个额外 gap 的代价一定大于所有架次差异。
+
+
+
+
+
+
+
     COMM_SCALE = len(slots) + 1
 
     pattern_rows = patterns.set_index("pattern_id")
@@ -751,7 +751,7 @@ def build_compact_master(patterns, pattern_counts, classes, uav_ids,
 
     else:
 
-        # F1
+
         model.Minimize(
             sum(lateness_terms)
         )

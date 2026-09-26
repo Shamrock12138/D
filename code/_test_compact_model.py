@@ -1,4 +1,4 @@
-"""Test compact CP-SAT model building."""
+
 import sys
 import warnings
 from pathlib import Path
@@ -18,11 +18,11 @@ print(f"relay options: {problem['relay'].shape[0] if problem['relay'] is not Non
 print(f"uav types: {sorted(problem['uav_ids'].keys())}")
 print(f"total class supply: {sum(problem['class_supply'].values())}")
 
-# Check: occurrence_gaps coverage
+
 total_gaps = sum(len(v) for v in problem["occurrence_gaps"].values())
 print(f"total occurrence gaps: {total_gaps}")
 
-# Check: gap_option_map coverage
+
 gap_ids_with_rolein_relay = 0
 for occ in problem["occurrences"]:
     for gid in occ.gap_ids:
@@ -52,7 +52,7 @@ try:
     if status in (cpm.OPTIMAL, cpm.FEASIBLE):
         obj = solver.ObjectiveValue()
         print(f"Objective value: {obj}")
-        # Count selected occurrences
+
         n_selected = sum(1 for v in select if solver.Value(v))
         print(f"Selected transport occurrences: {n_selected}")
         n_relay_selected = sum(1 for v in relay_select if solver.Value(v))

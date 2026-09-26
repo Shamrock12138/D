@@ -1,4 +1,4 @@
-u"""Q3 新主线 Step3：Q2 候选任务的 G01 直连通信摘要。"""
+
 
 import sys
 from pathlib import Path

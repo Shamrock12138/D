@@ -9,14 +9,14 @@ from transport_map_base import (
 class P005TransportMap(
     TransportMapBase
 ):
-    """
-    P005 运输路线与多点访问结构。
+    
 
-    P005:
-        25 个架次
-        20 个单站
-        5 个双站
-    """
+
+
+
+
+
+
 
     def __init__(self):
 

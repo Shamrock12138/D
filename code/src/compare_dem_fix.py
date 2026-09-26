@@ -1,4 +1,4 @@
-"""对照 DEM 修复前后的航段参数，输出可追溯差异表。"""
+
 
 import sys
 import hashlib

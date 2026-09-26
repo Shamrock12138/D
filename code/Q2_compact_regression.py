@@ -1,13 +1,13 @@
-"""Diagnose where legacy compact patterns are dropped.
 
-Checks whether each sortie from the old MOEA/D Pareto solutions (P001/P003/P027)
-is still expressible within the current compact candidate pool, and if not,
-whether it was lost during LOCAL_LOAD filtering or FINAL pattern selection.
 
-Usage
------
-python code/Q2_compact_regression.py --top-k 3 --local-load-limit 24
-"""
+
+
+
+
+
+
+
+
 
 import argparse
 import json
@@ -41,7 +41,7 @@ BENCHMARKS = {
 
 
 def load_legacy_solution(solution_id):
-    """Return (tasks_df, deliveries_df) for a legacy MOEA/D solution."""
+
     tasks = pd.read_csv(
         DATA / f"Q2_moead_tasks_{solution_id}.csv",
         encoding="utf-8-sig",
@@ -56,7 +56,7 @@ def load_legacy_solution(solution_id):
 
 
 def legacy_solution_signatures(solution_id, boxes):
-    """Extract (uav_type, visit_order, class_counts) signatures for every legacy task."""
+
     classes, box_to_class = build_box_classes(boxes)
 
     tasks, deliveries = load_legacy_solution(solution_id)
@@ -98,7 +98,7 @@ def legacy_solution_signatures(solution_id, boxes):
 
 
 def build_pattern_signature_index(patterns, pattern_counts):
-    """Build {signature: [pattern_id, ...]} index from compact patterns."""
+
     grouped = pattern_counts.groupby("pattern_id")
 
     index = {}
@@ -123,7 +123,7 @@ def build_pattern_signature_index(patterns, pattern_counts):
 
 
 def split_counts_by_service(class_counts, classes):
-    """Split a class-count dict by service."""
+
     class_service = dict(
         zip(classes["class_id"], classes["service"])
     )
@@ -139,10 +139,10 @@ def split_counts_by_service(class_counts, classes):
 
 
 def local_load_survives(class_counts, uav_type, classes, models, local_load_limit):
-    """Return (True, None) if class_counts survive select_service_loads().
+    
 
-    Returns (False, service) if dropped at the local-load stage for a service.
-    """
+
+
     max_mass = float(models[uav_type].u["Q_g"])
     max_volume = float(models[uav_type].u["V_g"])
 
@@ -182,7 +182,7 @@ def local_load_survives(class_counts, uav_type, classes, models, local_load_limi
 
 
 def compute_legacy_metrics(tasks, deliveries):
-    """Return N, E, Cmax for a legacy solution."""
+
     n = len(tasks)
     e = float(tasks["energy_kWh"].sum())
     cmax = max(
@@ -296,7 +296,7 @@ def main():
 
 
 def _select_from_saved(patterns, pattern_counts, classes, top_k):
-    """Apply select_compact_patterns to the saved candidate pool."""
+
     from src.q2.compact_classes import select_compact_patterns
 
     selected, selected_counts = select_compact_patterns(

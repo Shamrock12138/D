@@ -1,4 +1,4 @@
-"""Adaptively refine selected Step5 communication gaps at 1-second resolution."""
+
 
 from __future__ import annotations
 
@@ -35,7 +35,7 @@ AUDIT_COLUMNS = [
 
 
 def _extract_fine_windows(samples, dt=1.0):
-    """Extract outages using the same boundary convention as Step5."""
+
     windows = []
     in_gap = False
     before = None
@@ -77,7 +77,7 @@ def _extract_fine_windows(samples, dt=1.0):
 
 
 def _merge_gap_intervals(coarse, fine):
-    """Take the conservative union so refinement can never relax Step5."""
+
     tau_start = min(float(coarse.tau_start), float(fine["tau_start"]))
     tau_end = max(float(coarse.tau_end), float(fine["tau_end"]))
     coverage_start = min(
@@ -97,7 +97,7 @@ def _merge_gap_intervals(coarse, fine):
 
 
 def _combine_fine_windows(windows):
-    """Conservatively combine several fine outages represented by one coarse gap."""
+
     if not windows:
         raise ValueError("Cannot combine an empty set of fine gap windows")
     return {
@@ -120,7 +120,7 @@ def _combine_fine_windows(windows):
 
 
 def _retain_refined_options(gap_options, gap_id, candidate_metrics):
-    """Filter options by fine coverage and conservatively update their margin."""
+
     mask = gap_options["gap_id"].astype(str) == str(gap_id)
     before = gap_options.loc[mask].copy()
     kept = []
@@ -143,7 +143,7 @@ def _retain_refined_options(gap_options, gap_id, candidate_metrics):
 
 
 def _pair_fine_windows(coarse_rows, fine_windows, pattern_id):
-    """Pair by temporal overlap; aggregate many fine outages into one coarse gap."""
+
     if len(coarse_rows) == 0 and len(fine_windows) == 0:
         return []
     groups = [[] for _ in range(len(coarse_rows))]
@@ -176,7 +176,7 @@ def _pair_fine_windows(coarse_rows, fine_windows, pattern_id):
 
 
 def _candidate_metrics(samples, options, sites, parameters, terrain):
-    """Revalidate candidates on all fine outage samples using Step6 physics."""
+
     candidate_ids = set(options["candidate_id"].astype(str))
     site_rows = sites[sites["candidate_id"].astype(str).isin(candidate_ids)].copy()
     site_rows["candidate_id"] = site_rows["candidate_id"].astype(str)
@@ -230,7 +230,7 @@ def refine_gap_inputs(
     pattern_ids: set[str],
     dt: float = 1.0,
 ):
-    """Refine selected patterns and return gaps, validated options, and audit."""
+
     if dt <= 0:
         raise ValueError("dt must be positive")
     pattern_ids = {str(pattern_id) for pattern_id in pattern_ids}

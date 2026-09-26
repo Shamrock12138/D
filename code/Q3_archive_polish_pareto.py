@@ -1,4 +1,4 @@
-"""Build a verified nondominated archive from one completed polish run."""
+
 
 import argparse
 import hashlib

@@ -1,4 +1,4 @@
-"""In-memory Q3 relay inheritance test for materialized compact sorties."""
+
 
 import math
 from collections import defaultdict
@@ -204,9 +204,9 @@ def _solve_fixed_transport_joint_relay(
 
     model = cp_model.CpModel()
 
-    # =====================================================
-    # 1. Transport：所有 Q2 selected task 均固定执行
-    # =====================================================
+
+
+
 
     starts = {}
     flight_ends = {}
@@ -332,7 +332,7 @@ def _solve_fixed_transport_joint_relay(
                 energy_kWh,
         }
 
-        # hard deadline
+
         for box_id in task_boxes[task_id]:
 
             deadline = deadlines[box_id]
@@ -351,7 +351,7 @@ def _solve_fixed_transport_joint_relay(
                 <= math.floor(deadline)
             )
 
-        # Q2 start 只作为 hint
+
         if (
             transport_start_hint is not None
             and task_id
@@ -375,9 +375,9 @@ def _solve_fixed_transport_joint_relay(
                 hint,
             )
 
-    # =====================================================
-    # 2. Transport UAV / Battery cumulative
-    # =====================================================
+
+
+
 
     for uav_type, intervals in (
         flight_intervals.items()
@@ -397,9 +397,9 @@ def _solve_fixed_transport_joint_relay(
             len(battery_ids[uav_type]),
         )
 
-    # =====================================================
-    # 3. Relay options
-    # =====================================================
+
+
+
 
     gap_task = {
         str(row.gap_id):
@@ -552,7 +552,7 @@ def _solve_fixed_transport_joint_relay(
                 )
             )
 
-            # Relay 与 transport start 严格耦合
+
             model.Add(
                 rs
                 ==
@@ -621,15 +621,15 @@ def _solve_fixed_transport_joint_relay(
 
             gap_vars.append(y)
 
-        # 固定运输任务一定执行
-        # 所以每个 gap 必须恰好 1 个 Relay
+
+
         model.Add(
             sum(gap_vars) == 1
         )
 
-    # =====================================================
-    # 4. Relay resources
-    # =====================================================
+
+
+
 
     relay_uav_cap = RELAY_UAV_CAPACITY
     relay_energy_cap = RELAY_ENERGY_CAPACITY
@@ -652,9 +652,9 @@ def _solve_fixed_transport_joint_relay(
             relay_energy_cap,
         )
 
-    # =====================================================
-    # 5. Joint Cmax，只作为结果，不优化
-    # =====================================================
+
+
+
 
     transport_cmax = model.NewIntVar(
         0,
@@ -697,9 +697,9 @@ def _solve_fixed_transport_joint_relay(
         ],
     )
 
-    # =====================================================
-    # 6. 求第一个 FEASIBLE
-    # =====================================================
+
+
+
 
     solver = cp_model.CpSolver()
 
@@ -733,9 +733,9 @@ def _solve_fixed_transport_joint_relay(
                 solver.WallTime(),
         }
 
-    # =====================================================
-    # 7. Transport resource decode
-    # =====================================================
+
+
+
 
     uav_ready = {
         typ: {
@@ -853,9 +853,9 @@ def _solve_fixed_transport_joint_relay(
         transport_rows
     )
 
-    # =====================================================
-    # 8. Relay resource decode
-    # =====================================================
+
+
+
 
     relay_uav_ready = {
         f"R{i + 1:02d}": 0
@@ -1026,9 +1026,9 @@ def _solve_fixed_transport_joint_relay(
         relay_rows
     )
 
-    # =====================================================
-    # 9. 最小独立检查
-    # =====================================================
+
+
+
 
     checks = {}
 
@@ -1189,7 +1189,7 @@ def run_compact_relay_smoke(
             ),
     }
 
-    # 全直连则直接成功
+
     if gaps.empty:
         report["status"] = (
             "DIRECT_ONLY"
@@ -1301,14 +1301,14 @@ def run_compact_relay_smoke(
     if not report["joint_validation_pass"]:
         return report
 
-    # ============================================================
-    # SAVE FIRST FEASIBLE Q3 RESULT
-    # ============================================================
+
+
+
 
     transport = result["transport"].copy()
     relay_schedule = result["relay"].copy()
 
-    # ---- enrich transport with visit_order (for Q4 group assignment) ----
+
     template_visits = {
         t.pattern_id: ">".join(t.visit_order)
         for t in templates
@@ -1325,21 +1325,21 @@ def run_compact_relay_smoke(
 
     transport.drop(columns=["pattern_id"], inplace=True)
 
-    # 1. 运输调度
+
     transport.to_csv(
         DATA / "Q3_final_transport_schedule.csv",
         index=False,
         encoding="utf-8-sig",
     )
 
-    # 2. 中继调度
+
     relay_schedule.to_csv(
         DATA / "Q3_final_relay_schedule.csv",
         index=False,
         encoding="utf-8-sig",
     )
 
-    # 3. 根据 Q3 重新优化后的 start time 重建 80 箱送达时刻
+
     delivery_schedule = deliveries.copy()
 
     start_map = dict(zip(
@@ -1358,7 +1358,7 @@ def run_compact_relay_smoke(
         + delivery_schedule["delivery_offset_s"].astype(float)
     )
 
-    # ---- enrich delivery with service and mass_kg (for Q4) ----
+
     box_info = boxes.set_index("box_id")
 
     delivery_schedule["service"] = (
@@ -1375,7 +1375,7 @@ def run_compact_relay_smoke(
         encoding="utf-8-sig",
     )
 
-    # 4. 汇总指标
+
     transport_energy = float(
         transport["energy_kWh"].sum()
     )

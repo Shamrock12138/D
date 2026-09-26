@@ -1,4 +1,4 @@
-"""Generate class-count Q2 transport patterns without physical box IDs."""
+
 
 import argparse
 import hashlib

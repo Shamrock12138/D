@@ -1,4 +1,4 @@
-u"""Q3 通信分析所需的基础运输任务对象。"""
+
 
 from dataclasses import asdict, dataclass
 from typing import List, Optional
@@ -6,7 +6,7 @@ from typing import List, Optional
 
 @dataclass(frozen=True)
 class FlightTask:
-    u"""一个已经由 Q2 确定的运输架次。"""
+
 
     flight_id: int
     uav_id: str
@@ -19,13 +19,13 @@ class FlightTask:
     source_task_id: Optional[str] = None
 
     def to_dict(self) -> dict:
-        """转换为可直接写入 JSON 的字典。"""
+
         return asdict(self)
 
 
 @dataclass(frozen=True)
 class Q3Scenario:
-    u"""Q3 的固定运输方案输入。"""
+
 
     flights: List[FlightTask]
     n_flights: int
@@ -35,19 +35,19 @@ class Q3Scenario:
             raise ValueError("n_flights 与 flights 的实际数量不一致")
 
     def to_list(self) -> List[dict]:
-        """按架次列表格式导出，供后续轨迹与通信模块读取。"""
+
         return [flight.to_dict() for flight in self.flights]
 
 
 @dataclass(frozen=True)
 class TrajectoryPoint:
-    u"""绝对时间、经纬度和海拔组成的运输无人机轨迹采样点。"""
 
-    time: float  # 秒，沿用 Q2 的时间原点
-    x: float  # 经度，EPSG:4326，单位度
-    y: float  # 纬度，EPSG:4326，单位度
-    z: float  # 海拔高度，单位米
-    phase: str  # setup/climb/cruise/descend/handover
+
+    time: float
+    x: float
+    y: float
+    z: float
+    phase: str
     node: Optional[str] = None
 
     def to_dict(self) -> dict:

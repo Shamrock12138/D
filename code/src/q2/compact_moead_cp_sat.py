@@ -1,9 +1,9 @@
-"""Four-objective MOEA/D over the validated compact Q2 candidate pool.
 
-The legacy three-objective implementation is intentionally left untouched.
-This module uses class-count occurrences, residual-class repair, and the
-existing compact Q2 physical/resource semantics.
-"""
+
+
+
+
+
 
 from __future__ import annotations
 
@@ -40,7 +40,7 @@ def _sha256(path: Path) -> str:
 
 
 def load_compact_problem(top_k: int = 3, data_dir: Path = DATA) -> dict:
-    """Load and verify the exact compact candidate universe used by anchors."""
+
     if int(top_k) != 3:
         raise ValueError("Current compact MOEA/D anchors require top_k=3")
     data_dir = Path(data_dir)
@@ -87,7 +87,7 @@ def load_compact_problem(top_k: int = 3, data_dir: Path = DATA) -> dict:
 
 
 def canonicalize_sortie_ids(problem: dict, sortie_ids) -> tuple[str, ...]:
-    """Renumber repeated pattern copies contiguously from one."""
+
     counts = Counter()
     seen_input = set()
     for value in sortie_ids:
@@ -112,7 +112,7 @@ def canonicalize_sortie_ids(problem: dict, sortie_ids) -> tuple[str, ...]:
 
 
 def _canonicalize_id_map(problem: dict, sortie_ids):
-    """Return canonical IDs and a stable input-ID to canonical-ID mapping."""
+
     per_pattern = Counter()
     mapping = {}
     for old in map(str, sortie_ids):
@@ -137,7 +137,7 @@ def compute_residual_demand(problem: dict, fixed_sortie_ids) -> dict[str, int]:
 
 def load_compact_anchor(objective: str, problem: dict,
                         data_dir: Path | None = None) -> dict:
-    """Load one anchor and verify candidate provenance, dimensions and files."""
+
     objective = str(objective)
     if objective not in OBJECTIVE_NAMES:
         raise ValueError(f"Unknown compact objective: {objective}")
@@ -241,7 +241,7 @@ def _make_local_slots(problem: dict, fixed_ids, residual: dict) -> list[dict]:
 
 
 def build_compact_local_model(problem: dict, fixed_sortie_ids, residual_demand=None):
-    """Build a residual-class repair model with exact Q2 resource constraints."""
+
     fixed = canonicalize_sortie_ids(problem, fixed_sortie_ids)
     residual = (compute_residual_demand(problem, fixed) if residual_demand is None
                 else dict(residual_demand))

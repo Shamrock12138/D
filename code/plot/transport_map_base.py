@@ -19,9 +19,9 @@ from rasterio.coords import BoundingBox
 from rasterio.windows import from_bounds
 
 
-# ============================================================
-# 项目路径
-# ============================================================
+
+
+
 
 THIS_FILE = Path(__file__).resolve()
 CODE_ROOT = THIS_FILE.parents[1]
@@ -40,29 +40,29 @@ DEM_FILE = (
 
 
 class TransportMapBase:
-    """
-    二维 DEM 运输路线图基类。
+    
 
-    公共功能：
-    1. DEM 裁剪；
-    2. 蓝-白-红高程底图；
-    3. hillshade 与等高线；
-    4. O01 / S001-S015 节点；
-    5. 单站 / 双站路线；
-    6. A/B/C 型配色；
-    7. 重复路线聚合；
-    8. PDF / SVG / PNG 输出。
 
-    子类通常只需要指定：
-        schedule_file
-        output_stem
-        expected_single
-        expected_double
-    """
 
-    # ========================================================
-    # 统一地图范围
-    # ========================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     LON_MIN = 109.10
     LON_MAX = 109.35
@@ -115,9 +115,9 @@ class TransportMapBase:
             / "q2"
         )
 
-    # ========================================================
-    # matplotlib 样式
-    # ========================================================
+
+
+
 
     @staticmethod
     def configure_matplotlib() -> None:
@@ -143,9 +143,9 @@ class TransportMapBase:
             }
         )
 
-    # ========================================================
-    # DEM
-    # ========================================================
+
+
+
 
     def load_dem(self):
         src = rasterio.open(
@@ -204,9 +204,9 @@ class TransportMapBase:
             transform,
         )
 
-    # ========================================================
-    # 节点
-    # ========================================================
+
+
+
 
     def load_nodes(
         self,
@@ -242,25 +242,25 @@ class TransportMapBase:
 
         return nodes
 
-    # ========================================================
-    # 路线
-    # ========================================================
+
+
+
 
     def load_routes(
         self,
     ) -> pd.DataFrame:
-        """
-        默认读取 Q2 schedule.csv。
+        
 
-        必须包含：
-            uav_type
-            n_stops
-            visit_order
 
-        自动按
-            uav_type + n_stops + visit_order
-        聚合重复路线。
-        """
+
+
+
+
+
+
+
+
+
 
         if not self.schedule_file.exists():
             raise FileNotFoundError(
@@ -316,9 +316,9 @@ class TransportMapBase:
             .sum()
         )
 
-        # --------------------------------------------
-        # 可选验收
-        # --------------------------------------------
+
+
+
 
         if (
             self.expected_single
@@ -346,9 +346,9 @@ class TransportMapBase:
                 f"{self.expected_double}"
             )
 
-        # --------------------------------------------
-        # 统一路线表示
-        # --------------------------------------------
+
+
+
 
         df["route"] = (
             "O01>"
@@ -383,9 +383,9 @@ class TransportMapBase:
 
         return routes
 
-    # ========================================================
-    # DEM norm
-    # ========================================================
+
+
+
 
     def build_terrain_norm(
         self,
@@ -408,9 +408,9 @@ class TransportMapBase:
             vmax=vmax,
         )
 
-    # ========================================================
-    # hillshade
-    # ========================================================
+
+
+
 
     @staticmethod
     def calculate_hillshade(
@@ -476,9 +476,9 @@ class TransportMapBase:
 
         return hillshade
 
-    # ========================================================
-    # DEM 底图
-    # ========================================================
+
+
+
 
     def draw_dem_base(
         self,
@@ -526,9 +526,9 @@ class TransportMapBase:
             zorder=2,
         )
 
-        # --------------------------------------------
-        # 等高线
-        # --------------------------------------------
+
+
+
 
         valid = dem[
             np.isfinite(dem)
@@ -581,9 +581,9 @@ class TransportMapBase:
 
         return im
 
-    # ========================================================
-    # 节点工具
-    # ========================================================
+
+
+
 
     @staticmethod
     def get_node_xy(
@@ -688,9 +688,9 @@ class TransportMapBase:
                 ]
             )
 
-    # ========================================================
-    # 路线工具
-    # ========================================================
+
+
+
 
     @staticmethod
     def parse_route(
@@ -760,9 +760,9 @@ class TransportMapBase:
             ]
         )
 
-    # ========================================================
-    # 重复次数标记
-    # ========================================================
+
+
+
 
     @staticmethod
     def annotate_count(
@@ -807,9 +807,9 @@ class TransportMapBase:
             ]
         )
 
-    # ========================================================
-    # 单站路线
-    # ========================================================
+
+
+
 
     def draw_single_route(
         self,
@@ -864,9 +864,9 @@ class TransportMapBase:
                 dy=0.0015,
             )
 
-    # ========================================================
-    # 有方向箭头的航段
-    # ========================================================
+
+
+
 
     def draw_arrow_segment(
         self,
@@ -905,9 +905,9 @@ class TransportMapBase:
             patch
         )
 
-    # ========================================================
-    # 双站路线
-    # ========================================================
+
+
+
 
     def draw_double_route(
         self,
@@ -949,7 +949,7 @@ class TransportMapBase:
             )
         )
 
-        # 服务区之间的边重点显示
+
         lw_inner = (
             0.8
             + 0.15
@@ -959,7 +959,7 @@ class TransportMapBase:
             )
         )
 
-        # O01 -> 第一站
+
         self.draw_arrow_segment(
             ax,
             p0,
@@ -972,7 +972,7 @@ class TransportMapBase:
             zorder=12,
         )
 
-        # 第一站 -> 第二站
+
         self.draw_arrow_segment(
             ax,
             pi,
@@ -985,7 +985,7 @@ class TransportMapBase:
             zorder=15,
         )
 
-        # 第二站 -> O01
+
         self.draw_arrow_segment(
             ax,
             pj,
@@ -1008,9 +1008,9 @@ class TransportMapBase:
                 dy=0.0015,
             )
 
-    # ========================================================
-    # 全部路线
-    # ========================================================
+
+
+
 
     def draw_routes(
         self,
@@ -1019,7 +1019,7 @@ class TransportMapBase:
         routes,
     ) -> None:
 
-        # 单站先画，作为背景
+
         singles = routes.loc[
             routes["n_stops"] == 1
         ]
@@ -1042,7 +1042,7 @@ class TransportMapBase:
                 count=int(row["count"]),
             )
 
-        # 双站后画，始终压在单站之上
+
         for _, row in doubles.iterrows():
 
             seq = self.parse_route(
@@ -1058,9 +1058,9 @@ class TransportMapBase:
                 count=int(row["count"]),
             )
 
-    # ========================================================
-    # 图例
-    # ========================================================
+
+
+
 
     def add_legend(
         self,
@@ -1136,9 +1136,9 @@ class TransportMapBase:
             ncol=1,
         )
 
-    # ========================================================
-    # 坐标轴
-    # ========================================================
+
+
+
 
     def setup_axes(
         self,
@@ -1192,9 +1192,9 @@ class TransportMapBase:
             alpha=0.20,
         )
 
-    # ========================================================
-    # 保存
-    # ========================================================
+
+
+
 
     def save_figure(
         self,
@@ -1249,9 +1249,9 @@ class TransportMapBase:
             f"PNG: {png_file}"
         )
 
-    # ========================================================
-    # 总入口
-    # ========================================================
+
+
+
 
     def draw(
         self,
@@ -1286,7 +1286,7 @@ class TransportMapBase:
                 figsize=self.figsize
             )
 
-            # ① DEM
+
             im = self.draw_dem_base(
                 ax,
                 dem,
@@ -1295,20 +1295,20 @@ class TransportMapBase:
                 terrain_norm,
             )
 
-            # ② 路线
+
             self.draw_routes(
                 ax,
                 nodes,
                 routes,
             )
 
-            # ③ 节点
+
             self.draw_nodes(
                 ax,
                 nodes,
             )
 
-            # ④ colorbar
+
             cbar = fig.colorbar(
                 im,
                 ax=ax,
@@ -1332,19 +1332,19 @@ class TransportMapBase:
                 labelsize=8,
             )
 
-            # ⑤ 图例
+
             self.add_legend(
                 ax
             )
 
-            # ⑥ 坐标
+
             self.setup_axes(
                 ax
             )
 
             fig.tight_layout()
 
-            # ⑦ 保存
+
             self.save_figure(
                 fig
             )

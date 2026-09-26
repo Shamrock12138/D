@@ -16,38 +16,38 @@ from time import time
 
 from src.physics import TransportPhysicsModel, load_models
 
-r"""
-问题一：单点往返运输能力与货箱组批方案
-======================================
 
-O01→Si→O01 直接往返，单服务区、不可跨服务区组批。
 
-物理模型（src/physics）
------------------------
-  等效航程: L_g(q) = L_0 - (L_0 - L_F)*(q/Q_g)^{3/2}
-  水平能耗: E_hor = E_use * d / L_g(q)               [kWh]
-  爬升能耗: E_up  = (M_g0+q)*g*H_up / (3.6e6*η_up)   [kWh]
-  下降能耗: 0
 
-────────────────────────── 输出文件 ──────────────────────────
 
-步 1 - 最大安全载荷  -> Q1_fixed_max_payload.csv
-  每 (type, service): m_energy, E_round_kWh, 绑定约束（质量/能量）
 
-步 2 - 固定机型三目标基准  -> Q1_fixed_single_objective.csv
-  min N_f / min ΣE / min ΣT, 每 (type, service, strategy): N_f, E, T
 
-步 3 - 混合机型三目标优化  -> Q1_mixed_{N,E,T}_opt_plan.csv + Q1_mixed_objectives.csv
-                              + Q1_mixed_comparison.csv + Q1_mixed_manifest.json
-  每架次任选 A/B/C, 精确集合划分 DP 求 N/E/T 极值
 
-步 4 - ρ 敏感性  -> Q1_sensitivity_payload_summary.csv + Q1_sensitivity_payload_detail.csv
-                    + Q1_sensitivity_mixed_summary.csv + Q1_sensitivity_mixed_plan.csv
-  payload_summary: 每 (rho, type) 质量/能量受限区数 & m_max 均值/最小/最大
-  payload_detail:  每 (rho, type, service) 最大安全载荷明细
-  mixed_summary:   每 (rho, service, objective) N_f, E, T, A/B/C 架次
-  mixed_plan:      每 (rho, objective, service) 逐架次机型/箱号/能耗/时间方案
-"""
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 PROJECT = Path(__file__).resolve().parent
 G = 9.81
@@ -57,15 +57,15 @@ def load_cargo():
     return pd.read_csv(PROJECT / "data" / "物资需求.csv")
 
 
-# ═══════════════════════════════════════════════════════════════
-# 步 1: 最大安全载荷
-# ═══════════════════════════════════════════════════════════════
+
+
+
 
 def build_max_payload_table(models, verbose=False):
-    u"""给定 models dict, 计算 3 x 15 最大安全载荷 (纯函数, 不写文件)
+    
 
-    可被基准步1和敏感性分析复用. 返回 df_max.
-    """
+
+
     results = []
     for g, model in models.items():
         u = model.u
@@ -111,7 +111,7 @@ def build_max_payload_table(models, verbose=False):
 
 
 def compute_max_payloads_all():
-    u"""步1: 三种机型 × 15 服务区 — 能量约束下的最大安全质量载荷 (写CSV)"""
+
     models = load_models()
 
     print("=" * 70)
@@ -128,10 +128,10 @@ def compute_max_payloads_all():
 
 
 def _build_models_with_rho(models, rho):
-    u"""基于基准 models, 用指定 ρ 重新构造三类物理模型
+    
 
-    不修改传入的 models, 返回全新的 TransportPhysicsModel dict.
-    """
+
+
     rho_models = {}
     for g, base_model in models.items():
         u_mod = base_model.u.copy()
@@ -140,17 +140,17 @@ def _build_models_with_rho(models, rho):
     return rho_models
 
 
-# ═══════════════════════════════════════════════════════════════
-# 步 2: 组批优化 — 共享工具
-# ═══════════════════════════════════════════════════════════════
+
+
+
 
 def generate_feasible_batches(box_masses, box_volumes, m_eff, V_g):
-    u"""DFS 剪枝生成所有满足质量+体积约束的货箱子集
+    
 
-    将货箱按质量降序排列，递归尝试添加每个后续货箱。
-    一旦累计质量/体积超过上限，剪去该分支。
-    复杂度从 O(2^n) 降至实际可行组合数。
-    """
+
+
+
+
     n = len(box_masses)
     items = sorted(
         [(box_masses[i], box_volumes[i], i) for i in range(n)],
@@ -181,10 +181,10 @@ def generate_feasible_batches(box_masses, box_volumes, m_eff, V_g):
 
 
 def _collect_service_batches(model, df_max, cargo_df, service, g):
-    u"""为指定 (g, service) 生成可行组合并计算能耗+时间
+    
 
-    返回: (feasible, n_boxes, energies, times)
-    """
+
+
     boxes = cargo_df[cargo_df["service"] == service]
     box_masses = []
     box_volumes = []
@@ -214,12 +214,12 @@ def _collect_service_batches(model, df_max, cargo_df, service, g):
     return feasible, n_boxes, energies, times
 
 
-# ═══════════════════════════════════════════════════════════════
-# 步 2: 三个单目标最优解
-# ═══════════════════════════════════════════════════════════════
+
+
+
 
 def _build_milp(batches, box_count):
-    u"""构建覆盖约束 MILP 的公共组件"""
+
     n = len(batches)
     A = np.zeros((box_count, n))
     for b_idx, batch in enumerate(batches):
@@ -232,7 +232,7 @@ def _build_milp(batches, box_count):
 
 
 def _run_milp(c_vec, con, bounds, integrality):
-    u"""求解单次 MILP, 返回 selected 索引列表或 None"""
+
     res = milp(c=c_vec, constraints=con, bounds=bounds,
                integrality=integrality, options={"disp": False})
     if not res.success:
@@ -241,7 +241,7 @@ def _run_milp(c_vec, con, bounds, integrality):
 
 
 def solve_min_N(batches, box_count, energies, times):
-    u"""单目标: min N_f (最少架次数)"""
+
     if len(batches) == 0:
         return None
     if len(batches) == 1:
@@ -251,7 +251,7 @@ def solve_min_N(batches, box_count, energies, times):
 
 
 def solve_min_E(batches, box_count, energies, times):
-    u"""单目标: min ΣE (最低总能耗)"""
+
     if len(batches) == 0:
         return None
     if len(batches) == 1:
@@ -262,7 +262,7 @@ def solve_min_E(batches, box_count, energies, times):
 
 
 def solve_min_T(batches, box_count, energies, times):
-    u"""单目标: min ΣT (最短累计时间)"""
+
     if len(batches) == 0:
         return None
     if len(batches) == 1:
@@ -273,15 +273,15 @@ def solve_min_T(batches, box_count, energies, times):
 
 
 def run_single_objective(models):
-    u"""步 2: 三个单目标最优解
+    
 
-    对每个 (g, service) 分别求解:
-      N-opt: min N_f
-      E-opt: min ΣE
-      T-opt: min ΣT
 
-    输出: Q1_fixed_single_objective.csv (每个 service 的三组极值)
-    """
+
+
+
+
+
+
     print("\n" + "=" * 70)
     print("步 2：三个单目标最优解 (N-opt, E-opt, T-opt)")
     print("=" * 70)
@@ -359,22 +359,22 @@ def run_single_objective(models):
     return df_so
 
 
-# ═══════════════════════════════════════════════════════════════
-# 步 5: ρ 敏感性分析
-# ═══════════════════════════════════════════════════════════════
+
+
+
 
 def sensitivity_analysis(models):
-    u"""返航安全余量 ρ 敏感性分析 ── 载荷边界 + 混合机型组批双重分析
+    
 
-    对每个 ρ ∈ {10,15,20,25,30}:
-      1. 用 rho_models 重新计算 3×15 最大安全载荷
-      2. 用 rho_df_max 重新生成候选批次 → 精确 DP 求 N/E/T-opt
-      3. 输出 4 个文件:
-         - Q1_sensitivity_payload_summary.csv  每 (rho, type) 统计
-         - Q1_sensitivity_payload_detail.csv   每 (rho, type, service) 明细
-         - Q1_sensitivity_mixed_summary.csv    每 (rho, service, obj) N/E/T
-         - Q1_sensitivity_mixed_plan.csv       每 (rho, obj, service) 逐架次方案
-    """
+
+
+
+
+
+
+
+
+
     cargo_df = load_cargo()
     rho_values = [10, 15, 20, 25, 30]
     services = sorted(cargo_df["service"].unique())
@@ -484,9 +484,9 @@ def sensitivity_analysis(models):
     return payload_summary, mixed_summary, mixed_plans
 
 
-# ═══════════════════════════════════════════════════════════════
-# 混合机型组批: 每架次自由选择 A/B/C，精确单目标求解
-# ═══════════════════════════════════════════════════════════════
+
+
+
 
 def _mixed_boxes(cargo_df, service):
     boxes = []
@@ -502,7 +502,7 @@ def _mixed_boxes(cargo_df, service):
 
 
 def _mixed_candidates(models, df_max, cargo_df, service):
-    """复用固定机型的候选生成与能耗/时间公式。"""
+
     boxes = _mixed_boxes(cargo_df, service)
     candidates = {g: {} for g in models}
     for g, model in models.items():
@@ -525,7 +525,7 @@ def _mixed_candidates(models, df_max, cargo_df, service):
 
 
 def solve_mixed_partition(candidates, box_count, objective):
-    """精确集合划分 DP；目标分别为 N→E→T、E→N→T、T→E→N。"""
+
     if objective not in ("N", "E", "T"):
         raise ValueError(f"未知目标: {objective}")
     full = (1 << box_count) - 1
@@ -627,7 +627,7 @@ def _mixed_plan(solution, boxes, candidates, models, df_max, service):
 
 
 def run_mixed(models, df_max, df_fixed):
-    """三个混合机型单目标实验；文件统一写为 Q1_mixed_*。"""
+
     print("\n" + "=" * 70)
     print("混合机型组批：N-opt / E-opt / T-opt")
     print("=" * 70)
@@ -770,12 +770,12 @@ def run_mixed(models, df_max, df_fixed):
     return pd.DataFrame(objective_rows)
 
 
-# ═══════════════════════════════════════════════════════════════
-# 主流程
-# ═══════════════════════════════════════════════════════════════
+
+
+
 
 def run_mixed_only():
-    """兼容旧混合实验入口；先生成安全载荷与固定 E-opt 对照。"""
+
     df_max, models = compute_max_payloads_all()
     df_so = run_single_objective(models)
     return run_mixed(models, df_max, df_so)
@@ -784,16 +784,16 @@ def run_mixed_only():
 def main():
     t0 = time()
 
-    # 1. 最大安全载荷
+
     df_max, models = compute_max_payloads_all()
 
-    # 2. 固定机型 A/B/C 的 N/E/T 极值
+
     df_so = run_single_objective(models)
 
-    # 3. A/B/C 混合机型 N/E/T 极值
+
     run_mixed(models, df_max, df_so)
 
-    # 4. 安全余量敏感性分析
+
     sensitivity_analysis(models)
 
     print(f"\n总用时: {time() - t0:.1f}s")

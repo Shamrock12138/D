@@ -1,15 +1,15 @@
-u"""Q3 Step5: Pattern 级通信缺口模板化。
 
-对 Step4 筛选后的 compact patterns，从航段/节点直连缓存重建每个
-pattern 的 gap 时间线，并建立唯一断连状态库。
 
-关键设计:
-  - 断连状态库按 (uav_type, phase, origin, destination, local_tau) 去重
-  - 航段上的同一切片只存一次 (x,y,z,margin_db,terrain_blocked)
-  - 节点固定位置只存 (x,y,z) + 通信状态
-  - gap 映射表记录每个 gap 内每个采样点的 state_id
-  - 主键从 task_id 改为 pattern_id
-"""
+
+
+
+
+
+
+
+
+
+
 
 import csv as _csv
 import hashlib
@@ -56,7 +56,7 @@ UAV_PARAMETERS = DATA / "运输无人机_机型参数.csv"
 
 @dataclass(frozen=True)
 class OutageStateKey:
-    u"""唯一断连状态的联合键，按 (机型, 阶段, 起点, 终点, 段内时刻) 去重。"""
+
     uav_type: str
     phase: str
     origin: str
@@ -104,7 +104,7 @@ def _build_outage_state_library(
     cache: DirectProfileCache,
     verbose: bool = True,
 ):
-    u"""遍历所有航段和节点，提取断连位置生成唯一状态库。"""
+
     state_rows: Dict[OutageStateKey, dict] = {}
     next_id = 1
     total_seg = 0
@@ -391,7 +391,7 @@ def _extract_gaps_with_states(
     verbose=True,
     needs_relay_pids=None,
 ):
-    """遍历 pattern，提取 gap + 逐采样 state 映射。"""
+
     gap_rows = []
     gap_state_rows = []
     total_gaps = 0
@@ -521,7 +521,7 @@ def _extract_gaps_with_states(
 
 
 def _prune_outage_states(outage_df, gap_states_df):
-    u"""仅保留 pattern gap 真正引用的状态，并重新连续编号。"""
+
     if gap_states_df.empty:
         return outage_df.iloc[0:0].copy(), gap_states_df.copy(), len(outage_df)
     if gap_states_df["state_id"].isna().any() or (gap_states_df["state_id"] == "").any():
@@ -666,7 +666,7 @@ def extract_pattern_gap_templates(
     print(f"输出: {PATTERN_GAPS.name} ({len(gaps)} 行)", flush=True)
     print(f"输出: {PATTERN_GAP_STATES.name} ({len(gap_states)} 行)", flush=True)
 
-    # ---- 写入 manifest ----
+
     _sha256 = lambda p: hashlib.sha256(p.read_bytes()).hexdigest() if p.exists() else ""
     manifest = {
         "step": "Q3 pattern communication gaps (Step5)",

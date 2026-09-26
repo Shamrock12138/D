@@ -1,4 +1,4 @@
-"""DEM 航线穿越回归检查：主方向、顺序、NoData 和真实节点对。"""
+
 
 import sys
 import unittest
@@ -9,8 +9,8 @@ from rasterio.io import MemoryFile
 from rasterio.transform import from_origin
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-from build_route_matrices import load_nodes  # noqa: E402
-from dem_route import DEMRouteAnalyzer  # noqa: E402
+from build_route_matrices import load_nodes
+from dem_route import DEMRouteAnalyzer
 
 
 class DemRouteTests(unittest.TestCase):

@@ -1,4 +1,4 @@
-u"""Q3 Step6：唯一状态—中继位置两跳覆盖与 gap alternatives。"""
+
 
 import sys
 from pathlib import Path

@@ -2,107 +2,107 @@ import rasterio
 import numpy as np
 from pathlib import Path
 
-r"""
-DEM航线参数提取模块
-====================
 
-功能：给定两个节点的经纬度坐标，利用DEM（数字高程模型）栅格数据提取航线经过区域的
-最高地面高程，并计算航段完整参数集。
 
-模型对应
---------
 
-.. math::
 
-    h_{ij}^{\max} = \max_{p \in \mathcal{P}_{ij}} \text{DEM}(p)
 
-    H_{ij}^{cr} = h_{ij}^{\max} + 50
 
-    H_{ij}^{up} = H_{ij}^{cr} - h_i^{op}
 
-    H_{ij}^{down} = H_{ij}^{cr} - h_j^{op}
 
-    \mathcal{A}_{ij} = (L_{ij},\; H_{ij}^{cr},\; H_{ij}^{up},\; H_{ij}^{down})
 
-使用示例
---------
 
->>> from dem_route import DEMRouteAnalyzer
 
->>> dem = DEMRouteAnalyzer()
 
->>> O01 = (109.230852, 23.008509)
->>> S01 = (109.243232, 23.033593)
 
->>> dem.get_max_dem_along_route(O01, S01)
-231.7
 
->>> dem.get_cruise_height(O01, S01)
-281.7
 
->>> dem.get_horizontal_distance(O01, S01)
-3063.0
 
->>> dem.get_single_point_height(109.230852, 23.008509)
-128.7
 
->>> dem.get_node_parameter(109.192379, 23.049455, h_ground=444.5, is_service_area=True)
-{'lon': 109.192379, 'lat': 23.049455, 'h_ground': 444.5, 'h_operation': 474.5}
 
->>> dem.get_node_parameter(109.230852, 23.008509, is_service_area=False)
-{'lon': 109.230852, 'lat': 23.008509, 'h_ground': 128.7, 'h_operation': 128.7}
 
->>> rp = dem.get_route_parameter(
-...     O01, S01,
-...     node1_ground=128.7, node1_op=128.7,
-...     node2_ground=154.0, node2_op=184.0,
-...     from_node="O01", to_node="S001",
-... )
->>> rp
-{
-    'from_node': 'O01',
-    'to_node': 'S001',
-    'distance': 3063.0,
-    'h_max': 231.7,
-    'cruise_height': 281.7,
-    'start_ground': 128.7,
-    'end_ground': 154.0,
-    'start_operation': 128.7,
-    'end_operation': 184.0,
-    'climb_height': 153.0,
-    'descent_height': 97.7,
-}
 
->>> dem.get_route_profile(O01, S01)  # 返回航线剖面的完整栅格序列
-{'cells': [...], 'elevations': [...], 'lons': [...], 'lats': [...],
- 'h_max': 231.7, 'h_min': 125.0}
 
->>> dem.close()
 
-输入要求
---------
-- 节点坐标为 ``(lon, lat)`` 即 ``(经度, 纬度)``，单位：度 (EPSG:4326)
-- DEM 默认为镇龙乡 30m 分辨率 GeoTIFF
-- 服务区作业高度 = 地面高程 + 30m；调度中心作业高度 = 地面高程
 
-输出字段说明（get_route_parameter）
------------------------------------
-=============== ====== ==========================================
-字段             单位   含义
-=============== ====== ==========================================
-from_node             起点节点编号
-to_node               终点节点编号
-distance       m      水平距离（Haversine 球面距离）
-h_max          m      航线经过区域的最高地面高程
-cruise_height  m      巡航高度 = h_max + 50
-start_ground   m      起点地面高程
-end_ground     m      终点地面高程
-start_operation m     起点作业高度
-end_operation  m      终点作业高度
-climb_height   m      爬升高度 = cruise_height - start_operation
-descent_height m      下降高度 = cruise_height - end_operation
-=============== ====== ==========================================
-"""
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 class DEMRouteAnalyzer:
     def __init__(self, dem_path=None):
@@ -151,7 +151,7 @@ class DEMRouteAnalyzer:
         return R * 2 * np.arctan2(np.sqrt(a), np.sqrt(1 - a))
 
     def _grid_cells_along_line(self, p1, p2):
-        # 在连续像素坐标中逐一跨越网格边界；角点同时纳入两侧像元。
+
         inverse = ~self.src.transform
         c0, r0 = inverse @ p1
         c1, r1 = inverse @ p2
@@ -186,7 +186,7 @@ class DEMRouteAnalyzer:
         )
 
         add_cell(r, c)
-        # 恰好沿网格线飞行时，两侧像元都与航线相交。
+
         on_col_edge = step_c == 0 and np.isclose(c0, round(c0), atol=1e-12, rtol=0)
         on_row_edge = step_r == 0 and np.isclose(r0, round(r0), atol=1e-12, rtol=0)
 

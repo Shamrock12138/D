@@ -1,4 +1,4 @@
-"""Step 9: four single-objective anchors on the *joint* Q3 CP-SAT model."""
+
 
 import hashlib
 import json

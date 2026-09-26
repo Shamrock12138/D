@@ -1,8 +1,8 @@
-u"""Q3 Step4: Q2 compact pattern 联合候选筛选。
 
-运输维度 + 通信维度 + Q2 Anchor（可选 seed）联合压缩，
-按 (class_id, UAV type) 分组 Top-K 并集保留。
-"""
+
+
+
+
 
 import sys
 from pathlib import Path

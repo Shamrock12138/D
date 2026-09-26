@@ -1,16 +1,16 @@
-u"""
-Q2 数据层
-=========
 
-将 Q1 的聚合物资需求展开为逐箱数据, 并加载实体无人机和电池清单。
 
-输出格式
---------
-boxes_df  : 每行一个货箱, 含 box_id, service, cargo_type, mass, volume,
-            priority, first_batch, first_deadline, expected_time
-uavs_df   : 每行一架实体无人机, 含 UAV_id, type
-batteries_df : 每行一块实体电池, 含 battery_id, type, full_charge_time
-"""
+
+
+
+
+
+
+
+
+
+
+
 
 import pandas as pd
 from pathlib import Path
@@ -19,17 +19,17 @@ PROJECT = Path(__file__).resolve().parent.parent.parent
 
 
 def load_boxes():
-    u"""将物资需求展开为逐箱数据。
+    
 
-    物资需求.csv 每行: service, cargo_type, total_boxes, first_batch,
-    mass_per_box, volume_per_box, priority, first_deadline, expected_time
 
-    返回
-    ----
-    pd.DataFrame
-        box_id (B001-B080), service, cargo_type, mass (kg), volume (m^3),
-        priority, first_batch, first_deadline, expected_time
-    """
+
+
+
+
+
+
+
+
     demand = pd.read_csv(PROJECT / "data" / "物资需求.csv")
 
     rows = []
@@ -70,28 +70,28 @@ def load_boxes():
 
 
 def load_uavs():
-    u"""加载实体无人机清单。
+    
 
-    运输无人机_清单.csv: UAV_id, type, location
 
-    返回
-    ----
-    pd.DataFrame
-        UAV_id (U01-U08), type (A/B/C), location
-    """
+
+
+
+
+
+
     return pd.read_csv(PROJECT / "data" / "运输无人机_清单.csv")
 
 
 def load_batteries():
-    u"""将共享电池规格展开为实体电池。
+    
 
-    运输无人机_共享电池.csv: type, shared_battery_count, charge_time
 
-    返回
-    ----
-    pd.DataFrame
-        battery_id (BAT_A01, ...), type, full_charge_time (s)
-    """
+
+
+
+
+
+
     battery_spec = pd.read_csv(PROJECT / "data" / "运输无人机_共享电池.csv")
 
     rows = []
@@ -110,15 +110,15 @@ def load_batteries():
 
 
 def load_q2_data():
-    u"""一次性加载 Q2 全部基础数据。
+    
 
-    返回
-    ----
-    dict
-        boxes     — 逐箱清单 (pd.DataFrame, 80行)
-        uavs      — 实体无人机 (pd.DataFrame, 8行)
-        batteries — 实体电池 (pd.DataFrame, 14块)
-    """
+
+
+
+
+
+
+
     return {
         "boxes": load_boxes(),
         "uavs": load_uavs(),

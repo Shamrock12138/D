@@ -1,4 +1,4 @@
-u"""Step6：唯一通信状态×中继站点的稀疏两跳覆盖与 gap alternatives（Pattern 级）。"""
+
 
 import hashlib
 import json
@@ -84,7 +84,7 @@ def build_boundary_states(gaps: pd.DataFrame):
 
 
 def _actual_coverage(states, sites, parameters, terrain):
-    u"""按 FSPL 三分法和实际 DEM LOS 计算完整物理 B_sp。"""
+
     n_states = len(states)
     packed = np.zeros((len(sites), (n_states + 7) // 8), dtype=np.uint8)
     lon0, lat0 = float(states.x.mean()), float(states.y.mean())
@@ -168,7 +168,7 @@ def _actual_coverage(states, sites, parameters, terrain):
 
 def _required_relay_heights(start_lon, start_lat, start_z, end_lon, end_lat, terrain,
                             batch_size=4096):
-    u"""返回各水平端点保持 DEM LOS 所需的最小绝对高度（同一采样口径）。"""
+
     result = np.full(len(end_lon), -np.inf, dtype=float)
     for first in range(0, len(end_lon), batch_size):
         last = min(first + batch_size, len(end_lon))
@@ -215,7 +215,7 @@ def _uncovered_states(packed, n_states):
 
 
 def _pareto_signature_representatives(sites, packed):
-    u"""同 coverage signature 内做 Pareto 非支配筛选: min d, min h, max margin."""
+
     groups = defaultdict(list)
     for index, row in enumerate(packed):
         groups[row.tobytes()].append(index)
@@ -267,7 +267,7 @@ def _ranges(mask):
 
 
 def _pareto_filter_sites(indices, sites):
-    u"""在给定站点子集中做 Pareto 非支配筛选: min d, min h, max margin."""
+
     if len(indices) <= 1:
         return np.asarray(indices, dtype=int)
     idx = np.asarray(indices, dtype=int)
@@ -294,7 +294,7 @@ def _pareto_filter_sites(indices, sites):
 
 
 def _select_style_representatives(eligible, sites, max_per_style=5):
-    u"""从合格站点中按多种风格代表选择（不重复，每种风格严格 max_per_style 个）。"""
+
     result = []
     styles = [
         (sites.relay_g01_margin_db.to_numpy(), False),
@@ -316,11 +316,11 @@ def _select_style_representatives(eligible, sites, max_per_style=5):
 
 
 def _gap_alternatives(sequence, packed, sites, states, parameters, max_style=5):
-    u"""生成 gap 的 relay 备选站点列表。
+    
 
-    完整覆盖路径: full-cover 站点 → Pareto 筛选 → 风格代表。
-    部分覆盖路径: Pareto + greedy set cover 确保并集完整。
-    """
+
+
+
     n_candidates, n_required = len(sites), len(sequence)
     counts = np.zeros(n_candidates, dtype=np.int16)
     current = np.zeros(n_candidates, dtype=np.int16)
@@ -344,9 +344,9 @@ def _gap_alternatives(sequence, packed, sites, states, parameters, max_style=5):
         if not len(positive):
             return []
 
-        # 安全 per-state pool: 每个 required state 保留
-        # distance 最近/margin 最大/height 最低 各 Top-k
-        # 确保 greedy set cover 前不因静态 Pareto 误删唯一覆盖 RP
+
+
+
         safe_pool = set()
         for column in columns:
             choices = np.flatnonzero(column)
@@ -446,9 +446,9 @@ def run_step6():
     parameters = load_relay_link_parameters()
     terrain = DemTerrain()
     try:
-        # ═══════════════════════════════════════════════════════════
-        # 物理覆盖缓存检查
-        # ═══════════════════════════════════════════════════════════
+
+
+
         sources = {
             "q3_outage_states.csv": OUTAGE_PATH,
             "q3_pattern_comm_gaps.csv": GAPS_PATH,
@@ -514,18 +514,18 @@ def run_step6():
                 "已输出局部细化清单"
             )
 
-        # ═══════════════════════════════════════════════════════════
-        # 覆盖签名 Pareto 压缩
-        # ═══════════════════════════════════════════════════════════
+
+
+
         sites, packed, signature_count = _pareto_signature_representatives(all_sites, packed)
         print(
             f"覆盖签名 Pareto 压缩后站点: {len(sites)} ({signature_count} 种签名)",
             flush=True,
         )
 
-        # ═══════════════════════════════════════════════════════════
-        # gap alternatives
-        # ═══════════════════════════════════════════════════════════
+
+
+
         signature_to_gaps = defaultdict(list)
         for gap_id, sequence in sequences.items():
             signature_to_gaps[sequence].append(gap_id)
@@ -639,9 +639,9 @@ def run_step6():
     _write_csv(options, GAP_OPTIONS_PATH)
     _write_csv(summaries, GAP_SUMMARY_PATH)
 
-    # ═══════════════════════════════════════════════════════════
-    # 最终断言
-    # ═══════════════════════════════════════════════════════════
+
+
+
     assert len(states) == len(outage) + len(boundary), \
         f"state count mismatch: {len(states)} != {len(outage)} outage + {len(boundary)} boundary"
     assert summaries["union_cover_pass"].eq(1).all(), "存在 union 覆盖失败的 gap"
@@ -653,9 +653,9 @@ def run_step6():
     ), "gap alternatives 引用了未出现在 final_sites 中的候选站点"
     assert (pair_frame["two_hop_margin_db"] >= -1e-8).all(), "存在负两跳余量"
 
-    # ═══════════════════════════════════════════════════════════
-    # 输出汇总
-    # ═══════════════════════════════════════════════════════════
+
+
+
     print(f"\nrequired states: {len(states)}")
     print(f"covered states: {pair_frame['state_id'].nunique()}")
     print(f"gaps: {len(summaries)}")

@@ -1,8 +1,8 @@
-"""Adaptive transport-neighbourhood search with exact joint CP-SAT validation.
 
-Repair uses a small time-limited class-cover CP model, not the timed transport
-Master. Congestion estimates guide search only and never certify feasibility.
-"""
+
+
+
+
 import json
 import math
 import random
@@ -71,7 +71,7 @@ class TransportSearch:
             self.copies[o.pattern_id].append(i)
             upper = latest_start(problem, o)
             self.latest.append(upper)
-            # Relay feasibility belongs to the exact shared-session joint model.
+
             usable = upper >= 0
             load = 0
             for gap in o.gap_ids:
@@ -152,7 +152,7 @@ class TransportSearch:
         return self.structurally_feasible(selected) and signature not in self.excluded_sets
 
     def objective_estimates(self, selected):
-        """Normalized transport-set proxies; never used to certify feasibility."""
+
         if not selected:
             return (0.0, 0.0, 0.0, 0.0)
         indices = np.asarray(selected, dtype=int)
@@ -462,7 +462,7 @@ def run_alns(iterations=200, wall_time_s=300, repair_time_s=1, joint_time_s=20,
                     'status': 'DISABLED',
                     'reason': 'exclusive relay core is invalid under same-site sharing',
                 }
-            # UNKNOWN is only visited within this run, never a proven exclusion.
+
         save()
     report['status'] = 'FEASIBLE_SOLUTIONS' if report['solutions'] else 'UNKNOWN'
     report['reason'] = 'Search budget exhausted before requested distinct solution count'

@@ -1,17 +1,17 @@
-u"""将 Q2 候选运输任务池加载为时间可平移的模板对象。
 
-输入:
-    Q2_candidate_tasks.csv      — 每条候选任务的路线、能耗、时长
-    Q2_candidate_deliveries.csv — 每任务携带的货箱与交付偏移
-    物资需求.csv                 — 逐箱原始时限（医疗期望时间 + 首批截止时间）
 
-输出:
-    List[TransportTaskTemplate] — 每个模板可实例化到任意 t0
 
-注意: 候选 CSV 中的 has_hard_deadline / latest_start_s / deadline_s
-可能不完整（Q2 candidate_generator 的 deadline_lookup 遗漏了非首批医疗物资）。
-因此本模块从原始货物需求数据重建逐箱硬时限。
-"""
+
+
+
+
+
+
+
+
+
+
+
 
 import csv
 import math
@@ -27,14 +27,14 @@ DEPOT_ID = "O01"
 
 @dataclass
 class TransportTaskTemplate:
-    u"""运输候选任务模板，可在任意开始时刻 t0 实例化。
+    
 
-    区别于 Q2 的固定 FlightTask：
-    - 路线和能耗是预计算的固定值
-    - 相对轨迹 P_k(τ) 与 t0 无关（G01 位置固定）
-    - 时限约束通过 latest_start_s 表达
-    - 充电时间不存于此模板；后续由 src/q2/battery.py 根据 SOC 动态计算
-    """
+
+
+
+
+
+
 
     task_id: str
     uav_type: str
@@ -50,7 +50,7 @@ class TransportTaskTemplate:
     latest_start_s: float
 
     def is_feasible_at(self, t0: float) -> bool:
-        u"""检查在 t0 时刻出发是否满足所有货物时限。"""
+
         if not self.has_hard_deadline:
             return True
         for box_id, offset in self.delivery_offsets.items():
@@ -59,12 +59,12 @@ class TransportTaskTemplate:
                 return False
         return True
 
-    # 内部缓存: 由 load_candidate_tasks 填入
+
     _box_deadlines: Dict[str, float] = field(default_factory=dict, repr=False)
 
 
 def _parse_visit_order(raw: str) -> List[str]:
-    u"""将 'S001' 或 'S001>S002' 解析为服务区列表。"""
+
     if not raw or str(raw).strip() == "":
         return []
     return [node.strip() for node in str(raw).split(">") if node.strip()]
@@ -73,20 +73,20 @@ def _parse_visit_order(raw: str) -> List[str]:
 def load_box_deadlines(
     cargo_path: Optional[Path] = None,
 ) -> Dict[str, float]:
-    u"""从物资需求.csv 重建逐箱硬时限。
+    
 
-    时限规则（按题目原文）:
-      - 医疗物资: 所有箱必须满足期望送达时间 expected_time
-      - 首批保障箱: 前 first_batch 个箱必须满足 first_deadline
-      - 若一箱同时满足两类, 取 min(两者)
-      - 其他箱: 无硬时限 (+∞)
 
-    此函数为 candidate_loader / candidate_filter / joint_scheduler
-    等所有需要硬时限的模块提供统一口径，避免多处分歧。
 
-    Returns:
-        box_deadlines: {box_id → deadline_s 或 inf}
-    """
+
+
+
+
+
+
+
+
+
+
     src = Path(cargo_path) if cargo_path else DATA / "物资需求.csv"
     box_deadlines: Dict[str, float] = {}
     next_bid = 1
@@ -132,10 +132,10 @@ def load_candidate_tasks(
     deliveries_path: Optional[Path] = None,
     cargo_path: Optional[Path] = None,
 ) -> List[TransportTaskTemplate]:
-    u"""读取 Q2 候选任务池，返回所有模板。
+    
 
-    时限信息不从候选 CSV 继承，而是从物资需求.csv 原始数据重建。
-    """
+
+
     tasks_src = Path(tasks_path) if tasks_path else DATA / "Q2_candidate_tasks.csv"
     deliveries_src = Path(deliveries_path) if deliveries_path else DATA / "Q2_candidate_deliveries.csv"
 
@@ -164,7 +164,7 @@ def load_candidate_tasks(
             boxes = [d["box_id"] for d in deliveries]
             offsets = {d["box_id"]: d["delivery_offset_s"] for d in deliveries}
 
-            # 从原始数据重建硬时限
+
             latest = float("inf")
             has_hard = False
             for bid in boxes:
@@ -218,7 +218,7 @@ def load_candidate_tasks(
 def group_by_uav_type(
     templates: Sequence[TransportTaskTemplate],
 ) -> Dict[str, List[TransportTaskTemplate]]:
-    u"""按机型分组，便于分别处理不同速度参数。"""
+
     groups: Dict[str, List[TransportTaskTemplate]] = defaultdict(list)
     for tpl in templates:
         groups[tpl.uav_type].append(tpl)
@@ -228,7 +228,7 @@ def group_by_uav_type(
 def group_by_stops(
     templates: Sequence[TransportTaskTemplate],
 ) -> Dict[int, List[TransportTaskTemplate]]:
-    u"""按停靠数分组。"""
+
     groups: Dict[int, List[TransportTaskTemplate]] = defaultdict(list)
     for tpl in templates:
         groups[tpl.n_stops].append(tpl)

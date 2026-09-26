@@ -1,11 +1,11 @@
-u"""Q2 入口：旧版正式流程及紧凑类别模型的小规模闭环检查。
 
-用法:
-  python code/Q2.py --method cp-sat   # 仅 N/E/T 字典序基准
-  python code/Q2.py --method moead    # MOEA/D + CP-SAT 多目标搜索
-  python code/Q2.py --method all      # 基准 + MOEA/D 完整流程
-  python code/Q2.py --method compact-smoke --compact-service S001 --compact-service S002
-"""
+
+
+
+
+
+
+
 
 import argparse
 import hashlib
@@ -22,7 +22,7 @@ from src.q2.foundation_check import run_foundation_check
 
 
 def _candidate_input_hashes(data_dir):
-    """候选池依赖的基础输入摘要；DEM 参数变化时必须重建候选池。"""
+
     names = (
         "route_parameter_all.csv",
         "distance_matrix.csv",
@@ -38,7 +38,7 @@ def _candidate_input_hashes(data_dir):
 
 
 def _ensure_candidates():
-    u"""确保候选池存在且为最新。"""
+
     data_dir = PROJECT / "data"
     task_path = data_dir / "Q2_candidate_tasks.csv"
     delivery_path = data_dir / "Q2_candidate_deliveries.csv"

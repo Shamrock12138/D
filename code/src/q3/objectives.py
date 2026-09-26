@@ -1,9 +1,9 @@
-"""Q3's four objective definitions and independent schedule evaluation.
 
-F1 is measured in priority-weighted seconds.  A box is included only when it
-has an expected delivery time and no hard deadline.  F3 uses kWh and F4 counts
-transport plus relay sorties.
-"""
+
+
+
+
+
 
 import math
 
@@ -15,18 +15,18 @@ Q3_MULTI_OBJECTIVE_TIER = "all"
 
 
 def time_units(seconds):
-    """Round actual output time to the 0.1-second reporting grid."""
+
     scaled = float(seconds) * F1_TIME_SCALE
     return int(round(scaled))
 
 
 def energy_units(kwh):
-    """Round one sortie's energy to the shared micro-kWh objective grid."""
+
     return int(round(float(kwh) * ENERGY_SCALE))
 
 
 def soft_box_targets(boxes, deadlines):
-    """Return box_id -> (expected seconds, priority weight) for F1."""
+
     targets = {}
     for row in boxes.itertuples(index=False):
         box_id = str(row.box_id)
@@ -40,12 +40,12 @@ def soft_box_targets(boxes, deadlines):
 
 
 def relay_session_energy_kwh(relay, relay_options=None):
-    """Count each shared session's outbound/return energy once plus gap service.
+    
 
-    Gap-level relay rows remain the communication coverage certificates. When
-    legacy frozen rows lack component energies, Step7 options are joined back
-    by their certified (gap, pattern, candidate) key.
-    """
+
+
+
+
     if relay is None or relay.empty:
         return 0.0
     from src.q3.relay.operation_profile import load_relay_flight_parameters
@@ -57,7 +57,7 @@ def relay_session_energy_kwh(relay, relay_options=None):
 
 
 def evaluate_objectives(problem, transport, relay, delivery):
-    """Evaluate the actual, unrounded output schedules."""
+
     targets = soft_box_targets(problem["boxes"], problem["deadlines"])
     delivered = delivery.set_index("box_id")
     missing = set(targets) - set(delivered.index.astype(str))

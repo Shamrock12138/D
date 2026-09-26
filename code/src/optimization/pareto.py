@@ -1,16 +1,16 @@
-u"""
-Pareto 多目标货箱组批优化
-=========================
 
-ε-约束 + 加权法生成非支配解集, 目标: min (N_f, ΣE, ΣT)
-"""
+
+
+
+
+
 
 import numpy as np
 from scipy.optimize import milp, LinearConstraint, Bounds
 
 
 def _build_constraint_matrix(batches, box_count):
-    u"""构建覆盖矩阵 A: A[j,b]=1 当货箱 j 在组合 b 中"""
+
     n = len(batches)
     A = np.zeros((box_count, n))
     for b_idx, batch in enumerate(batches):
@@ -22,7 +22,7 @@ def _build_constraint_matrix(batches, box_count):
 def _solve_one(c_vec, A, bounds, integrality,
                A_extra=None, lb_extra=None, ub_extra=None,
                time_limit=10):
-    u"""求解单次 MILP, 返回 selected 索引列表或 None"""
+
     if A_extra is not None:
         A_full = np.vstack([A, A_extra])
         lb_full = np.concatenate([np.ones(A.shape[0]), lb_extra])
@@ -43,7 +43,7 @@ def _solve_one(c_vec, A, bounds, integrality,
 
 
 def _is_dominated(point, all_points):
-    u"""point 被 all_points 中任一点支配则返回 True (三个指标均 min)"""
+
     p = np.array(point, dtype=float)
     for q in all_points:
         qa = np.array(q, dtype=float)
@@ -52,7 +52,7 @@ def _is_dominated(point, all_points):
     return False
 
 
-# 加权向量: 覆盖 (N, E, T) 空间的不同区域
+
 _WEIGHT_VECTORS = [
     (1, 0, 0),
     (0, 1, 0),
@@ -70,17 +70,17 @@ _WEIGHT_VECTORS = [
 
 def solve_pareto_frontier(batches, box_count, energies, times,
                           n_extra_E=3, n_extra_T=3):
-    u"""
-    生成 Pareto 前沿 (N_f, ΣE, ΣT) 的非支配集.
+    
 
-    策略:
-      1. 多组加权向量求 MILP → 覆盖凸包点
-      2. ε-约束: 在 [E_min, E_max] 和 [T_min, T_max] 上各取 n_extra 个限值,
-         固定限值下用 min(N_f) 搜索 → 补充非凸点
-      3. 去重 + 非支配过滤
 
-    返回: [{"N": int, "E": float, "T": float, "selected": [b_idx]}]
-    """
+
+
+
+
+
+
+
+
     n_batches = len(batches)
     if n_batches == 0:
         return []

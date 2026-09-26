@@ -1,4 +1,4 @@
-"""Physical relay-session energy accounting and shared energy-component use."""
+
 
 import pandas as pd
 
@@ -36,7 +36,7 @@ def _with_energy_components(relay, relay_options=None):
 
 
 def session_energy_by_id(relay, relay_params, relay_options=None):
-    """Compute physical session energy from one flight and continuous dwell."""
+
     if relay is None or relay.empty:
         return {}
     required = {"outbound_energy_kWh", "return_energy_kWh", "service_energy_kWh"}
@@ -51,7 +51,7 @@ def session_energy_by_id(relay, relay_params, relay_options=None):
             )
         if "relay_energy_kWh" not in relay:
             raise ValueError("Legacy relay schedule has no recoverable energy fields")
-        # Legacy gap-only schedules had no shared physical-session accounting.
+
         return {str(index): float(value)
                 for index, value in relay["relay_energy_kWh"].items()}
     frame = _with_energy_components(relay, relay_options)
@@ -79,12 +79,12 @@ def session_energy_by_id(relay, relay_params, relay_options=None):
 
 def build_relay_session_table(relay, relay_params, session_capacity_kwh=None,
                               relay_options=None):
-    """Collapse gap certificates into physical sessions and compute session energy.
+    
 
-    A session incurs outbound and return energy once (the maximum certified
-    leg energy within the session) and continuous hover/communication dwell
-    from the first arrival to the last covered service end.
-    """
+
+
+
+
     if relay is None or relay.empty:
         return pd.DataFrame(columns=SESSION_COLUMNS)
     frame = _with_energy_components(relay, relay_options)
@@ -132,7 +132,7 @@ def build_relay_session_table(relay, relay_params, session_capacity_kwh=None,
 
 
 def assign_session_energy_components(sessions, component_count=6):
-    """Greedily color charging intervals; return (assigned table, all_fit)."""
+
     result = sessions.copy()
     if result.empty:
         if "energy_component_id" not in result:
@@ -159,7 +159,7 @@ def assign_session_energy_components(sessions, component_count=6):
 
 
 def attach_session_resources(relay, relay_params, component_count=6, relay_options=None):
-    """Return gap rows annotated with session energy/component data and sessions."""
+
     sessions = build_relay_session_table(relay, relay_params, relay_options=relay_options)
     sessions, feasible = assign_session_energy_components(sessions, component_count)
     if relay is None or relay.empty:

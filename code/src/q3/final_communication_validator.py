@@ -1,4 +1,4 @@
-"""Fine-grained (1 s by default) G01/relay communication acceptance check."""
+
 
 from pathlib import Path
 
@@ -14,14 +14,14 @@ from src.q3.transport.comm_gap import _assemble_pattern_profile_with_sources
 
 def validate_fine_communication(problem, transport, relay, dt=1.0,
                                 example_limit=20, data_dir=None):
-    """Verify every sampled direct-link outage has an active, covering relay.
+    
 
-    Occurrences and relay rows are joined by ``sortie_id`` (not pattern id), so
-    repeated copies of one compact pattern retain their own scheduled times.
-    Relay access is checked with the same physical terrain-aware coverage
-    routine used to construct the Step6 coverage library; candidate G01
-    backhaul margins are also required to be nonnegative.
-    """
+
+
+
+
+
+
     if dt <= 0:
         raise ValueError("dt must be positive")
     occurrences = {str(occ.sortie_id): occ for occ in problem["occurrences"]}

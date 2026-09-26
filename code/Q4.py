@@ -1,8 +1,8 @@
-"""Q4: exact partition and minimum resource pools for a frozen Q3 schedule.
 
-Run after Step13: python code/Q4.py
-The input contract and mathematical definitions are in code/Q4_model.md.
-"""
+
+
+
+
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ FROZEN = ROOT / "data" / "q3_final_frozen_v3"
 OUT = ROOT / "data" / "q4"
 SERVICES = tuple(f"S{i:03d}" for i in range(1, 16))
 KINDS = ("TUAV_A", "TUAV_B", "TUAV_C", "TBAT_A", "TBAT_B", "TBAT_C", "RUAV", "REC")
-# From the current attachment; Step13 must freeze and check these inventory values.
+
 INVENTORY = (4, 2, 2, 6, 4, 4, 2, 6)
 FILES = (
     "q3_joint_transport_schedule.csv", "q3_joint_relay_schedule.csv",
@@ -136,10 +136,10 @@ def load_final_q3(folder: Path = FROZEN) -> dict:
 
 
 def relay_sessions(q3: dict) -> list[dict]:
-    """Collapse gap certificates into physical relay hover sessions.
+    
 
-    Older Q3 exports have no session identifier, so each row remains a session.
-    """
+
+
     grouped = {}
     for index, row in enumerate(q3["relay"]):
         session_id = row.get("relay_session_id") or f"legacy-row-{index}"
@@ -194,9 +194,9 @@ def intervals(q3: dict, blocks: tuple) -> tuple[list[tuple[int, int, float, floa
                      (block, KINDS.index("TBAT_" + typ), start, charge)))
         weights[block] += end - start
     by_sortie = {row["sortie_id"]: row for row in q3["transport"]}
-    # A same-site relay session consumes one physical Relay UAV. Q3 still
-    # reserves an energy component independently for every protected gap,
-    # therefore REC intervals must remain gap-level to avoid undercounting.
+
+
+
     for row in relay_sessions(q3):
         block = site_block[by_sortie[row["_sorties"][0]]["_sites"][0]]
         start = float(row["dispatch_time_s"])
@@ -211,7 +211,7 @@ def intervals(q3: dict, blocks: tuple) -> tuple[list[tuple[int, int, float, floa
 
 
 def shortage_peak_explanations(q3: dict, result: dict) -> list[dict]:
-    """Explain each inventory shortage by its peak interval and active jobs."""
+
     rows = []
     by_sortie = {row["sortie_id"]: row for row in q3["transport"]}
     for k in (2, 3):
@@ -289,7 +289,7 @@ def shortage_peak_explanations(q3: dict, result: dict) -> list[dict]:
 
 
 def minimum_pool(intervals_: list[tuple[float, float]]) -> tuple[int, list[int]]:
-    """Return exact pool size and a valid zero-based interval coloring."""
+
     busy, free, colors = [], [], []
     next_color = 0
     for original, (start, end) in sorted(enumerate(intervals_), key=lambda x: (x[1][0], x[1][1])):
@@ -329,7 +329,7 @@ def cached_groups(jobs: list, weights: list[float]) -> dict[int, tuple[tuple[int
 
 
 def partitions(n: int, k: int):
-    """Restricted-growth strings enumerate each unlabeled nonempty partition once."""
+
     if n < k:
         return
     groups = [1] + [0] * (n - 1)
@@ -436,8 +436,8 @@ def solve(q3: dict) -> dict:
             continue
         checked = 0
         main = None
-        # Keep only the lowest CV for each integer resource vector. A dominated
-        # configuration can never be Pareto, and ties need no duplicate row.
+
+
         by_resources = {}
         for grouping in partitions(len(blocks), k):
             current = evaluate(grouping, cache, k)

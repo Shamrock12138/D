@@ -1,4 +1,4 @@
-"""Multi-weight Q3 ALNS search with exact joint CP-SAT validation."""
+
 import argparse
 import json
 import sys

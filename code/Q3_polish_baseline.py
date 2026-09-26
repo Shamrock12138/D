@@ -1,9 +1,9 @@
-"""Polish the accepted baseline schedule while keeping its transport set fixed.
 
-This is a bounded schedule-level search, not a global transport-composition
-anchor. Every returned candidate is independently checked by Step8.5,
-including the 1-second communication validator.
-"""
+
+
+
+
+
 
 import argparse
 import json
@@ -28,10 +28,10 @@ OBJECTIVES = {
 
 def run_polish(time_limit_s=60, workers=8, random_seed=2026, output_dir=None):
     frozen = resolve_frozen_dir()
-    # The existing frozen schedule predates formal Step7 fine-gap refinement.
-    # Keep it as a historical incumbent/hint, but do not re-accept it against
-    # the newly refined solver inputs. Every newly solved candidate still goes
-    # through the current strict acceptance path below.
+
+
+
+
     baseline_acceptance_path = frozen / "acceptance.json"
     if not baseline_acceptance_path.is_file():
         raise FileNotFoundError(

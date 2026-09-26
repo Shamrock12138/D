@@ -1,8 +1,8 @@
-"""Step8 master/subproblem search for a first joint Q3 feasible schedule.
 
-Master: transport selection with necessary relay capacity cuts (surrogate objective)
-Subproblem:  fix occurrence set, joint solve transport+relay
-"""
+
+
+
+
 
 import hashlib
 import json
@@ -30,10 +30,10 @@ MASTER_RELAY_OCCUPANCY_PENALTY_PER_S = 2_000
 
 
 def build_master(problem, min_transport_sorties=0, allow_relay_sharing=False):
-    u"""Transport-only master: class conservation + cumulative + surrogate objective.
+    
 
-    复制 _build_q3_model 的 Transport 部分，不放 Relay 变量。
-    """
+
+
     occurrences = problem["occurrences"]
     class_supply = problem["class_supply"]
     class_params = problem["class_params"]
@@ -128,8 +128,8 @@ def build_master(problem, min_transport_sorties=0, allow_relay_sharing=False):
     if min_transport_sorties:
         model.Add(sum(select) >= int(min_transport_sorties))
 
-    # These cuts prove infeasibility only for the old one-gap-one-UAV relay
-    # interpretation. Shared same-site relay sessions invalidate that proof.
+
+
     if not allow_relay_sharing:
         add_relay_master_cuts(model, select, problem)
     else:
@@ -175,7 +175,7 @@ def build_master(problem, min_transport_sorties=0, allow_relay_sharing=False):
 
 
 def solve_master(model, selected, sortie_ids, starts=None, time_limit_s=30, workers=8):
-    u"""求解 master，返回选中的 occurrence sortie_ids 和 start hint。"""
+
     solver = cp_model.CpSolver()
     solver.parameters.max_time_in_seconds = float(time_limit_s)
     solver.parameters.num_search_workers = int(workers)
@@ -198,7 +198,7 @@ def solve_master(model, selected, sortie_ids, starts=None, time_limit_s=30, work
 
 
 def add_occurrence_set_exclusion(model, selected, occurrence_index, sortie_ids):
-    u"""排除一组 exact occurrence set，用于 master 后续搜索。"""
+
     chosen = [
         selected[occurrence_index[sid]]
         for sid in sortie_ids
@@ -209,7 +209,7 @@ def add_occurrence_set_exclusion(model, selected, occurrence_index, sortie_ids):
 
 
 def rebuild_gap_option_map(problem):
-    u"""从 problem["relay"] 重建 gap_option_map。"""
+
     gap_option_map = defaultdict(list)
     relay_df = problem.get("relay")
     if relay_df is not None and len(relay_df):
@@ -219,7 +219,7 @@ def rebuild_gap_option_map(problem):
 
 
 def _selected_problem(full_problem, sortie_ids, tier):
-    u"""裁剪 occurrence set 并可选缩减 relay options。"""
+
     small = subset_problem(full_problem, sortie_ids)
     if tier != "all":
         relay_df = small.get("relay")
@@ -230,7 +230,7 @@ def _selected_problem(full_problem, sortie_ids, tier):
 
 
 def _input_hashes():
-    u"""Step8 输入依赖文件 SHA256 列表。"""
+
     names = (
         "q3_compact_patterns.csv",
         "q3_compact_pattern_counts.csv",
@@ -254,21 +254,21 @@ def _input_hashes():
 def run_step8_decomposed(max_occurrence_sets=30, master_time_s=30,
                          subproblem_time_s=60, workers=8,
                          min_transport_sorties=0):
-    u"""Master/subproblem 搜索：找到第一个联合可行解。
+    
 
-    流程:
-        full occurrence problem
-            ↓
-        occurrence transport master (surrogate objective)
-            ↓
-        选一个满足 class conservation 的 occurrence set
-            ↓
-        tier1 joint subproblem
-            ↓
-        可行? 是 → PASS
-             否 → all relay options → 可行? 是 → PASS
-                                    否/UNKNOWN → exclusion
-    """
+
+
+
+
+
+
+
+
+
+
+
+
+
     full_problem = prepare_q3_problem(tier="all")
     model, selected, starts = build_master(
         full_problem,
@@ -380,8 +380,8 @@ def run_step8_decomposed(max_occurrence_sets=30, master_time_s=30,
 
         if all_status == "INFEASIBLE":
             proven_infeasible_sets += 1
-            # The former relay-only core extractor assumes exclusive relay use.
-            # Under sharing it cannot certify a valid smaller conflict core.
+
+
             core = chosen_ids
             attempt["feedback"] = "proven_infeasible_occurrence_set"
             attempt["infeasible_core_sortie_ids"] = list(core)
@@ -391,8 +391,8 @@ def run_step8_decomposed(max_occurrence_sets=30, master_time_s=30,
         else:
             deferred_unknown_sets += 1
             attempt["feedback"] = "deferred_unknown_not_a_proof"
-            # Do not permanently remove a potentially feasible occurrence set.
-            # Return UNKNOWN so a longer run can revisit it without a false cut.
+
+
             break
 
         output_manifest.write_text(

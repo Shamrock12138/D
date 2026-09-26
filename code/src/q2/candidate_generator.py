@@ -1,23 +1,23 @@
-u"""
-Q2 候选多点运输任务生成器
-===========================
 
-对 O01→visit_order→O01 的每条路线，枚举货箱组合、访问顺序和机型，
-通过 4 层剪枝（质量/体积/能耗/硬时限）保留物理可行任务。
 
-第一版限定 MAX_STOPS = 2（单点 + 双点）。
 
-优化策略:
-- 按机型预先过滤组合 (质量 ≤ Q_g, 体积 ≤ V_g)
-- 预建 box_lookup 传给 evaluate_route 避免重复构建
-- 双点: 机型在外层, 仅组合已被该机型预过滤的组合
 
-输出
-----
-Q2_candidate_tasks.csv       — 每候选任务的全局属性
-Q2_candidate_deliveries.csv  — 每候选任务 × 货箱 的逐箱映射
-Q2_candidate_summary.csv     — 按 (n_stops, type) 的汇总统计
-"""
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 import itertools
 import time
@@ -34,7 +34,7 @@ SHORT = {"医疗物资": "医疗", "饮用水": "饮水",
 
 
 def _group_boxes(boxes_df):
-    u"""将 boxes_df 按 (service, cargo_type) 分组。"""
+
     pool = {}
     for sv in boxes_df["service"].unique():
         sv_df = boxes_df[boxes_df["service"] == sv].copy()
@@ -69,7 +69,7 @@ def _group_boxes(boxes_df):
 
 
 def _enumerate_local_combos(cargo_info):
-    u"""对单个服务区枚举所有非空货物组合。"""
+
     ranges = {}
     for ct in CARGO_TYPES:
         if ct in cargo_info:
@@ -87,7 +87,7 @@ def _enumerate_local_combos(cargo_info):
 
 
 def _combo_mass_vol(combo, cargo_info):
-    u"""计算组合的总质量和总体积。"""
+
     m = 0.0
     v = 0.0
     for ct, n in combo.items():
@@ -98,11 +98,11 @@ def _combo_mass_vol(combo, cargo_info):
 
 
 def _pick_boxes(combo, pool, sv, offset=0):
-    u"""取 cargo_type 的前 n 个 box_id (同质消除)。
+    
 
-    offset 参数用于覆盖轮转: offset=0 取前 n 个, offset=1 跳过第一个, 以此类推。
-    确保在同质货箱中, 所有箱子都有机会被候选任务覆盖。
-    """
+
+
+
     delivery = []
     type_counters = defaultdict(int)
     target = sum(combo.values())
@@ -110,7 +110,7 @@ def _pick_boxes(combo, pool, sv, offset=0):
         if bt not in combo:
             continue
         type_counters[bt] += 1
-        if type_counters[bt] <= offset:  # skip first 'offset' boxes
+        if type_counters[bt] <= offset:
             continue
         if type_counters[bt] <= combo[bt] + offset:
             delivery.append(bid)
@@ -120,13 +120,13 @@ def _pick_boxes(combo, pool, sv, offset=0):
 
 
 def _deadline_violated(delivery_offsets, deadline_lookup):
-    """Check selected boxes against their own hard deadlines."""
+
     return any(offset > deadline_lookup.get(bid, float("inf")) + 1e-6
                for bid, offset in delivery_offsets.items())
 
 
 def _box_deadline_lookup(boxes_df):
-    """Combine first-batch and medical deadlines for each physical box."""
+
     deadlines = {}
     for _, row in boxes_df.iterrows():
         deadline = float("inf")
@@ -139,15 +139,15 @@ def _box_deadline_lookup(boxes_df):
 
 
 def _hard_deadline_info(delivery_offsets, deadline_lookup, box_list):
-    u"""计算任务的硬时限信息。
+    
 
-    Returns
-    -------
-    has_hard : bool
-        任务是否包含硬时限货箱 (医疗 / 首批)
-    latest_start_s : float
-        最晚启动时间 = min(deadline - offset), 无硬时限 → inf
-    """
+
+
+
+
+
+
+
     latest = float("inf")
     has = False
     for bid in box_list:
@@ -161,7 +161,7 @@ def _hard_deadline_info(delivery_offsets, deadline_lookup, box_list):
 
 
 def _fmt(combo):
-    u"""格式化 cargo pattern。"""
+
     parts = [
         f"{SHORT[ct]}:{combo.get(ct, 0)}"
         for ct in CARGO_TYPES
@@ -171,10 +171,10 @@ def _fmt(combo):
 
 
 def generate_candidate_pool(boxes_df, models, max_stops=2):
-    u"""生成所有物理可行的候选多点运输任务。
+    
 
-    按机型外循环 + 预过滤组合, 大幅减少 evaluate_route 调用。
-    """
+
+
     from .route_evaluator import _box_data, evaluate_route
 
     pool = _group_boxes(boxes_df)
@@ -188,7 +188,7 @@ def generate_candidate_pool(boxes_df, models, max_stops=2):
     print(f"Q2 Step 1: Candidate Task Generation  (max_stops={max_stops})")
     print("=" * 60)
 
-    # 预计算每个服务区的所有 combo → (combo, mass, vol)
+
     sv_all_combos = {}
     sv_combo_count = 0
     for sv in services:
@@ -200,8 +200,8 @@ def generate_candidate_pool(boxes_df, models, max_stops=2):
         sv_combo_count += len(combos)
     print(f"服务区组合总数: {sv_combo_count} (avg {sv_combo_count/15:.0f}/sv)")
 
-    # 按机型预过滤
-    sv_viable = {}  # sv -> g -> [(combo, mass, vol)]
+
+    sv_viable = {}
     for g_name in g_names:
         Q_g = float(models[g_name].u["Q_g"])
         V_g = float(models[g_name].u["V_g"])
@@ -231,7 +231,7 @@ def generate_candidate_pool(boxes_df, models, max_stops=2):
     delivery_rows = []
     tid_counter = 0
 
-    # ── 单点候选 (每机型) ────────────────────────────────
+
     print("\n── 单服务区候选 ──")
     t0 = time.time()
     for g_name in g_names:
@@ -280,7 +280,7 @@ def generate_candidate_pool(boxes_df, models, max_stops=2):
     t1 = time.time()
     print(f"  耗时: {t1 - t0:.1f}s, 候选数: {tid_counter}")
 
-    # ── 双点候选 ──────────────────────────────────────────
+
     if max_stops >= 2:
         print("\n── 双服务区候选 ──")
         t0 = time.time()
@@ -371,11 +371,11 @@ def generate_candidate_pool(boxes_df, models, max_stops=2):
         t1 = time.time()
         print(f"\n  双点总耗时: {t1 - t0:.1f}s")
 
-    # ── 汇总 ──────────────────────────────────────────────
+
     tasks_df = pd.DataFrame(task_rows)
     deliveries_df = pd.DataFrame(delivery_rows)
 
-    # ── 覆盖填补: 未覆盖的货箱用最小单箱任务补齐 ──────────
+
     all_ids = set(boxes_df["box_id"])
     covered = set(deliveries_df["box_id"])
     missing = all_ids - covered
@@ -484,18 +484,18 @@ def generate_candidate_pool(boxes_df, models, max_stops=2):
 
 
 def _validate_pool(tasks_df, deliveries_df, boxes_df, models):
-    u"""候选池内部一致性校验。"""
+
     all_box_ids = set(boxes_df["box_id"])
     ok = True
 
-    # 货箱真实性
+
     delivery_ids = set(deliveries_df["box_id"])
     extra = delivery_ids - all_box_ids
     if extra:
         print(f"  FAIL: 候选引用了不存在的货箱: {sorted(extra)}")
         ok = False
 
-    # 每任务内无重复货箱
+
     for tid, group in deliveries_df.groupby("task_id"):
         if len(group) != len(set(group["box_id"])):
             print(f"  FAIL {tid}: 任务内货箱重复")

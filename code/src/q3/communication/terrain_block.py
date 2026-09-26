@@ -1,4 +1,4 @@
-u"""用原始 30 米 GeoTIFF DEM 检查两个通信端点的地形遮挡。"""
+
 
 import math
 from dataclasses import dataclass
@@ -25,7 +25,7 @@ class TerrainResult:
 
 
 class DemTerrain:
-    """按 GeoTIFF 像元中心最近邻采样视线，间隔不大于 15 米。"""
+
 
     def __init__(self, path: Path = DEM_PATH, sample_step_m: float = 15.0):
         if sample_step_m <= 0 or not math.isfinite(sample_step_m):
@@ -60,7 +60,7 @@ class DemTerrain:
         return self.check_lines([a], [b])[0]
 
     def check_lines(self, starts, ends) -> list:
-        """向量化检查一批视线，采样间隔不超过 sample_step_m。"""
+
         starts = np.asarray(starts, dtype=float)
         ends = np.asarray(ends, dtype=float)
         if starts.ndim != 2 or starts.shape[1] != 3 or ends.shape != starts.shape:

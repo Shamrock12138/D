@@ -1,4 +1,4 @@
-u"""按机型与有向航段缓存 G01 直连状态，不按货箱组批重复计算 DEM。"""
+
 
 import math
 import sys
@@ -49,7 +49,7 @@ def evaluate_direct_positions(
     parameters: DirectLinkParameters,
     batch_size: int = 256,
 ) -> List[DirectState]:
-    """批量 DEM 视线检查，链路预算与 checker.check_direct_link 同口径。"""
+
     if batch_size < 1:
         raise ValueError("batch_size 必须为正")
     states: List[DirectState] = []
@@ -70,7 +70,7 @@ def evaluate_direct_positions(
 
 
 class DirectProfileCache:
-    """≤720 个机型-航段 profile 与 16 个节点状态的共享缓存。"""
+
 
     def __init__(
         self,

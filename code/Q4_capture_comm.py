@@ -1,8 +1,8 @@
-"""Capture a transport-only COMM snapshot for provisional Q4 partitioning.
 
-The 2-relay cumulative approximation in the current COMM master is intentionally
-disabled for this preview. This does not prove Q3 relay feasibility.
-"""
+
+
+
+
 
 import hashlib
 import json
@@ -15,8 +15,8 @@ DATA = Path(__file__).resolve().parent / "data"
 
 
 def main():
-    # The Q4 preview needs a transport-feasible 80-box timetable, even when
-    # relay assignment is not feasible. Keep Q2's final transport validator.
+
+
     smoke._add_comm_relay_capacity = lambda *args, **kwargs: None
     report = smoke.run_smoke(
         top_k=3, master_time_s=120, transport_time_s=120, workers=4,

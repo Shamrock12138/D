@@ -1,4 +1,4 @@
-u"""运输无人机—中继、中继—G01 两类双向链路参数和预算。"""
+
 
 from dataclasses import dataclass
 from pathlib import Path
@@ -71,7 +71,7 @@ class RelayLinkParameters:
 def load_relay_link_parameters(
     path: Path = PARAMETER_PATH, relay_path: Path = RELAY_UAV_PATH
 ) -> RelayLinkParameters:
-    """从通信参数表与中继无人机参数表分别读取收发设备数据。"""
+
     direct = load_direct_parameters(path)
     workbook = load_workbook(path, read_only=True, data_only=True)
     try:

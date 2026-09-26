@@ -1,4 +1,4 @@
-u"""生成中继粗悬停站点，并优先筛除 Relay↔G01 不可用位置。"""
+
 
 import math
 import sys
@@ -28,10 +28,10 @@ def generate_backhaul_sites(
     terrain: DemTerrain,
     parameters: RelayLinkParameters,
 ) -> Tuple[pd.DataFrame, dict]:
-    u"""4×4 DEM 粗网格×20m高度层，返回全部回传可用站点。
+    
 
-    高度层必须在计算 UAV↔Relay 实际覆盖后才能按覆盖签名压缩。
-    """
+
+
     pixel_step = parameters.grid_pixel_step
     rows = np.arange(pixel_step // 2, terrain.image.height, pixel_step, dtype=int)
     cols = np.arange(pixel_step // 2, terrain.image.width, pixel_step, dtype=int)

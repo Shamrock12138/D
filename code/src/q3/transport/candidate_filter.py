@@ -1,8 +1,8 @@
-u"""Q3 运输 + 通信 + Q2 Anchor（可选 seed）联合候选筛选。
 
-按 (class_id, UAV type) 分组，运输维度 + 通信维度 + 可选 Anchor seed 压缩。
-Q2 Anchor 缺失/过期/未证明最优均不阻止 Q3 求解，仅降级为警告。
-"""
+
+
+
+
 
 import hashlib
 import json
@@ -44,12 +44,12 @@ def _sha256(path: Path) -> str:
 
 
 def _load_q2_anchor_pattern_ids():
-    u"""读取 Q2 Anchor 中使用的 pattern_id。
+    
 
-    Q2 Anchor 文件缺失/过期/未证明最优均不阻止 Q3：
-    缺 anchor → 警告并返回空集。
-    候选 manifest 缺失 → 警告并跳过 manifest 校验。
-    """
+
+
+
+
 
     candidate_manifest_path = DATA / "Q2_compact_candidates_manifest.json"
 
@@ -115,13 +115,13 @@ def _select_communication_patterns(
     pattern_counts: pd.DataFrame,
     top_k: int,
 ):
-    u"""按 (class_id, UAV type) 做通信维度 Top-K 并集。
+    
 
-    通信维度压缩为 3 个核心指标：
-      - outage_time_s（断连总时长）
-      - gap_count（断连段数）
-      - min_margin_db（最差信号余量）
-    """
+
+
+
+
+
 
     comm = comm.copy()
     comm["pattern_id"] = comm["pattern_id"].astype(str)

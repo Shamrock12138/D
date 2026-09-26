@@ -18,16 +18,16 @@ from rasterio.coords import BoundingBox
 from rasterio.windows import from_bounds
 
 
-# ============================================================
-# 路径
-# ============================================================
+
+
+
 
 THIS_FILE = Path(__file__).resolve()
 
-# .../D/code
+
 CODE_ROOT = THIS_FILE.parents[1]
 
-# .../D
+
 REPO_ROOT = CODE_ROOT.parent
 
 NODE_FILE = CODE_ROOT / "data" / "服务区数据.csv"
@@ -44,20 +44,20 @@ DEM_FILE = (
 OUTPUT_DIR = CODE_ROOT / "figures" / "terrain"
 
 
-# ============================================================
-# 绘图参数
-# ============================================================
 
-# 推荐：调度中心到所有服务区的放射状虚线
+
+
+
+
 CONNECT_MODE = "hub"
 
-# 如果你希望 O01-S001-S002-...-S015 按编号依次连接，
-# 改为：
-# CONNECT_MODE = "sequence"
 
-# ============================================================
-# 地图显示范围（二维 / 三维共用）
-# ============================================================
+
+
+
+
+
+
 
 LON_MIN = 109.10
 LON_MAX = 109.35
@@ -65,31 +65,31 @@ LON_MAX = 109.35
 LAT_MIN = 22.95
 LAT_MAX = 23.17
 
-# ============================================================
-# 统一地形高程色带
-# 低海拔：蓝
-# 中海拔：白
-# 高海拔：红
-# 二维与三维必须共用该 cmap 和 norm
-# ============================================================
+
+
+
+
+
+
+
 
 TERRAIN_CMAP = LinearSegmentedColormap.from_list(
     "terrain_blue_white_red",
     [
-        (0.00, "#2B6CA8"),  # 低海拔：深蓝
+        (0.00, "#2B6CA8"),
         (0.20, "#5599CC"),
         (0.38, "#A6D0EA"),
-        (0.50, "#FFFFFF"),  # 400 m：白色
+        (0.50, "#FFFFFF"),
         (0.62, "#F0B8B8"),
         (0.80, "#E06060"),
-        (1.00, "#B0303A"),  # 高海拔：深红
+        (1.00, "#B0303A"),
     ],
     N=256,
 )
 
 
 def configure_matplotlib() -> None:
-    """论文绘图字体及基础样式。"""
+
 
     plt.rcParams.update(
         {
@@ -115,7 +115,7 @@ def configure_matplotlib() -> None:
 
 
 def load_dem():
-    """读取指定经纬度范围内的 DEM。"""
+
 
     src = rasterio.open(DEM_FILE)
 
@@ -124,7 +124,7 @@ def load_dem():
             f"DEM CRS = {src.crs}，当前脚本要求 EPSG:4326"
         )
 
-    # 根据指定经纬度创建栅格窗口
+
     window = from_bounds(
         left=LON_MIN,
         bottom=LAT_MIN,
@@ -133,7 +133,7 @@ def load_dem():
         transform=src.transform,
     )
 
-    # 对齐到实际 DEM 像元
+
     window = window.round_offsets().round_lengths()
 
     dem = src.read(
@@ -144,10 +144,10 @@ def load_dem():
 
     dem_array = dem.filled(np.nan).astype(float)
 
-    # 裁剪后 DEM 对应的 transform
+
     dem_transform = src.window_transform(window)
 
-    # 裁剪后实际边界
+
     bounds = BoundingBox(
         *rasterio.windows.bounds(
             window,
@@ -159,7 +159,7 @@ def load_dem():
 
 
 def load_nodes() -> pd.DataFrame:
-    """读取指定地图范围内的节点。"""
+
 
     nodes = pd.read_csv(NODE_FILE)
 
@@ -181,15 +181,15 @@ def load_nodes() -> pd.DataFrame:
 
 
 def build_terrain_norm(dem: np.ndarray) -> TwoSlopeNorm:
-    """
-    建立二维/三维共用的高程颜色归一化。
+    
 
-    TERRAIN_CMAP 以 0.5 为白色中心，TwoSlopeNorm 将
-    vcenter = 400 m 映射到 0.5，因此：
-        低于 200 m → 蓝
-        400 m → 白
-        高于 400 m → 逐渐变红
-    """
+
+
+
+
+
+
+
 
     valid = dem[np.isfinite(dem)]
 
@@ -207,12 +207,12 @@ def calculate_hillshade(
     dem: np.ndarray,
     src: rasterio.io.DatasetReader,
 ):
-    """
-    根据 DEM 构建轻度 hillshade。
+    
 
-    DEM 是经纬度坐标，因此把像元尺寸近似换算为米，
-    避免直接使用 degree 造成阴影夸张。
-    """
+
+
+
+
 
     mean_lat = (src.bounds.top + src.bounds.bottom) / 2.0
 
@@ -224,8 +224,8 @@ def calculate_hillshade(
 
     valid_dem = dem.copy()
 
-    # LightSource 不喜欢 NaN，使用中位数暂时填充；
-    # 最终 NoData 区域仍通过 mask 控制。
+
+
     median_elevation = np.nanmedian(valid_dem)
 
     filled_dem = np.where(
@@ -255,7 +255,7 @@ def draw_connections(
     ax: plt.Axes,
     nodes: pd.DataFrame,
 ) -> None:
-    """绘制节点间虚线。"""
+
 
     if CONNECT_MODE == "hub":
 
@@ -307,15 +307,15 @@ def draw_nodes(
     ax: plt.Axes,
     nodes: pd.DataFrame,
 ) -> None:
-    """绘制调度中心和服务区。"""
+
 
     base = nodes.loc[nodes["V"] == "O01"]
 
     services = nodes.loc[nodes["V"] != "O01"]
 
-    # --------------------------------------------------------
-    # 服务区
-    # --------------------------------------------------------
+
+
+
 
     ax.scatter(
         services["x"],
@@ -328,9 +328,9 @@ def draw_nodes(
         zorder=7,
     )
 
-    # --------------------------------------------------------
-    # 调度中心
-    # --------------------------------------------------------
+
+
+
 
     ax.scatter(
         base["x"],
@@ -343,9 +343,9 @@ def draw_nodes(
         zorder=8,
     )
 
-    # --------------------------------------------------------
-    # 标签
-    # --------------------------------------------------------
+
+
+
 
     for _, row in nodes.iterrows():
 
@@ -356,7 +356,7 @@ def draw_nodes(
             weight = "bold"
             size = 9
         else:
-            # 交替偏移，稍微减少标签重叠
+
             index = int(node_id[1:])
 
             if index % 2 == 0:
@@ -378,7 +378,7 @@ def draw_nodes(
             zorder=10,
         )
 
-        # 白色 halo，在复杂 DEM 背景上保持文字清晰
+
         text.set_path_effects(
             [
                 pe.withStroke(
@@ -390,7 +390,7 @@ def draw_nodes(
 
 
 def add_north_arrow(ax: plt.Axes) -> None:
-    """添加简洁指北针。"""
+
 
     ax.annotate(
         "N",
@@ -414,9 +414,9 @@ def add_scale_bar(
     ax: plt.Axes,
     mean_lat: float,
 ) -> None:
-    """添加约 1 km 比例尺。"""
 
-    # 纬度 mean_lat 下，1 km 对应的经度差
+
+
     km_lon = 1.0 / (
         111.32 * np.cos(np.radians(mean_lat))
     )
@@ -438,7 +438,7 @@ def add_scale_bar(
         zorder=20,
     )
 
-    # 两端短竖线
+
     tick_h = 0.006 * (ymax - ymin)
 
     ax.plot(
@@ -481,15 +481,15 @@ def preview_and_save_3d(
     output_dir: Path,
     save_callback=None,
 ) -> None:
-    """
-    显示三维交互窗口。
+    
 
-    操作：
-      鼠标左键拖动：旋转
-      鼠标滚轮：缩放
-      S：调用 save_callback 保存高分辨率版本
-      Q：关闭窗口
-    """
+
+
+
+
+
+
+
 
     output_dir.mkdir(
         parents=True,
@@ -515,7 +515,7 @@ def preview_and_save_3d(
             if save_callback is not None:
                 save_callback(elev, azim)
             else:
-                # 无回调时直接保存当前预览窗口
+
                 fig.canvas.draw()
                 fig.savefig(pdf_file, dpi=400, bbox_inches="tight")
                 fig.savefig(png_file, dpi=600, bbox_inches="tight")
@@ -550,7 +550,7 @@ def preview_and_save_3d(
     print("按 Q      : 关闭窗口")
     print("=" * 60)
 
-    # 必须最后调用
+
     plt.show()
 
 
@@ -562,13 +562,13 @@ def plot_terrain_3d(
     dem_transform,
     terrain_norm,
 ) -> None:
-    """绘制蓝-白-红统一高程编码的三维 DEM。"""
+
 
     nrows, ncols = dem.shape
 
     PREVIEW_TARGET = 300
 
-    # DEM 下采样，避免 plot_surface 面片过多
+
     step = max(
         1,
         int(
@@ -584,7 +584,7 @@ def plot_terrain_3d(
 
     Z = dem[np.ix_(rows, cols)]
 
-    # 每个栅格中心的经纬度
+
     x_all = (
         dem_transform.c
         + (np.arange(ncols) + 0.5)
@@ -605,9 +605,9 @@ def plot_terrain_3d(
     fig = plt.figure(figsize=(8.0, 6.3))
     ax = fig.add_subplot(111, projection="3d")
 
-    # ========================================================
-    # DEM（预览分辨率）
-    # ========================================================
+
+
+
 
     ax.plot_surface(
         X, Y, Z,
@@ -623,9 +623,9 @@ def plot_terrain_3d(
         alpha=1.0,
     )
 
-    # ========================================================
-    # 节点
-    # ========================================================
+
+
+
 
     base = nodes.loc[nodes["V"] == "O01"].iloc[0]
     services = nodes.loc[nodes["V"] != "O01"]
@@ -644,9 +644,9 @@ def plot_terrain_3d(
         depthshade=False, zorder=11,
     )
 
-    # ========================================================
-    # O01 到服务区虚线
-    # ========================================================
+
+
+
 
     for _, row in services.iterrows():
         n = 100
@@ -670,9 +670,9 @@ def plot_terrain_3d(
             color="#E87E1A", alpha=0.72, zorder=6,
         )
 
-    # ========================================================
-    # 标签
-    # ========================================================
+
+
+
 
     for _, row in nodes.iterrows():
         ax.text(
@@ -681,9 +681,9 @@ def plot_terrain_3d(
             fontweight="bold" if row["V"] == "O01" else "normal",
         )
 
-    # ========================================================
-    # 坐标
-    # ========================================================
+
+
+
 
     ax.set_xlabel("经度 / °E")
     ax.set_ylabel("纬度 / °N")
@@ -695,9 +695,9 @@ def plot_terrain_3d(
     ax.yaxis.pane.fill = False
     ax.zaxis.pane.fill = False
 
-    # ========================================================
-    # 与二维完全相同的 Colorbar
-    # ========================================================
+
+
+
 
     from matplotlib.cm import ScalarMappable
 
@@ -707,14 +707,14 @@ def plot_terrain_3d(
     cbar = fig.colorbar(sm, ax=ax, shrink=0.64, pad=0.08, aspect=24)
     cbar.set_label("地面高程 / m", labelpad=7)
 
-    # ========================================================
-    # 高分辨率保存回调
-    # ========================================================
+
+
+
 
     SAVE_TARGET = 600
 
     def save_high_res(elev: float, azim: float) -> None:
-        # 构建高分辨率网格
+
         step_save = max(
             1,
             int(np.ceil(max(nrows, ncols) / SAVE_TARGET)),
@@ -739,7 +739,7 @@ def plot_terrain_3d(
             antialiased=True, shade=False, rasterized=True, alpha=1.0,
         )
 
-        # 节点
+
         ax_s.scatter(
             services["x"], services["y"], services["h"] + 15,
             s=28, marker="o",
@@ -753,7 +753,7 @@ def plot_terrain_3d(
             depthshade=False, zorder=11,
         )
 
-        # 虚线
+
         for _, row_sv in services.iterrows():
             n = 100
             lons = np.linspace(float(base["x"]), float(row_sv["x"]), n)
@@ -774,7 +774,7 @@ def plot_terrain_3d(
                 color="#E87E1A", alpha=0.72, zorder=6,
             )
 
-        # 标签
+
         for _, row_sv in nodes.iterrows():
             ax_s.text(
                 float(row_sv["x"]), float(row_sv["y"]), float(row_sv["h"]) + 28,
@@ -803,9 +803,9 @@ def plot_terrain_3d(
         fig_s.savefig(output_dir / "terrain_3d_bwr.png", dpi=600, bbox_inches="tight")
         plt.close(fig_s)
 
-    # ========================================================
-    # 交互预览 + 手动保存
-    # ========================================================
+
+
+
 
     preview_and_save_3d(fig, ax, OUTPUT_DIR, save_high_res)
 
@@ -825,17 +825,17 @@ def main() -> None:
 
     try:
 
-        # ====================================================
-        # 画布
-        # ====================================================
+
+
+
 
         fig, ax = plt.subplots(
             figsize=(7.2, 6.2),
         )
 
-        # ====================================================
-        # DEM 高程热力图
-        # ====================================================
+
+
+
 
         valid = dem[np.isfinite(dem)]
 
@@ -859,9 +859,9 @@ def main() -> None:
             zorder=1,
         )
 
-        # ====================================================
-        # 地形阴影
-        # ====================================================
+
+
+
 
         hillshade = calculate_hillshade(
             dem,
@@ -883,9 +883,9 @@ def main() -> None:
             zorder=2,
         )
 
-        # ====================================================
-        # 等高线
-        # ====================================================
+
+
+
 
         contour_step = 100
 
@@ -905,7 +905,7 @@ def main() -> None:
             contour_step,
         )
 
-        # raster 第 0 行位于北部，因此翻转 DEM
+
         dem_contour = np.flipud(dem)
 
         x_grid = np.linspace(
@@ -931,27 +931,27 @@ def main() -> None:
             zorder=3,
         )
 
-        # ====================================================
-        # 节点虚线
-        # ====================================================
+
+
+
 
         draw_connections(
             ax,
             nodes,
         )
 
-        # ====================================================
-        # 节点
-        # ====================================================
+
+
+
 
         draw_nodes(
             ax,
             nodes,
         )
 
-        # ====================================================
-        # Colorbar
-        # ====================================================
+
+
+
 
         cbar = fig.colorbar(
             im,
@@ -974,9 +974,9 @@ def main() -> None:
             labelsize=8,
         )
 
-        # ====================================================
-        # 图例
-        # ====================================================
+
+
+
 
         legend_elements = [
             Line2D(
@@ -1018,9 +1018,9 @@ def main() -> None:
             fancybox=False,
         )
 
-        # ====================================================
-        # 坐标轴
-        # ====================================================
+
+
+
 
         ax.set_xlabel("经度 / °E")
         ax.set_ylabel("纬度 / °N")
@@ -1035,7 +1035,7 @@ def main() -> None:
             LAT_MAX,
         )
 
-        # 不设置总标题，更适合直接放论文
+
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
 
@@ -1046,7 +1046,7 @@ def main() -> None:
             alpha=0.25,
         )
 
-        # 经纬度地图按实际纬度比例校正
+
         mean_lat = (
             bounds.top + bounds.bottom
         ) / 2.0
@@ -1055,9 +1055,9 @@ def main() -> None:
             1.0 / np.cos(np.radians(mean_lat))
         )
 
-        # ====================================================
-        # 指北针和比例尺
-        # ====================================================
+
+
+
 
         add_north_arrow(ax)
 
@@ -1066,9 +1066,9 @@ def main() -> None:
             mean_lat,
         )
 
-        # ====================================================
-        # 输出
-        # ====================================================
+
+
+
 
         fig.tight_layout()
 

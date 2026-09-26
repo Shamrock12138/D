@@ -1,4 +1,4 @@
-"""Q2 class-count closed loop: subset smoke or saved 80-box feasible check."""
+
 
 import argparse
 import hashlib
@@ -30,7 +30,7 @@ DATA = Path(__file__).resolve().parent / "data"
 
 
 def _load_saved_compact_candidates(boxes):
-    """Load Step 1 artifacts and reject stale or mismatched class identities."""
+
     manifest = json.loads((DATA / "Q2_compact_candidates_manifest.json").read_text(
         encoding="utf-8"))
     names = {"classes": "Q2_compact_classes.csv",
@@ -76,7 +76,7 @@ def _resources(data):
 
 
 def _physical_cache_equivalent(patterns, pattern_counts, classes, boxes, models):
-    """Re-evaluate retained patterns without the generator's physics cache."""
+
     class_rows = classes.set_index("class_id")
     grouped = pattern_counts.groupby("pattern_id")
     lookup = _box_data(boxes)
@@ -104,7 +104,7 @@ def _physical_cache_equivalent(patterns, pattern_counts, classes, boxes, models)
 
 def _fixed_transport_schedule(tasks, deliveries, boxes, resources, master_starts,
                               time_limit_s, workers):
-    """Check the master's exact sortie times in the established Q2 resource model."""
+
     grouped = deliveries.groupby("task_id")
     task_boxes = {str(tid): tuple(group["box_id"].astype(str)) for tid, group in grouped}
     task_offsets = {str(tid): dict(zip(group["box_id"].astype(str),
@@ -159,7 +159,7 @@ def _nonoverlap(schedule, resource, start, end):
 
 
 def _q3_communication_check(tasks, deliveries):
-    """Check that materialized compact sorties enter the existing Q3 profile."""
+
     from src.q3.communication.direct_profile import DirectProfileCache, required_segment_keys
     from src.q3.transport.candidate_loader import TransportTaskTemplate
     from src.q3.transport.communication_summary import assemble_task_profile, summarize_profile
@@ -198,7 +198,7 @@ def _q3_communication_check(tasks, deliveries):
 
 
 def _load_current_anchor_seed(objective, top_k):
-    """Prefer the same objective's old anchor over the generic feasible seed."""
+
     candidate_manifest = DATA / "Q2_compact_candidates_manifest.json"
     candidate_sha = hashlib.sha256(candidate_manifest.read_bytes()).hexdigest()
 
@@ -248,7 +248,7 @@ def _add_comm_relay_capacity(
         encoding="utf-8-sig",
     )
 
-    # 每个 gap 选一个真实存在的、Relay UAV 占用时间最短的 option
+
     best_options = (
         relay.sort_values(
             [
@@ -281,8 +281,8 @@ def _add_comm_relay_capacity(
         for gap_id in pattern_gaps.get(pid, []):
 
             if gap_id not in best_options.index:
-                # 这个 Pattern 有 gap 但没有合法 Relay option，
-                # 正式 COMM 中禁止选择
+
+
                 model.Add(x == 0)
                 continue
 
@@ -306,7 +306,7 @@ def _add_comm_relay_capacity(
                 ),
             )
 
-            # Relay 出发时间
+
             relay_start = model.NewIntVar(
                 0,
                 horizon,
@@ -334,7 +334,7 @@ def _add_comm_relay_capacity(
                 relay_start == 0
             ).OnlyEnforceIf(x.Not())
 
-            # 防止需要提前出发却出现负时间
+
             if dispatch_offset < 0:
                 model.Add(
                     transport_start >= -dispatch_offset
@@ -378,7 +378,7 @@ def run_smoke(services=("S001", "S002"), top_k=3, master_time_s=30,
               transport_time_s=20, workers=1, q3_comm=False,
               q3_relay=False, objective="N", full_candidates=False,
               save_feasible=False, save_anchor=False):
-    """Return an evidence report; save only explicitly requested full results."""
+
     data = load_q2_data()
     if (save_feasible or save_anchor) and not full_candidates:
         raise ValueError("Full solution outputs require saved full candidates")
@@ -432,7 +432,7 @@ def run_smoke(services=("S001", "S002"), top_k=3, master_time_s=30,
             encoding="utf-8-sig",
         )
 
-        # 基本一致性检查
+
         required_classes = set(
             classes[
                 "class_id"
@@ -589,10 +589,10 @@ def run_smoke(services=("S001", "S002"), top_k=3, master_time_s=30,
             "COMM_relay_sorties"
         ] = relay_pattern_count
 
-        # ==========================================================
-        # COMM 邻域搜索：用第一次解周围的通信友好 Pattern 重建小规模
-        # Master，加入 2-Relay 容量约束
-        # ==========================================================
+
+
+
+
         used_pids = set(
             s["pattern_id"] for s in sorties
         )
@@ -604,7 +604,7 @@ def run_smoke(services=("S001", "S002"), top_k=3, master_time_s=30,
             flush=True,
         )
 
-        # 为每个 class 保留 gap_count 最小的 top-3 pattern
+
         class_top = set()
         if "class_id" in counts.columns:
             merged = counts.merge(
@@ -622,7 +622,7 @@ def run_smoke(services=("S001", "S002"), top_k=3, master_time_s=30,
 
         neighborhood_pids = used_pids | class_top
 
-        # 过滤 patterns 和 counts 到邻域
+
         neighborhood_patterns = patterns[
             patterns["pattern_id"].astype(str).isin(
                 neighborhood_pids
@@ -635,7 +635,7 @@ def run_smoke(services=("S001", "S002"), top_k=3, master_time_s=30,
             )
         ].copy()
 
-        # 检查 class 覆盖
+
         covered = set(
             neighborhood_counts["class_id"].astype(str)
         )
@@ -644,7 +644,7 @@ def run_smoke(services=("S001", "S002"), top_k=3, master_time_s=30,
         )
         lost = required - covered
         if lost:
-            # 为丢失的 class 补回 gap_count 最小的 pattern
+
             print(
                 f"  WARNING: neighborhood lost {len(lost)} classes, "
                 "refilling...",
@@ -685,7 +685,7 @@ def run_smoke(services=("S001", "S002"), top_k=3, master_time_s=30,
             flush=True,
         )
 
-        # 重建 Master（with 2-Relay capacity）
+
         model2, slots2, chosen2, starts2 = (
             build_compact_master(
                 neighborhood_patterns,
@@ -734,7 +734,7 @@ def run_smoke(services=("S001", "S002"), top_k=3, master_time_s=30,
             cp_model.FEASIBLE,
             cp_model.OPTIMAL,
         ):
-            # 用邻域解替换原 sorties
+
             sorties = [
                 dict(
                     slot,
@@ -754,7 +754,7 @@ def run_smoke(services=("S001", "S002"), top_k=3, master_time_s=30,
             starts = starts2
             master = master2
 
-            # 更新 COMM 指标
+
             pattern_lookup_new = (
                 neighborhood_patterns.set_index(
                     "pattern_id"

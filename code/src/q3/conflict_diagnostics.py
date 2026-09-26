@@ -1,4 +1,4 @@
-"""Read-only conflict-source tests on a snapshot of the Step8 manifest."""
+
 
 from collections import Counter
 import hashlib
@@ -12,7 +12,7 @@ from src.q3.cp_sat_scheduler import DATA, _build_q3_model, prepare_q3_problem
 
 
 def core_frequency(manifest):
-    """Count distinct proven cores once each, not repeated task-set proposals."""
+
     cores = []
     for attempt in manifest.get("attempts", []):
         if attempt.get("feedback") == "proven_infeasible_task_core":
@@ -23,7 +23,7 @@ def core_frequency(manifest):
 
 
 def task_start_window(problem, task_id):
-    """Necessary integer start window; not a sufficient feasibility certificate."""
+
     task = problem["tasks"].set_index("task_id").loc[task_id]
     upper = math.floor(float(task.latest_start_s))
     gap_details = []
@@ -45,7 +45,7 @@ def task_start_window(problem, task_id):
 
 
 def partial_problem(problem, task_ids, stage):
-    """Fix the tasks and their boxes; stage A drops only relay constraints."""
+
     small = subset_problem(problem, task_ids)
     covered = set(small["deliveries"]["box_id"].astype(str))
     small["boxes"] = problem["boxes"].loc[
@@ -60,7 +60,7 @@ def partial_problem(problem, task_ids, stage):
 
 
 def solve_stage(problem, task_ids, stage, time_limit_s, workers):
-    """Solve A transport, B unlimited relay, C two UAV, D full resources."""
+
     small = partial_problem(problem, task_ids, stage)
     unbounded = max(1, len(small["relay"]))
     uav_cap = 2 if stage in ("C", "D") else unbounded
@@ -76,7 +76,7 @@ def solve_stage(problem, task_ids, stage, time_limit_s, workers):
 
 
 def diagnose_core(problem, task_ids, time_limit_s, workers):
-    """Stop at the first proven infeasible stage; UNKNOWN stays inconclusive."""
+
     stages = {}
     for stage in "ABCD":
         stages[stage] = solve_stage(problem, task_ids, stage, time_limit_s, workers)
@@ -92,7 +92,7 @@ def diagnose_core(problem, task_ids, time_limit_s, workers):
 
 
 def run_diagnostics(top=20, cores=5, time_limit_s=10, workers=8):
-    """Snapshot the manifest and return a reproducible, read-only diagnosis."""
+
     manifest_path = DATA / "q3_step8_decomposition_manifest.json"
     source = manifest_path.read_bytes()
     manifest = json.loads(source)

@@ -1,16 +1,16 @@
-u"""纯 MOEA/D 多目标进化算法核心。
 
-不包含任何 Q2/Q3/Q4 业务逻辑，仅负责：
-  - 权重向量生成 (simplex lattice)
-  - 邻域构建 (欧氏距离)
-  - Tchebycheff 标量化
-  - Pareto 支配与档案维护
-  - 种群管理与子问题更新
 
-设计目标:
-  - Q2/Q3/Q4 共用同一套 MOEA/D 核心
-  - 问题专用逻辑通过 callback/子类 注入
-"""
+
+
+
+
+
+
+
+
+
+
+
 
 import math
 from collections import defaultdict
@@ -21,15 +21,15 @@ import numpy as np
 
 
 def generate_weights(m: int, H: int) -> List[Tuple[float, ...]]:
-    u"""Simplex lattice 生成 m 目标、H 分割的权重向量。
+    
 
-    Args:
-        m: 目标数
-        H: 分割数
 
-    Returns:
-        权重列表，每个权重各分量和为 1.0。
-    """
+
+
+
+
+
+
     weights = []
     for combo in combinations_with_replacement(range(H + 1), m - 1):
         combo = sorted(combo)
@@ -43,15 +43,15 @@ def generate_weights(m: int, H: int) -> List[Tuple[float, ...]]:
 
 
 def build_neighbors(weights: List[Tuple[float, ...]], T: int) -> List[List[int]]:
-    u"""按权重向量的欧氏距离构建邻域。
+    
 
-    Args:
-        weights: 权重列表
-        T: 邻域大小（含自身）
 
-    Returns:
-        neighbors[i]: 按距离排序的邻域索引列表，长度为 T。
-    """
+
+
+
+
+
+
     n = len(weights)
     dist = np.zeros((n, n))
     for i in range(n):
@@ -72,10 +72,10 @@ def tchebycheff(
     ranges: Tuple[float, ...],
     rho: float = 0.01,
 ) -> float:
-    u"""Augmented Tchebycheff 标量化函数。
+    
 
-    g = max_j { w_j * |f_j - z_j*| / r_j } + rho * Σ_j w_j * |f_j - z_j*| / r_j
-    """
+
+
     value = 0.0
     augment = 0.0
     for j in range(len(objectives)):
@@ -87,7 +87,7 @@ def tchebycheff(
 
 
 def dominates(a: Tuple[float, ...], b: Tuple[float, ...]) -> bool:
-    u"""判断 a 是否 Pareto-支配 b（所有分量 ≤ b，且至少一个严格 <）。"""
+
     at_least_one_strict = False
     for va, vb in zip(a, b):
         if va > vb:
@@ -103,17 +103,17 @@ def update_archive(
     key_fn: Optional[Callable[[Dict], Tuple[float, ...]]] = None,
     duplicate_tolerance: Optional[Tuple[float, ...]] = None,
 ) -> bool:
-    u"""向 Pareto 档案添加新解，维护非支配集。
+    
 
-    Args:
-        archive: 当前档案列表，原地修改
-        solution: 候选解 dict，需至少包含 "objectives" 键
-        key_fn: 提取目标向量的函数，默认取 solution["objectives"]
-        duplicate_tolerance: 各目标判重容差；None 表示逐分量精确相等
 
-    Returns:
-        True 若解被加入档案。
-    """
+
+
+
+
+
+
+
+
     obj = key_fn(solution) if key_fn else solution["objectives"]
 
     for existing in list(archive):
@@ -137,14 +137,14 @@ def update_archive(
 
 
 def select_parent(neighbor_indices: List[int], rng: np.random.Generator) -> int:
-    u"""从邻域中随机选择一个父代索引。"""
+
     return int(rng.choice(neighbor_indices))
 
 
 def select_parents(
     neighbor_indices: List[int], rng: np.random.Generator
 ) -> Tuple[int, int]:
-    u"""从邻域中随机选择两个不同的父代索引。"""
+
     if len(neighbor_indices) < 2:
         return neighbor_indices[0], neighbor_indices[0]
     choices = rng.choice(neighbor_indices, size=2, replace=False).tolist()
@@ -165,27 +165,27 @@ def run_standard_moead(
     rho: float = 0.01,
     verbose: bool = True,
 ) -> Tuple[List[Dict], List[Dict], Dict]:
-    u"""标准 MOEA/D 主循环。
+    
 
-    Args:
-        n_obj: 目标数
-        H: 权重分割数
-        T: 邻域大小
-        max_generations: 最大代数
-        nr: 每个后代最多替换的邻居数
-        random_seed: 随机种子
-        initializer: 生成初始种群的函数 (weights, rng) -> [solution, ...]
-        evaluator: 评估/改进方案的函数 (solution, weight) -> solution
-        objective_ranges: 归一化尺度
-        rho: Tchebycheff 增强项系数
-        verbose: 是否输出进度
 
-    Returns:
-        (population, archive, stats):
-            population: 最终种群（每子问题一个解）
-            archive: Pareto 档案
-            stats: 收敛统计
-    """
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     rng = np.random.default_rng(random_seed)
     weights = generate_weights(n_obj, H)
     M = len(weights)

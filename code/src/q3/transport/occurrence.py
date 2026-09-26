@@ -1,9 +1,9 @@
-u"""Q3 Pattern→Sortie Occurrence 实例化。
 
-将筛选后的 compact patterns 展开为独立 sortie occurrence，
-每个 occurrence 携带 pattern 模板、class counts、gaps。
-默认内存生成，可选保存一份 CSV 供查验。
-"""
+
+
+
+
+
 
 from dataclasses import dataclass
 from pathlib import Path
@@ -52,15 +52,15 @@ def generate_occurrences(
     gaps: Optional[pd.DataFrame] = None,
     save_csv: bool = False,
 ) -> List[SortieOccurrence]:
-    u"""将 compact pattern × multiplicity 展开为 sortie occurrence 列表。
+    
 
-    Parameters
-    ----------
-    classes, patterns, counts, gaps:
-        若未提供则自动从 CSV 加载。
-    save_csv:
-        若 True，额外写一份 q3_sortie_occurrences.csv 供查验。
-    """
+
+
+
+
+
+
+
 
     if classes is None or patterns is None or counts is None:
         classes, patterns, counts = load_q2_compact_artifacts()
@@ -123,7 +123,7 @@ def generate_occurrences(
             )
         )
 
-    # ── 4 项断言 ──
+
     assert len({occ.sortie_id for occ in occurrences}) == len(occurrences), \
         "sortie_id 不唯一"
 
