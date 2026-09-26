@@ -1,0 +1,84 @@
+{
+  "status": "SEARCHING",
+  "algorithm": "weighted_ALNS_exact_joint_CP_SAT_Pareto",
+  "objective_names": [
+    "F1_timeliness",
+    "F2_joint_cmax_s",
+    "F3_total_energy_kWh",
+    "F4_total_sorties"
+  ],
+  "weight_vectors": [
+    [
+      1.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      1.0,
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0,
+      1.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ],
+    [
+      0.4,
+      0.2,
+      0.2,
+      0.2
+    ],
+    [
+      0.2,
+      0.4,
+      0.2,
+      0.2
+    ],
+    [
+      0.2,
+      0.2,
+      0.4,
+      0.2
+    ],
+    [
+      0.2,
+      0.2,
+      0.2,
+      0.4
+    ],
+    [
+      0.25,
+      0.25,
+      0.25,
+      0.25
+    ]
+  ],
+  "config": {
+    "iterations_per_weight": 200,
+    "wall_time_per_weight_s": 180.0,
+    "repair_time_s": 1.0,
+    "joint_time_s": 20.0,
+    "workers": 4,
+    "seed": 2026,
+    "max_solutions_per_weight": 5,
+    "batch_size": 1
+  },
+  "completed_weight_runs": 0,
+  "candidate_count": 0,
+  "pareto_size": 0,
+  "pareto_solution_ids": [],
+  "elapsed_wall_time_s": 0.0,
+  "run_directory": "D:\\数学建模\\第二十三届中国研究生数学建模竞赛 - 中文题目\\中文题目\\Project\\code\\data\\q3_multiobjective\\20260926_091143_023980",
+  "weight_runs": [],
+  "candidates": []
+}

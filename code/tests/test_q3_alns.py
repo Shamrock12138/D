@@ -8,6 +8,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from src.q3.alns_search import TransportSearch
+from src.q3.pareto import dominates, update_archive
 from src.q3.step8_acceptance import OUTPUTS, _output_hashes, _verify_solver_inputs
 
 
@@ -40,6 +41,27 @@ class AlnsTests(unittest.TestCase):
             kept = search.destroy((0, 1), op)
             self.assertLess(len(kept), 2)
             self.assertTrue(set(kept) <= {0, 1})
+
+    def test_weighted_proxy_uses_selected_objective_direction(self):
+        search = self.make_search()
+        for occurrence in search.occ:
+            occurrence.uav_type = 'small'
+        search.problem['uav_ids'] = {'small': ['U1']}
+        search.objective_weights = search._validate_objective_weights((0, 0, 0, 1))
+        self.assertLess(search.score([2]), search.score([0, 1]))
+        search.objective_weights = search._validate_objective_weights((0, 0, 1, 0))
+        self.assertLess(search.score([2]), search.score([0, 1]))
+
+    def test_pareto_archive_keeps_only_nondominated_solutions(self):
+        a = {'objectives': {'f1': 1, 'cmax': 5, 'energy': 5, 'n': 3}}
+        b = {'objectives': {'f1': 2, 'cmax': 6, 'energy': 6, 'n': 4}}
+        c = {'objectives': {'f1': 0, 'cmax': 7, 'energy': 4, 'n': 2}}
+        archive = update_archive([], a)
+        archive = update_archive(archive, b)
+        self.assertEqual(archive, [a])
+        archive = update_archive(archive, c)
+        self.assertEqual(len(archive), 2)
+        self.assertTrue(dominates(a['objectives'].values(), b['objectives'].values()))
 
     def test_acceptance_hashes_use_solver_and_candidate_directories(self):
         with tempfile.TemporaryDirectory() as root:

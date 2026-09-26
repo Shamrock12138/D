@@ -23,7 +23,7 @@ from src.q3.relay_master import latest_start, relay_intervals
 class TransportSearch:
     operators = ('random', 'relay_load', 'gaps', 'congestion', 'deadline', 'related')
 
-    def __init__(self, problem, seed=42):
+    def __init__(self, problem, seed=42, objective_weights=None):
         self.problem = problem
         self.rng = random.Random(seed)
         self.seed = seed
@@ -58,8 +58,36 @@ class TransportSearch:
         self.allowed = np.array(self.allowed)
         self.base = np.array(self.base)
         self.weights = {op: 1.0 for op in self.operators}
+        self.objective_weights = self._validate_objective_weights(objective_weights)
+        self.objective_scales = self._build_objective_scales()
         self.cores = []
         self.excluded_sets = []
+
+    @staticmethod
+    def _validate_objective_weights(weights):
+        if weights is None:
+            return None
+        values = tuple(float(value) for value in weights)
+        if len(values) != 4 or any(value < 0 or not math.isfinite(value) for value in values):
+            raise ValueError("Objective weights must be four finite nonnegative values")
+        if sum(values) <= 0:
+            raise ValueError("At least one objective weight must be positive")
+        total = sum(values)
+        return tuple(value / total for value in values)
+
+    def _build_objective_scales(self):
+        params = self.problem['class_params']
+        f1_scale = 0.0
+        for class_id, amount in self.problem['class_supply'].items():
+            item = params[class_id]
+            deadline = item.get('hard_deadline_s', float('inf'))
+            expected = item.get('expected_time_s', float('nan'))
+            if math.isfinite(deadline) or not math.isfinite(expected):
+                continue
+            f1_scale += int(amount) * int(item.get('priority', 0)) * max(
+                1.0, self.problem['horizon_s'] - float(expected))
+        return (max(1.0, f1_scale), max(1.0, float(self.problem['horizon_s'])),
+                100.0, 40.0)
 
     def canonical(self, selected):
         multiplicities = Counter(self.occ[i].pattern_id for i in selected)
@@ -74,9 +102,51 @@ class TransportSearch:
         return (self.exact_cover(selected) and all(self.allowed[list(selected)])
                 and signature not in self.excluded_sets)
 
-    def score(self, selected):
+    def objective_estimates(self, selected):
+        """Normalized transport-set proxies; never used to certify feasibility."""
+        if not selected:
+            return (0.0, 0.0, 0.0, 0.0)
+        params = self.problem['class_params']
+        f1 = 0.0
+        transport_work = defaultdict(float)
+        transport_energy = 0.0
+        relay_energy = 0.0
+        relay_work = 0.0
+        gaps = set()
+        for i in selected:
+            occurrence = self.occ[i]
+            transport_energy += float(occurrence.energy_kWh)
+            transport_work[occurrence.uav_type] += float(occurrence.duration_s)
+            for class_id, amount in occurrence.class_counts.items():
+                item = params[class_id]
+                deadline = item.get('hard_deadline_s', float('inf'))
+                expected = item.get('expected_time_s', float('nan'))
+                if math.isfinite(deadline) or not math.isfinite(expected):
+                    continue
+                offset = float(occurrence.delivery_offsets.get(class_id, 0.0))
+                f1 += int(amount) * int(item.get('priority', 0)) * max(0.0, offset - expected)
+            for gap in occurrence.gap_ids:
+                gaps.add(str(gap))
+                relay_work += float(self.loads[i]) / max(1, len(occurrence.gap_ids))
+        transport_cmax = max((work / max(1, len(self.problem['uav_ids'].get(typ, ())))
+                              for typ, work in transport_work.items()), default=0.0)
+        relay_cmax = relay_work / 2.0
+        relay = self.problem.get('relay')
+        if relay is not None and len(relay) and 'relay_energy_kWh' in relay:
+            per_gap = relay.groupby(relay['gap_id'].astype(str))['relay_energy_kWh'].min()
+            relay_energy = sum(float(per_gap.get(gap, 0.0)) for gap in gaps)
+        estimates = (f1, max(transport_cmax, relay_cmax), transport_energy + relay_energy,
+                    len(selected) + len(gaps))
+        return tuple(value / scale for value, scale in zip(estimates, self.objective_scales))
+
+    def score(self, selected, objective_weights=None):
         profile = self.footprint[list(selected)].sum(axis=0)
-        return float(self.base[list(selected)].sum() + 5000*np.maximum(0, profile-2).sum())
+        weights = self.objective_weights if objective_weights is None else self._validate_objective_weights(objective_weights)
+        if weights is None:
+            return float(self.base[list(selected)].sum() + 5000*np.maximum(0, profile-2).sum())
+        objective_proxy = float(np.dot(weights, self.objective_estimates(selected)))
+        congestion = float(np.maximum(0, profile-2).sum() / max(1, len(self.grid)))
+        return objective_proxy + 0.1 * congestion
 
     def destroy(self, selected, operator):
         selected = list(selected)
@@ -117,8 +187,15 @@ class TransportSearch:
                 elif remaining <= set(variables):
                     model.Add(sum(variables[i] for i in remaining) <= len(remaining)-1)
         profile = self.footprint[kept].sum(axis=0)
-        costs = {i: int((self.base[i]+5000*np.maximum(0, profile+self.footprint[i]-2).sum())
-                        * self.rng.uniform(.5, 1.5)) for i in candidates}
+        if self.objective_weights is None:
+            raw_costs = {i: self.base[i]+5000*np.maximum(
+                0, profile+self.footprint[i]-2).sum() for i in candidates}
+        else:
+            base_score = self.score(kept)
+            raw_costs = {i: max(1e-6, self.score(kept+[i])-base_score)
+                         for i in candidates}
+        costs = {i: max(1, int(value * self.rng.uniform(.5, 1.5)))
+                 for i, value in raw_costs.items()}
         model.Minimize(sum(costs[i]*x for i, x in variables.items()))
         solver = cp_model.CpSolver()
         solver.parameters.max_time_in_seconds = seconds
@@ -149,11 +226,12 @@ class TransportSearch:
 
 
 def run_alns(iterations=200, wall_time_s=300, repair_time_s=1, joint_time_s=20,
-             workers=4, seed=42, batch_size=5, max_solutions=3):
+             workers=4, seed=42, batch_size=5, max_solutions=3,
+             objective_weights=None, excluded_sortie_sets=()):
     started = time.monotonic()
     hashes = _input_hashes()
     problem = prepare_q3_problem(tier='all')
-    search = TransportSearch(problem, seed)
+    search = TransportSearch(problem, seed, objective_weights=objective_weights)
     seeds = search.initial_seeds()
     baseline_ids = []
     frozen_transport = DATA/'q3_step8_frozen'/'q3_joint_transport_schedule.csv'
@@ -164,16 +242,21 @@ def run_alns(iterations=200, wall_time_s=300, repair_time_s=1, joint_time_s=20,
     if baseline_ids and all(s in search.by_id for s in baseline_ids):
         baseline = search.canonical([search.by_id[s] for s in baseline_ids])
         search.excluded_sets.append(frozenset(baseline))
+    for excluded_ids in excluded_sortie_sets:
+        if excluded_ids and all(str(s) in search.by_id for s in excluded_ids):
+            search.excluded_sets.append(frozenset(
+                search.canonical([search.by_id[str(s)] for s in excluded_ids])))
     admissible_seeds = [s for s in seeds if search.eligible(s)]
     current = min(admissible_seeds or seeds, key=search.score) if seeds else ()
-    run_dir = DATA/'q3_alns_runs'/datetime.now().strftime('%Y%m%d_%H%M%S')
+    run_dir = DATA/'q3_alns_runs'/datetime.now().strftime('%Y%m%d_%H%M%S_%f')
     run_dir.mkdir(parents=True, exist_ok=False)
     report = {'status': 'SEARCHING', 'algorithm': 'ALNS_CP_SAT', 'seed': seed,
               'input_sha256': hashes, 'iterations': 0, 'generated': 0,
               'unique_candidates': 0, 'repair_wall_time_s': 0, 'attempts': [],
               'config': dict(iterations=iterations, wall_time_s=wall_time_s,
                              repair_time_s=repair_time_s, joint_time_s=joint_time_s,
-                             workers=workers, batch_size=batch_size),
+                             workers=workers, batch_size=batch_size,
+                             objective_weights=search.objective_weights),
               'initial_exact_cover_seeds': len(seeds),
               'forbidden_occurrences': int((~search.allowed).sum()),
               'max_additional_solutions': max_solutions,
