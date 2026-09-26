@@ -100,11 +100,11 @@ class TransportSearch:
         self.objective_weights = self._validate_objective_weights(objective_weights)
         self.objective_scales = self._build_objective_scales()
         relay = problem.get('relay')
-        self.min_relay_energy_by_gap = {}
-        if relay is not None and len(relay) and 'relay_energy_kWh' in relay:
-            self.min_relay_energy_by_gap = (
+        self.min_relay_service_by_gap = {}
+        if relay is not None and len(relay) and 'service_energy_kWh' in relay:
+            self.min_relay_service_by_gap = (
                 relay.assign(_gap_id=relay['gap_id'].astype(str))
-                .groupby('_gap_id')['relay_energy_kWh'].min().astype(float).to_dict())
+                .groupby('_gap_id')['service_energy_kWh'].min().astype(float).to_dict())
         self.occ_gap_ids = [tuple(map(str, o.gap_ids)) for o in self.occ]
         self.occ_relay_load = np.asarray(self.loads, dtype=float)
         self.cores = []
@@ -170,9 +170,16 @@ class TransportSearch:
         relay_cmax = relay_work / 2.0
         transport_energy = float(self.occ_energy[indices].sum())
         gaps = {gap for i in selected for gap in self.occ_gap_ids[i]}
-        relay_energy = sum(self.min_relay_energy_by_gap.get(gap, 0.0) for gap in gaps)
-        estimates = (f1, max(transport_cmax, relay_cmax), transport_energy + relay_energy,
-                    len(selected) + len(gaps))
+        relay_service_proxy = sum(
+            self.min_relay_service_by_gap.get(gap, 0.0) for gap in gaps
+        )
+        relay_session_proxy = sum(bool(self.occ_gap_ids[i]) for i in selected)
+        estimates = (
+            f1,
+            max(transport_cmax, relay_cmax),
+            transport_energy + relay_service_proxy,
+            len(selected) + relay_session_proxy,
+        )
         return tuple(value / scale for value, scale in zip(estimates, self.objective_scales))
 
     def score(self, selected, objective_weights=None):

@@ -69,6 +69,14 @@ class AlnsTests(unittest.TestCase):
         search = self.make_search()
         search.objective_weights = search._validate_objective_weights((0, 0, 0, 1))
         self.assertLess(search.score([2]), search.score([0, 1]))
+
+    def test_energy_and_sortie_proxies_use_service_and_gap_bearing_occurrences(self):
+        search = self.make_search()
+        search.occ_gap_ids = [('g1', 'g2'), ('g3',), ()]
+        search.min_relay_service_by_gap = {'g1': .1, 'g2': .2, 'g3': .3}
+        estimates = search.objective_estimates([0, 1])
+        self.assertAlmostEqual(estimates[2], 2.6 / search.objective_scales[2])
+        self.assertAlmostEqual(estimates[3], 4.0 / search.objective_scales[3])
         search.objective_weights = search._validate_objective_weights((0, 0, 1, 0))
         self.assertLess(search.score([2]), search.score([0, 1]))
         search.objective_weights = search._validate_objective_weights((1, 0, 0, 0))

@@ -138,7 +138,14 @@ def solve_anchor(problem, objective, time_limit_s=600, workers=8, random_seed=20
     objective_scale = F1_TIME_SCALE if objective == "F1_timeliness" else (
         ENERGY_SCALE if objective == "F3_total_energy_kWh" else 1
     )
-    if abs(record[objective] - solver_objective_integer / objective_scale) > 1e-7:
+    solver_proxy_value = solver_objective_integer / objective_scale
+    record["solver_objective_value"] = solver_proxy_value
+    record["solver_objective_matches_reported"] = (
+        abs(record[objective] - solver_proxy_value) <= 1e-7
+    )
+    if objective == "F3_total_energy_kWh":
+        record["solver_objective_kind"] = "gap_service_plus_session_flight_proxy"
+    elif not record["solver_objective_matches_reported"]:
         raise AssertionError(f"Anchor {objective} solver/report objective mismatch")
     record["validation"] = validation
     record["transport"] = transport
@@ -148,14 +155,13 @@ def solve_anchor(problem, objective, time_limit_s=600, workers=8, random_seed=20
 
 
 def run_anchors(time_limit_s=600, workers=8, random_seed=2026):
-    frozen = resolve_frozen_dir()
-    if frozen is None:
-        accept_step8(freeze=True)
+    try:
+        frozen = resolve_frozen_dir()
+    except FileNotFoundError:
+        acceptance = accept_step8(freeze=True)
         frozen = resolve_frozen_dir()
     else:
-        accept_step8(freeze=False, data_dir=frozen)
-    if frozen is None:
-        raise FileNotFoundError("No accepted Q3 Step8 frozen baseline is available")
+        acceptance = accept_step8(freeze=False, data_dir=frozen)
     baseline = {
         "transport": pd.read_csv(frozen / "q3_joint_transport_schedule.csv", encoding="utf-8-sig"),
         "relay": pd.read_csv(frozen / "q3_joint_relay_schedule.csv", encoding="utf-8-sig"),
@@ -184,11 +190,17 @@ def run_anchors(time_limit_s=600, workers=8, random_seed=2026):
         "objectives": {
             "F1_timeliness": "sum of priority-weighted positive delays in seconds for boxes without a hard deadline",
             "F2_joint_cmax_s": "maximum of final transport landing and final relay return to O01",
-            "F3_total_energy_kWh": "transport plus relay task energy",
+            "F3_total_energy_kWh": (
+                "reported physical session energy; the CP-SAT F3 anchor uses "
+                "a gap-service plus session-flight search proxy"
+            ),
             "F4_total_sorties": "transport plus relay sortie count",
         },
         "ideal_point_incumbent": ideal,
-        "ideal_point_proven_optimal": bool((table["status"] == "OPTIMAL").all()),
+        "solver_anchors_proven_optimal_for_encoded_objectives": bool(
+            (table["status"] == "OPTIMAL").all()
+        ),
+        "ideal_point_proven_optimal": False,
         "F1_time_scale": F1_TIME_SCALE,
         "F3_energy_scale": ENERGY_SCALE,
         "anchor_time_limit_s_each": time_limit_s,
