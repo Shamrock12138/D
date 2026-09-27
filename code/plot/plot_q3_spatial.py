@@ -32,6 +32,11 @@ from src.q3.communication.direct_profile import evaluate_direct_positions  # noq
 from src.q3.communication.link_budget import load_direct_parameters  # noqa: E402
 from src.q3.communication.terrain_block import DemTerrain  # noqa: E402
 
+from plot_terrain_heatmap import (  # noqa: E402
+    TERRAIN_CMAP,
+    build_terrain_norm,
+)
+
 DATA = CODE / "data" / "q3_final_frozen_v3"
 OUT = CODE / "figures" / "q3"
 COLORS = {"A": "#0072B2", "B": "#D55E00", "C": "#009E73"}
@@ -137,9 +142,19 @@ def plot(transport, deliveries, relay, sites, counts, nodes, terrain):
 
     fig, ax = plt.subplots(figsize=(9.0, 7.2))
     fig.subplots_adjust(left=0.11, right=0.88, bottom=0.16, top=0.96)
-    im = ax.imshow(dem, extent=extent, origin="upper", cmap="Greys",
-                   vmin=np.nanpercentile(dem, 3),
-                   vmax=np.nanpercentile(dem, 98), alpha=0.43, zorder=0)
+
+    terrain_norm = build_terrain_norm(dem)
+
+    im = ax.imshow(
+        dem,
+        extent=extent,
+        origin="upper",
+        cmap=TERRAIN_CMAP,
+        norm=terrain_norm,
+        interpolation="bilinear",
+        alpha=1.0,
+        zorder=0,
+    )
 
     # A/B/C lines retain the established Q2/Q3 fleet palette; the overlaid
     # purple pieces are the 1 s states with no direct G01 link.
@@ -147,7 +162,7 @@ def plot(transport, deliveries, relay, sites, counts, nodes, terrain):
         flying = (np.abs(np.diff(lon)) + np.abs(np.diff(lat))) > 1e-10
         for i in np.flatnonzero(flying):
             ax.plot(lon[i:i+2], lat[i:i+2], color=COLORS[uav_type],
-                    linewidth=0.95, alpha=0.36, zorder=2)
+                    linewidth=0.95, alpha=0.50, zorder=2)
         for i in np.flatnonzero(flying & ~(direct[:-1] & direct[1:])):
             ax.plot(lon[i:i+2], lat[i:i+2], color=GAP,
                     linewidth=2.0, alpha=0.82, zorder=4)
@@ -193,14 +208,36 @@ def plot(transport, deliveries, relay, sites, counts, nodes, terrain):
     ax.set_ylabel("纬度 / °")
     ax.grid(color="#A9B2B9", linewidth=0.45, alpha=0.28)
     ax.tick_params(labelsize=8.0)
-    handles = [Line2D([], [], color=COLORS[g], linewidth=2.2,
-                      label=f"{g} 型直连航迹") for g in "ABC"]
-    handles += [
-        Line2D([], [], color=GAP, linewidth=2.6, label="需中继保障航迹"),
-        Line2D([], [], color="#545D66", linestyle=(0, (2.5, 3.5)),
-               linewidth=1.0, label="中继至 G01"),
-        Line2D([], [], marker="D", linestyle="none", color=INK,
-               markerfacecolor="white", markersize=6, label="实际中继悬停点"),
+    handles = [
+        Line2D(
+            [], [],
+            color=INK,
+            linewidth=1.2,
+            alpha=0.65,
+            label="G01 直连段（A/B/C 按机型着色）",
+        ),
+        Line2D(
+            [], [],
+            color=GAP,
+            linewidth=2.6,
+            label="需中继保障段",
+        ),
+        Line2D(
+            [], [],
+            marker="D",
+            linestyle="none",
+            color=INK,
+            markerfacecolor="white",
+            markersize=6,
+            label="实际中继悬停点",
+        ),
+        Line2D(
+            [], [],
+            color="#545D66",
+            linestyle=(0, (2.5, 3.5)),
+            linewidth=1.0,
+            label="中继回传至 G01",
+        ),
     ]
     fig.legend(handles=handles, loc="lower center", ncol=3, frameon=False,
                fontsize=8.5, bbox_to_anchor=(0.49, 0.065),
